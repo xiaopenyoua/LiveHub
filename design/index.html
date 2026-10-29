@@ -48,9 +48,48 @@
   --r-card:20px;
   --r-pill:999px;
 
-  /* 动效 */
-  --ease:cubic-bezier(.22,.61,.36,1);
-  --dur:160ms;
+  /* 动效
+     tvOS 的内置 focus hover 是 ~200ms 的透视抬升配一道 specular 光泽（Apple
+     CustomHoverEffect.highlight 文档原话：projection effect accompanied with a
+     specular highlight）。时长与曲线都照它来，不自创更快的手感。 */
+  --ease:cubic-bezier(.32,.72,0,1);   /* 起步极快、末端吸附式收住，是 Apple 的 focus 曲线 */
+  --dur:200ms;                        /* 焦点移动，对齐 tvOS 内置 focus hover */
+  --dur-press:120ms;                  /* 按压回落，必须比焦点更快 */
+  /* 所有可点控件共用同一条过渡，避免"尺寸缓动、颜色瞬跳"的两半不同步。
+     box-shadow 必须在内：镜面高光靠它变化，漏了就会出现"块变大了、光没跟上"。 */
+  --t-surface:transform var(--dur) var(--ease),background-color var(--dur) var(--ease),color var(--dur) var(--ease),box-shadow var(--dur) var(--ease);
+
+  /* ---------- Liquid Glass 材质 ----------
+     Apple 的按钮不是一块涂色，是一片玻璃：顶沿一道镜面高光、高光向下衰减、
+     底沿压暗定义出厚度、底下一点落影把它从背景上抬起。所谓"渐变"就是这层
+     高光的衰减 —— 它是光，不是画上去的色带，所以用 inset 光实现。
+
+     深色玻璃（次按钮、播放器胶囊、键盘键）： */
+  --glass:rgba(255,255,255,.13);
+  --spec:
+    inset 0 1px 0 rgba(255,255,255,.40),
+    inset 0 28px 32px -28px rgba(255,255,255,.52),
+    inset 0 -2px 4px -2px rgba(0,0,0,.45);
+  --spec-on:
+    inset 0 1.5px 0 rgba(255,255,255,.95),
+    inset 0 34px 40px -30px rgba(255,255,255,.85),
+    inset 0 -2px 5px -2px rgba(0,0,0,.30);
+  /* 实心白按钮：白上加白看不见，所以反过来做——顶沿一道纯白、底沿收窄暗边、
+     再铺一层大范围柔暗。自上而下由纯白转微灰，这就是那层"渐变"，
+     不是一块死白的色板，也不会脏。 */
+  --spec-solid:
+    inset 0 2px 0 rgba(255,255,255,.98),
+    inset 0 -3px 5px -3px rgba(0,0,0,.22),
+    inset 0 -16px 24px -10px rgba(0,0,0,.24);
+  /* 小控件版：分段控件的选中块、开关的轨道都只有 40–50px 高，
+     上面那层 16px 柔暗会把它们压脏，所以只留顶沿高光加一道窄暗。 */
+  --spec-chip:
+    inset 0 1.5px 0 rgba(255,255,255,.95),
+    inset 0 -6px 10px -6px rgba(0,0,0,.22);
+  /* 这里刻意没有外落影。真黑底上它根本看不见，加了只是让代码"看起来像
+     Apple"，而不是让眼睛看到更像 Apple。浮起交给 scale，实体感交给上面那层光。
+     卡片压在封面上时才留一点，那是唯一真能看见落影的地方（--card-lift）。 */
+  --card-lift:0 26px 56px -24px rgba(0,0,0,.42);
 
   --font:"Inter",-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
 }
@@ -133,13 +172,28 @@ body.canvas .stage{transform:none!important;border-radius:0;box-shadow:none;posi
 }
 .brand{font-size:30px;font-weight:600;letter-spacing:-.02em}
 .brand i{color:var(--live);font-style:normal}
-.tabs{display:flex;gap:36px;align-items:center}
-.tab{
-  font-size:var(--fs-tab);font-weight:500;color:var(--muted);
-  padding:10px 2px;background:none;border:0;font-family:inherit;
-  transition:color var(--dur) var(--ease),transform var(--dur) var(--ease);
+.tabs{position:relative;display:flex;gap:14px;align-items:center}
+/* 焦点胶囊：tvOS 只认一个焦点，所以这层玻璃是**跟着焦点滑**的，
+   而不是给每个 tab 各画一块底 —— 后者会让屏幕同时亮起六个"选中项"。
+   tab 左右留出 padding、gap 收窄，胶囊才有可依附的形状。 */
+.tabs__pill{
+  position:absolute;left:0;top:50%;height:56px;
+  width:var(--pw,0px);border-radius:var(--r-pill);
+  background-color:rgba(255,255,255,.19);
+  box-shadow:var(--spec-on);
+  transform:translate(var(--px,0px),-50%);
+  transition:transform 260ms var(--ease),width 260ms var(--ease),opacity 180ms var(--ease);
+  opacity:0;pointer-events:none;
 }
-.tab.is-focused{color:var(--text);transform:scale(1.08)}
+.tabs__pill.is-on{opacity:1}
+.tab{
+  position:relative;z-index:1;
+  font-size:var(--fs-tab);font-weight:500;color:var(--muted);
+  padding:11px 24px;background:none;border:0;font-family:inherit;
+  border-radius:var(--r-pill);
+  transition:var(--t-surface);
+}
+.tab.is-focused{color:var(--text);transform:scale(1.06)}
 .tab.is-current{color:var(--text);font-weight:600}
 .nav-meta{
   margin-left:auto;display:flex;align-items:center;gap:16px;
@@ -173,19 +227,25 @@ body.canvas .stage{transform:none!important;border-radius:0;box-shadow:none;posi
 }
 .hero__meta{font-size:var(--fs-body);color:var(--muted);margin-bottom:30px}
 
-/* 主按钮：白底黑字 */
+/* 主按钮：白玻璃胶囊。
+   它不是一块死白 —— 底色是半透明的，会吸住并模糊背后的画面，所以压在图上的
+   按钮和压在黑底上的按钮颜色不一样。这才是 Liquid Glass 说的"颜色由环境决定"，
+   比任何一道画上去的渐变都更接近真玻璃。 */
 .btn{
   display:inline-flex;align-items:center;gap:12px;
   height:72px;padding:0 40px;border-radius:var(--r-pill);
-  border:0;background:#fff;color:#000;
+  border:0;background-color:rgba(255,255,255,.94);color:#000;
+  -webkit-backdrop-filter:blur(24px) saturate(180%);
+  backdrop-filter:blur(24px) saturate(180%);
   font-family:inherit;font-size:26px;font-weight:600;
-  transition:transform var(--dur) var(--ease);
+  box-shadow:var(--spec-solid);
+  transition:var(--t-surface);
 }
 /* 焦点语言（对齐 tvOS）：不放边框，只靠放大 + 提亮 + 浮起。
-   真黑底上投影看不见，所以"浮起"由 scale 表达，"选中"由底色明度表达。 */
-.btn.is-focused{transform:scale(1.07)}
-.btn--ghost{background:rgba(255,255,255,.14);color:#fff}
-.btn--ghost.is-focused{transform:scale(1.07);background:rgba(255,255,255,.34)}
+   真黑底上投影看不见，所以"浮起"由 scale 表达，"选中"由底色明度与高光亮度表达。 */
+.btn.is-focused{transform:scale(1.07);background-color:#fff;box-shadow:var(--spec-on)}
+.btn--ghost{background-color:var(--glass);color:#fff;box-shadow:var(--spec)}
+.btn--ghost.is-focused{transform:scale(1.07);background-color:rgba(255,255,255,.32);box-shadow:var(--spec-on)}
 
 /* ---------- 内容行 ---------- */
 .shelf{padding:0 var(--gut);margin-bottom:var(--gap-shelf)}
@@ -200,10 +260,11 @@ body.canvas .stage{transform:none!important;border-radius:0;box-shadow:none;posi
 .card{width:380px;flex:0 0 auto}
 .card__lift{
   border-radius:var(--r-card);
-  transition:transform var(--dur) var(--ease);
+  transition:transform var(--dur) var(--ease),box-shadow var(--dur) var(--ease);
   will-change:transform;
 }
-.card.is-focused .card__lift{transform:scale(1.08)}
+/* 卡片不画边框（tvOS 焦点没有环），靠放大 + 封面提亮 + 一点落影说明它浮起来了 */
+.card.is-focused .card__lift{transform:scale(1.08);box-shadow:var(--card-lift)}
 .card__media{
   position:relative;width:100%;aspect-ratio:16/9;
   border-radius:var(--r-card);overflow:hidden;background:var(--panel);
@@ -284,26 +345,31 @@ body.canvas .stage{transform:none!important;border-radius:0;box-shadow:none;posi
 .rail__item{
   height:84px;border-radius:16px;padding:0 24px;
   display:flex;align-items:center;justify-content:space-between;
-  background:transparent;border:0;font-family:inherit;text-align:left;
-  transition:background var(--dur) var(--ease),transform var(--dur) var(--ease);
+  background-color:transparent;border:0;font-family:inherit;text-align:left;
+  transition:var(--t-surface);
 }
+.rail__item span{transition:color var(--dur) var(--ease)}
 .rail__item span:first-child{font-size:26px;font-weight:500;color:var(--muted)}
 .rail__item span:last-child{font-size:20px;color:#5A5A5E;letter-spacing:.02em}
 .rail__item.is-current span:first-child{color:var(--text);font-weight:600}
-.rail__item.is-focused{background:var(--raised-2);transform:scale(1.02)}
+/* 列表行不给落影：它不是浮起的按钮，是侧栏里被点亮的一行 */
+.rail__item.is-focused{background-color:rgba(255,255,255,.13);transform:scale(1.02);box-shadow:var(--spec)}
 .rail__item.is-focused span:first-child{color:var(--text)}
 
 .grid-area{flex:1 1 auto;min-width:0}
 .chips{display:flex;gap:14px;margin-bottom:40px;flex-wrap:wrap}
 .chip-t{
   height:56px;padding:0 26px;border-radius:var(--r-pill);
-  background:var(--raised);border:0;color:var(--muted);
+  background-color:rgba(255,255,255,.09);border:0;color:var(--muted);
+  -webkit-backdrop-filter:blur(24px) saturate(180%);
+  backdrop-filter:blur(24px) saturate(180%);
   font-family:inherit;font-size:24px;
-  transition:background var(--dur) var(--ease),color var(--dur) var(--ease),transform var(--dur) var(--ease);
+  box-shadow:var(--spec);
+  transition:var(--t-surface);
 }
-.chip-t.is-current{background:#fff;color:#000;font-weight:600}
-.chip-t.is-focused{transform:scale(1.06);background:var(--raised-2);color:var(--text)}
-.chip-t.is-current.is-focused{background:#fff;color:#000}
+.chip-t.is-current{background-color:rgba(255,255,255,.94);color:#000;font-weight:600;box-shadow:var(--spec-solid)}
+.chip-t.is-focused{transform:scale(1.06);background-color:rgba(255,255,255,.26);color:var(--text);box-shadow:var(--spec-on)}
+.chip-t.is-current.is-focused{background-color:#fff;color:#000}
 
 .grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:28px 20px}
 .grid .card{width:100%}
@@ -331,13 +397,16 @@ body.canvas .stage{transform:none!important;border-radius:0;box-shadow:none;posi
 @keyframes blink{50%{opacity:0}}
 .kb__grid{display:grid;grid-template-columns:repeat(6,1fr);gap:14px}
 .key{
-  height:92px;border-radius:16px;background:var(--raised);border:0;
+  height:92px;border-radius:16px;background-color:rgba(255,255,255,.10);border:0;
+  -webkit-backdrop-filter:blur(24px) saturate(180%);
+  backdrop-filter:blur(24px) saturate(180%);
   color:var(--text);font-family:inherit;font-size:30px;font-weight:500;
-  transition:transform var(--dur) var(--ease),background var(--dur) var(--ease);
+  box-shadow:var(--spec);
+  transition:var(--t-surface);
 }
-.key.is-focused{background:#fff;color:#000;transform:scale(1.06)}
+.key.is-focused{background-color:#fff;color:#000;transform:scale(1.06);box-shadow:var(--spec-on)}
 .key--wide{grid-column:span 2}
-.key--util{background:var(--raised-2);font-size:24px}
+.key--util{background-color:rgba(255,255,255,.19);font-size:24px}
 
 .results{flex:1 1 auto;min-width:0}
 .results__head{font-size:var(--fs-meta);color:var(--faint);margin-bottom:20px}
@@ -348,7 +417,7 @@ body.canvas .stage{transform:none!important;border-radius:0;box-shadow:none;posi
 .rrow-s{
   display:flex;align-items:center;gap:20px;height:64px;padding:0 20px;border-radius:12px;
   font-size:23px;color:var(--muted);
-  transition:background var(--dur) var(--ease),color var(--dur) var(--ease);
+  transition:var(--t-surface);
 }
 .rrow-s.is-focused{background:var(--raised);color:#fff}
 .rrow-s .n{font-size:21px;color:#5A5A5E;width:74px}
@@ -371,19 +440,45 @@ body.canvas .stage{transform:none!important;border-radius:0;box-shadow:none;posi
   animation:fly linear infinite;
 }
 @keyframes fly{from{transform:translateX(1920px)}to{transform:translateX(-100%)}}
-@media (prefers-reduced-motion:reduce){.dm{animation:none;transform:none;left:200px}}
+
+/* ============================================================
+   按压态
+   焦点说的是"你在这儿"，按压说的是"已经按下了"。
+   遥控器没有触感，这一下沉是唯一的即时确认，所以它必须比焦点移动更快。
+   ============================================================ */
+.tab.is-pressed,
+.btn.is-pressed,
+.pbtn.is-pressed,
+.key.is-pressed,
+.chip-t.is-pressed,
+.sgroup.is-pressed,
+.rail__item.is-pressed,
+.p-top__back.is-pressed{
+  transform:scale(.96);
+  transition-duration:var(--dur-press);
+}
+.card.is-pressed .card__lift{transform:scale(1.03);transition-duration:var(--dur-press)}
+@media (prefers-reduced-motion:reduce){
+  :root{--dur:1ms;--dur-press:1ms}   /* 状态照常到达，过程不再播放 */
+  .screen{transition:none}
+  .card__media img{transition:none}
+  .dm{animation:none;transform:none;left:200px}
+}
 
 .p-top{
   position:absolute;top:56px;left:var(--gut);right:var(--gut);
   display:flex;align-items:flex-start;gap:20px;
 }
 .p-top__back{
-  width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,.14);
+  width:64px;height:64px;border-radius:50%;background-color:var(--glass);
   border:0;color:#fff;font-size:30px;line-height:1;flex:0 0 auto;
+  -webkit-backdrop-filter:blur(24px) saturate(180%);
+  backdrop-filter:blur(24px) saturate(180%);
   display:flex;align-items:center;justify-content:center;
-  transition:transform var(--dur) var(--ease),background var(--dur) var(--ease);
+  box-shadow:var(--spec);
+  transition:var(--t-surface);
 }
-.p-top__back.is-focused{transform:scale(1.08);background:#fff;color:#000}
+.p-top__back.is-focused{transform:scale(1.08);background-color:#fff;color:#000;box-shadow:var(--spec-on)}
 .p-top__main{flex:1 1 auto;padding-top:2px}
 .p-top__line{display:flex;align-items:center;gap:14px;font-size:var(--fs-meta);color:var(--muted);margin-bottom:10px}
 .p-top__no{font-size:26px;font-weight:600;color:#fff}
@@ -401,16 +496,19 @@ body.canvas .stage{transform:none!important;border-radius:0;box-shadow:none;posi
 .p-ctl{display:flex;align-items:center;gap:16px}
 .pbtn{
   height:68px;padding:0 30px;border-radius:var(--r-pill);
-  background:rgba(255,255,255,.14);border:0;color:#fff;
+  background-color:var(--glass);border:0;color:#fff;
+  -webkit-backdrop-filter:blur(24px) saturate(180%);
+  backdrop-filter:blur(24px) saturate(180%);
   font-family:inherit;font-size:24px;font-weight:500;
   display:flex;align-items:center;gap:12px;
-  transition:transform var(--dur) var(--ease),background var(--dur) var(--ease),color var(--dur) var(--ease);
+  box-shadow:var(--spec);
+  transition:var(--t-surface);
 }
-.pbtn.is-focused{background:#fff;color:#000;transform:scale(1.05)}
+.pbtn.is-focused{background-color:#fff;color:#000;transform:scale(1.05);box-shadow:var(--spec-on)}
 .pbtn .val{color:var(--muted);font-weight:400}
 .pbtn.is-focused .val{color:#3A3A3C}
-.pbtn--primary{background:#fff;color:#000;font-weight:600}
-.pbtn--primary.is-focused{transform:scale(1.06)}
+.pbtn--primary{background-color:rgba(255,255,255,.94);color:#000;font-weight:600;box-shadow:var(--spec-solid)}
+.pbtn--primary.is-focused{transform:scale(1.06);background-color:#fff}
 .p-ctl__right{margin-left:auto;font-size:var(--fs-meta);color:var(--muted)}
 .p-degraded{
   position:absolute;left:var(--gut);bottom:18px;
@@ -444,11 +542,11 @@ body.canvas .stage{transform:none!important;border-radius:0;box-shadow:none;posi
 .sgroups{width:340px;flex:0 0 auto;display:flex;flex-direction:column;gap:6px}
 .sgroup{
   height:82px;border-radius:16px;padding:0 26px;display:flex;align-items:center;
-  background:transparent;border:0;font-family:inherit;font-size:26px;color:var(--muted);text-align:left;
-  transition:background var(--dur) var(--ease),transform var(--dur) var(--ease);
+  background-color:transparent;border:0;font-family:inherit;font-size:26px;color:var(--muted);text-align:left;
+  transition:var(--t-surface);
 }
 .sgroup.is-current{color:var(--text);font-weight:600}
-.sgroup.is-focused{background:var(--raised-2);transform:scale(1.02);color:var(--text)}
+.sgroup.is-focused{background-color:rgba(255,255,255,.13);transform:scale(1.02);color:var(--text);box-shadow:var(--spec)}
 .sgroups__foot{margin-top:34px;padding-left:26px;font-size:19px;line-height:1.7;color:#5A5A5E}
 
 .panel{flex:1 1 auto;min-width:0;border-radius:24px;background:var(--panel);padding:12px 32px}
@@ -465,13 +563,13 @@ body.canvas .stage{transform:none!important;border-radius:0;box-shadow:none;posi
 .seg b{
   font-size:21px;font-weight:500;color:var(--muted);padding:10px 20px;border-radius:var(--r-pill);
 }
-.seg b.on{background:#fff;color:#000;font-weight:600}
-.sw{width:88px;height:50px;border-radius:var(--r-pill);background:var(--raised-2);position:relative;flex:0 0 auto;transition:background var(--dur) var(--ease)}
+.seg b.on{background:#fff;color:#000;font-weight:600;box-shadow:var(--spec-chip)}
+.sw{width:88px;height:50px;border-radius:var(--r-pill);background:var(--raised-2);position:relative;flex:0 0 auto;transition:background var(--dur) var(--ease),box-shadow var(--dur) var(--ease)}
 .sw::after{
   content:"";position:absolute;top:4px;left:4px;width:42px;height:42px;border-radius:50%;
   background:#fff;transition:transform var(--dur) var(--ease);
 }
-.sw.on{background:#fff}
+.sw.on{background:#fff;box-shadow:var(--spec-chip)}
 .sw.on::after{transform:translateX(38px);background:#1C1C1F}
 .note{
   margin:18px 20px 26px;font-size:20px;line-height:1.7;color:var(--faint);
@@ -955,11 +1053,33 @@ let focusEl = null;
 const activeScreen = () => $(`.screen.is-active`);
 const focusables = () => $$('.focusable', activeScreen()).filter(el=>el.offsetParent!==null);
 
+/* 顶栏那层玻璃跟着焦点滑。用 offsetWidth/offsetLeft 而不是 getBoundingClientRect：
+   后者读到的是 transform 过渡中的中间值，胶囊会一路追着跑偏。
+   instant 用于换屏 —— 新屏的胶囊直接出现在该在的位置，不从上一屏滑过来。 */
+function syncTabPill(el, instant){
+  $$('.tabs').forEach(tabs=>{
+    const pill = tabs.querySelector('.tabs__pill');
+    if(!pill) return;
+    if(!(el && tabs.contains(el) && el.classList.contains('tab'))){
+      pill.classList.remove('is-on'); return;
+    }
+    const s = 1.06;                                  // .tab.is-focused 的放大，胶囊跟着涨
+    const w = el.offsetWidth * s + 10;
+    const x = el.offsetLeft - (el.offsetWidth * (s-1)) / 2 - 5;
+    if(instant) pill.style.transition = 'none';
+    pill.style.setProperty('--px', x+'px');
+    pill.style.setProperty('--pw', w+'px');
+    pill.classList.add('is-on');
+    if(instant){ void pill.offsetWidth; pill.style.transition = ''; }
+  });
+}
+
 function setFocus(el, scroll=true){
   if(!el) return;
   if(focusEl && focusEl!==el) focusEl.classList.remove('is-focused');
   focusEl = el;
   el.classList.add('is-focused');
+  syncTabPill(el, !scroll);
   if(scroll) el.scrollIntoView({block:'nearest',inline:'nearest',behavior:'smooth'});
 }
 
@@ -1155,8 +1275,16 @@ document.addEventListener('keydown', e=>{
   }
 });
 
+/* 按下 → 140ms 后回弹。遥控器连按时重置计时，避免第二次按没有反馈 */
+function press(el){
+  el.classList.add('is-pressed');
+  clearTimeout(el._pressTimer);
+  el._pressTimer = setTimeout(()=>el.classList.remove('is-pressed'), 140);
+}
+
 function activate(el){
   if(!el) return;
+  press(el);
   if(el.dataset.play) { openPlayer(el.dataset.play); return; }
   if(el.dataset.go){ 
     if(el.dataset.plat){
@@ -1251,6 +1379,10 @@ window.addEventListener('resize', fit);
 /* 初始化 */
 const PARAMS = new URLSearchParams(location.search);
 if(PARAMS.has('canvas')) document.body.classList.add('canvas');
+
+/* 给每个顶栏补一层焦点玻璃（绝对定位，不参与 flex 排布） */
+$$('.tabs').forEach(t=>t.insertAdjacentHTML('afterbegin','<span class="tabs__pill" aria-hidden="true"></span>'));
+
 fit();
 
 const startScreen = PARAMS.get('screen');

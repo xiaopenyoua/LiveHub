@@ -1,8 +1,9 @@
 {
  "url": "design/_canvas.html",
- "at": "2026-10-29T02:26:11.412Z",
+ "at": "2026-10-29T02:49:34.108Z",
  "allow": [
-  "edge-text"
+  "edge-text",
+  "button-fx"
  ],
  "viewports": [
   {
@@ -197,22 +198,22 @@
       }
      ],
      "button": {
-      "bg": "#1c1c1f",
+      "bg": "#ffffff",
       "hsl": {
-       "h": 240,
-       "s": 0.05,
-       "l": 0.12
+       "h": 0,
+       "s": 0,
+       "l": 1
       },
-      "fg": "#b4b4b4"
+      "fg": "#000000"
      },
      "lowContrast": []
     },
     "buttons": {
-     "count": 11,
-     "inHero": 11,
+     "count": 4,
+     "inHero": 4,
      "radius": "pill",
-     "height": 55,
-     "withShadow": 0,
+     "height": 77,
+     "withShadow": 4,
      "withGradient": 0,
      "mono": 0,
      "upper": 0,
@@ -232,7 +233,7 @@
      "hairlineSamples": [],
      "outlinedBoxes": 0,
      "dashed": 0,
-     "blurred": 0,
+     "blurred": 1,
      "roundedBoxes": 8,
      "boxRadius": 20,
      "squareMedia": 1,
@@ -406,7 +407,7 @@
      "heavyShadows": 0,
      "softShadows": 0,
      "shadowSamples": [],
-     "glass": 0
+     "glass": 1
     },
     "chips": {
      "count": 0,
