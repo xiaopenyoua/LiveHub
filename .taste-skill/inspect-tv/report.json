@@ -1,0 +1,569 @@
+{
+ "url": "design/_canvas.html",
+ "at": "2026-10-29T02:05:13.051Z",
+ "allow": [],
+ "viewports": [
+  {
+   "width": 1920,
+   "height": 1200,
+   "load": "load",
+   "screens": 1,
+   "filled": [
+    0.68
+   ],
+   "motion": {
+    "elements": 9,
+    "css": 9,
+    "transitions": 0,
+    "scripted": 0,
+    "videos": 0,
+    "playingVideos": 0
+   },
+   "metrics": {
+    "viewport": {
+     "w": 1920,
+     "h": 1200
+    },
+    "page": {
+     "height": 1200,
+     "screens": 1,
+     "words": 173,
+     "img": 45,
+     "video": 0,
+     "canvas": 0,
+     "svg": 0,
+     "sections": 6,
+     "horizontalOverflow": 0,
+     "overflowCulprits": [],
+     "uiFragments": 0,
+     "uiAbuse": false,
+     "realPictures": 33,
+     "videoCount": 0,
+     "uiPictures": 0,
+     "pictureSamples": [
+      "esports-arena.jpg",
+      "esports-arena.jpg",
+      "led-stage.jpg",
+      "gaming-room.jpg",
+      "gaming-room.jpg",
+      "night-track.jpg",
+      "livehouse.jpg",
+      "gaming-room.jpg"
+     ],
+     "blendText": 0,
+     "sideScrollers": 0,
+     "brokenImages": [],
+     "emoji": [],
+     "videosNoPoster": 0
+    },
+    "hero": {
+     "text": "LPL 夏季赛 决赛日·第三局",
+     "words": 3,
+     "chars": 15,
+     "lines": 1,
+     "size": 76,
+     "vw": 4,
+     "font": "-apple-system",
+     "weight": 600,
+     "tracking": -0.025,
+     "leading": 1.06,
+     "upper": true,
+     "italic": false,
+     "mono": false,
+     "align": "left",
+     "position": "left",
+     "widthRatio": 0.47,
+     "top": 346,
+     "tag": "h1",
+     "kind": "heading"
+    },
+    "h1": {
+     "text": "LPL 夏季赛 决赛日·第三局",
+     "words": 3,
+     "lines": 1,
+     "size": 76,
+     "font": "-apple-system"
+    },
+    "headings": [
+     {
+      "text": "LPL 夏季赛 决赛日·第三局",
+      "words": 3,
+      "chars": 15,
+      "lines": 1,
+      "size": 76,
+      "vw": 4,
+      "font": "-apple-system",
+      "weight": 600,
+      "tracking": -0.025,
+      "leading": 1.06,
+      "upper": true,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.47,
+      "top": 346,
+      "tag": "h1",
+      "kind": "heading"
+     },
+     {
+      "text": "42个直播间",
+      "words": 1,
+      "chars": 6,
+      "lines": 1,
+      "size": 44,
+      "vw": 2.3,
+      "font": "-apple-system",
+      "weight": 600,
+      "tracking": -0.02,
+      "leading": 1.2,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "left",
+      "widthRatio": 0.07,
+      "top": 1610,
+      "tag": "div",
+      "kind": "heading"
+     },
+     {
+      "text": "42个直播间",
+      "words": 1,
+      "chars": 6,
+      "lines": 1,
+      "size": 44,
+      "vw": 2.3,
+      "font": "-apple-system",
+      "weight": 600,
+      "tracking": -0.02,
+      "leading": 1.2,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "center",
+      "widthRatio": 0.07,
+      "top": 1610,
+      "tag": "div",
+      "kind": "heading"
+     },
+     {
+      "text": "42个直播间",
+      "words": 1,
+      "chars": 6,
+      "lines": 1,
+      "size": 44,
+      "vw": 2.3,
+      "font": "-apple-system",
+      "weight": 600,
+      "tracking": -0.02,
+      "leading": 1.2,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "right",
+      "widthRatio": 0.07,
+      "top": 1610,
+      "tag": "div",
+      "kind": "heading"
+     },
+     {
+      "text": "42个直播间",
+      "words": 1,
+      "chars": 6,
+      "lines": 1,
+      "size": 44,
+      "vw": 2.3,
+      "font": "-apple-system",
+      "weight": 600,
+      "tracking": -0.02,
+      "leading": 1.2,
+      "upper": false,
+      "italic": false,
+      "mono": false,
+      "align": "left",
+      "position": "right",
+      "widthRatio": 0.07,
+      "top": 1610,
+      "tag": "div",
+      "kind": "heading"
+     }
+    ],
+    "headingSummary": {
+     "count": 5,
+     "maxLines": 1,
+     "over2Lines": 0,
+     "statements": 0,
+     "centered": 0,
+     "medianWords": 1,
+     "mixedFontHeadings": 0
+    },
+    "type": {
+     "families": [
+      {
+       "family": "-apple-system",
+       "share": 1,
+       "mono": false
+      }
+     ],
+     "familyCount": 1,
+     "sizes": [
+      19,
+      20,
+      22,
+      24,
+      26,
+      28,
+      30,
+      34,
+      44,
+      76
+     ],
+     "sizeCount": 10,
+     "notLoaded": [],
+     "body": null,
+     "measureChars": null,
+     "max": {
+      "size": 76,
+      "vw": 4,
+      "font": "-apple-system",
+      "text": "LPL 夏季赛 决赛日·第三局"
+     },
+     "monoShare": 0,
+     "monoProseShare": 0,
+     "monoFamilies": [],
+     "monoSamples": [],
+     "microLabels": 0,
+     "microLabelShare": 0,
+     "microSamples": [],
+     "upperShare": 0.11,
+     "centerShare": 0.03,
+     "smallText": 0
+    },
+    "eyebrows": [],
+    "numbered": [],
+    "color": {
+     "bodyBg": "#000000",
+     "bodyBgHsl": {
+      "h": 0,
+      "s": 0,
+      "l": 0
+     },
+     "dark": true,
+     "sectionBgs": [
+      {
+       "color": "#000000",
+       "top": 0,
+       "hsl": {
+        "h": 0,
+        "s": 0,
+        "l": 0
+       }
+      }
+     ],
+     "textColors": [
+      {
+       "color": "#8e8e93",
+       "share": 0.38
+      },
+      {
+       "color": "#b4b4b4",
+       "share": 0.38
+      },
+      {
+       "color": "#ffffff",
+       "share": 0.23
+      },
+      {
+       "color": "#ff453a",
+       "share": 0.01
+      },
+      {
+       "color": "#000000",
+       "share": 0.01
+      }
+     ],
+     "button": {
+      "bg": "#1c1c1f",
+      "hsl": {
+       "h": 240,
+       "s": 0.05,
+       "l": 0.12
+      },
+      "fg": "#b4b4b4"
+     },
+     "lowContrast": []
+    },
+    "buttons": {
+     "count": 11,
+     "inHero": 11,
+     "radius": "pill",
+     "height": 55,
+     "withShadow": 1,
+     "withGradient": 0,
+     "mono": 0,
+     "upper": 0,
+     "heroLabels": [
+      "进入直播间"
+     ]
+    },
+    "surfaces": {
+     "shadowStatic": 1,
+     "shadowOverlay": 0,
+     "shadowSamples": [
+      "button.btn.focusable → rgb(0, 0, 0) 0px 0px 0px 6px, rgb(255, 255, 255) 0px 0px 0px 9px, rgba(0, 0, 0, "
+     ],
+     "gradients": 0,
+     "scrims": 1,
+     "gradientSamples": [],
+     "gradientText": 0,
+     "hairlines": 0,
+     "hairlineSamples": [],
+     "outlinedBoxes": 0,
+     "dashed": 0,
+     "blurred": 0,
+     "roundedBoxes": 16,
+     "boxRadius": 20,
+     "squareMedia": 1,
+     "roundedMedia": 6,
+     "mediaRadius": 20,
+     "textShadow": 6,
+     "cardRows": [
+      {
+       "count": 4,
+       "iconTopped": false,
+       "rounded": true,
+       "top": 1569
+      }
+     ]
+    },
+    "heroMedia": [
+     {
+      "type": "img",
+      "ratio": 0.43
+     }
+    ],
+    "nav": {
+     "links": 0,
+     "fixed": false,
+     "height": 116,
+     "floatingPill": false,
+     "blur": false
+    },
+    "fontsLoaded": []
+   },
+   "layout": {
+    "viewport": {
+     "w": 1920,
+     "h": 1200
+    },
+    "pageH": 1200,
+    "margins": {
+     "left": 80,
+     "right": 80
+    },
+    "sections": [
+     {
+      "sel": "div.hero",
+      "tag": "div",
+      "top": 116,
+      "height": 520,
+      "words": 17,
+      "media": 1,
+      "middle": 0,
+      "heading": {
+       "text": "LPL 夏季赛 决赛日·第三局",
+       "size": 76,
+       "tag": "h1"
+      },
+      "left": 74,
+      "right": 1009,
+      "textLeft": 80,
+      "textRight": 1009,
+      "fullBleed": true,
+      "footer": false,
+      "hero": true,
+      "continues": false,
+      "pinned": false
+     },
+     {
+      "sel": "div.shelf",
+      "tag": "div",
+      "top": 692,
+      "height": 368,
+      "words": 63,
+      "media": 6,
+      "middle": 492,
+      "heading": {
+       "text": "正在直播",
+       "size": 34,
+       "tag": "h2"
+      },
+      "left": 80,
+      "right": 0,
+      "textLeft": 80,
+      "textRight": -532,
+      "fullBleed": false,
+      "footer": false,
+      "hero": false,
+      "continues": false,
+      "pinned": false
+     },
+     {
+      "sel": "div.shelf",
+      "tag": "div",
+      "top": 1116,
+      "height": 331,
+      "words": 45,
+      "media": 0,
+      "middle": 136,
+      "heading": {
+       "text": "关注的主播",
+       "size": 34,
+       "tag": "h2"
+      },
+      "left": 80,
+      "right": 356,
+      "textLeft": 80,
+      "textRight": 356,
+      "fullBleed": false,
+      "footer": false,
+      "hero": false,
+      "continues": false,
+      "pinned": false
+     },
+     {
+      "sel": "div.shelf",
+      "tag": "div",
+      "top": 1503,
+      "height": 200,
+      "words": 26,
+      "media": 0,
+      "middle": 115,
+      "heading": {
+       "text": "42",
+       "size": 44,
+       "tag": "div"
+      },
+      "left": 80,
+      "right": 112,
+      "textLeft": 80,
+      "textRight": 112,
+      "fullBleed": false,
+      "footer": true,
+      "hero": false,
+      "continues": false,
+      "pinned": false
+     }
+    ],
+    "gaps": [],
+    "h1s": [
+     {
+      "text": "LPL 夏季赛 决赛日·第三局",
+      "size": 76,
+      "top": 346,
+      "firstScreen": true
+     }
+    ],
+    "edgeText": [
+     {
+      "text": "6.7 万人",
+      "side": "right",
+      "px": 0
+     }
+    ],
+    "edges": [
+     {
+      "x": 80,
+      "n": 4
+     }
+    ],
+    "leftBlocks": 4,
+    "bodySize": 16,
+    "stage": false,
+    "explains": true,
+    "slivers": [],
+    "voidShare": 0.05,
+    "voidBox": {
+     "x": 400,
+     "y": 1120,
+     "w": 1520,
+     "h": 80
+    }
+   },
+   "app": null,
+   "consoleErrors": []
+  }
+ ],
+ "findings": [
+  {
+   "level": "FAIL",
+   "id": "shadow",
+   "width": 1920,
+   "message": "1 box-shadow(s) on elements at rest: button.btn.focusable → rgb(0, 0, 0) 0px 0px 0px 6px, rgb(255, 255, 255) 0px 0px 0px 9px, rgba(0, 0, 0, ",
+   "fix": "Remove. Separate surfaces with a tone step or space. Shadows are for things that really float (menus, dialogs, sticky bars)."
+  },
+  {
+   "level": "FAIL",
+   "id": "text-shadow",
+   "width": 1920,
+   "message": "6 text-shadow(s).",
+   "fix": "Remove; fix legibility with a scrim or a different crop."
+  },
+  {
+   "level": "FAIL",
+   "id": "button-fx",
+   "width": 1920,
+   "message": "Buttons with shadow/glow.",
+   "fix": "Flat fill, one colour."
+  },
+  {
+   "level": "WARN",
+   "id": "size-count",
+   "width": 1920,
+   "message": "10 different font sizes (19, 20, 22, 24, 26, 28, 30, 34, 44, 76).",
+   "fix": "A page needs about five: display, heading, lead, body, small."
+  },
+  {
+   "level": "WARN",
+   "id": "no-footage",
+   "width": 1920,
+   "message": "No video anywhere on the page.",
+   "fix": "Look for one honest clip with scripts/assets.mjs --video (the place, the material, the process) and use it as a muted loop with a poster frame. Defend its absence only if no clip fits the subject."
+  },
+  {
+   "level": "FAIL",
+   "id": "edge-text",
+   "width": 1920,
+   "message": "1 text block(s) sit within 16px of the screen edge: \"6.7 万人\" (0px from the right)",
+   "fix": "Keep text inside the page margin (16–32px or more). Only display type deliberately bled past the edge may touch it."
+  },
+  {
+   "level": "WARN",
+   "id": "still-page",
+   "width": 1920,
+   "message": "Little motion: 9 element(s) moved while the page loaded and scrolled.",
+   "fix": "Give every section an entrance for its parts (not one fade of the whole block) and add one moving picture: a looping clip or a slow move on a photograph."
+  },
+  {
+   "level": "FAIL",
+   "id": "reduced-hidden",
+   "width": 1440,
+   "message": "With reduced motion requested, 159 text block(s) on the first screen stay invisible: \"Live\", \"Hub\", \"有线网络\", \"21:14\"",
+   "fix": "Put every hidden starting state inside @media (prefers-reduced-motion: no-preference); the reduced page is the finished page (references/motion.md §8)."
+  }
+ ],
+ "images": [
+  {
+   "viewport": "desktop",
+   "width": 1920,
+   "fold": "/Volumes/ssd/projects-github/LiveHub/.taste-skill/inspect-tv/desktop-fold.jpg",
+   "pages": [
+    "/Volumes/ssd/projects-github/LiveHub/.taste-skill/inspect-tv/desktop-page-01.jpg"
+   ],
+   "film": []
+  }
+ ]
+}

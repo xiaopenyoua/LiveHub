@@ -1,0 +1,1263 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LiveHub · Android TV 界面原型</title>
+<style>
+/* ============================================================
+   LiveHub — Android TV UI Prototype
+   参考 Apple tvOS：真黑底 / 明度分层 / 焦点驱动
+   ============================================================ */
+
+/* 拉丁与数字用 Inter（自托管，保证设计稿与截图一致）；中文落回系统黑体 */
+@font-face{
+  font-family:"Inter";  /* taste-skill-ignore Inter 就是 draw 抽出的字体，这里是它的自托管声明 */
+  src:url("../assets/fonts/InterVariable.woff2") format("woff2-variations");
+  font-weight:100 900;
+  font-display:block;
+}
+
+:root{
+  /* 色彩 */
+  --ground:#000;
+  --panel:#121214;
+  --raised:#1C1C1F;
+  --raised-2:#2A2A2E;
+  --text:#fff;
+  --muted:#B4B4B4;
+  --faint:#8E8E93;
+  --live:#FF453A;
+
+  /* 字体阶梯 */
+  --fs-hero:76px;
+  --fs-display:120px;
+  --fs-h1:44px;
+  --fs-h2:34px;
+  --fs-title:26px;
+  --fs-body:24px;
+  --fs-meta:22px;
+  --fs-tab:30px;
+
+  /* 尺寸 */
+  --gut:80px;
+  --safe:60px;
+  --nav-h:116px;
+  --gap-card:24px;
+  --gap-shelf:50px;
+  --r-card:20px;
+  --r-pill:999px;
+
+  /* 动效 */
+  --ease:cubic-bezier(.22,.61,.36,1);
+  --dur:160ms;
+
+  --font:"Inter",-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+}
+
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{
+  background:#ECECEE;
+  font-family:var(--font);
+  color:#1C1C1E;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ---------- 设计稿外壳（非 TV 界面的一部分） ---------- */
+.chrome{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 28px 10px;flex:0 0 auto;
+}
+.chrome__title{font-size:15px;font-weight:600;letter-spacing:-.01em}
+.chrome__title span{color:#8E8E93;font-weight:400;margin-left:10px}
+.chrome__screens{display:flex;gap:6px;flex-wrap:wrap}
+.chip{
+  font:inherit;font-size:13px;line-height:1;
+  padding:8px 14px;border-radius:999px;border:0;
+  background:#DEDEE2;color:#3A3A3C;cursor:pointer;
+  transition:background .15s ease,color .15s ease;
+}
+.chip:hover{background:#D3D3D8}
+.chip[aria-pressed="true"]{background:#1C1C1E;color:#fff}
+
+.stage-wrap{flex:1 1 auto;position:relative;min-height:0;overflow:hidden}
+.stage{
+  width:1920px;height:1080px;position:absolute;
+  left:50%;top:50%;
+  background:var(--ground);
+  transform-origin:center center;
+  overflow:hidden;
+  border-radius:14px;
+  color:var(--text);
+  font-size:var(--fs-body);
+}
+.hintbar{
+  flex:0 0 auto;padding:10px 28px 16px;
+  font-size:12.5px;color:#6E6E73;display:flex;gap:18px;flex-wrap:wrap;
+}
+.hintbar b{color:#3A3A3C;font-weight:600}
+
+/* 截图/嵌入模式：只留 1920×1080 画布 */
+body.canvas .chrome,body.canvas .hintbar{display:none}
+body.canvas{background:#000}
+body.canvas .stage-wrap{display:block;overflow:visible}
+body.canvas .stage{transform:none!important;border-radius:0;box-shadow:none;position:absolute;left:0;top:0}
+
+/* ---------- 通用 ---------- */
+.focusable{outline:none;position:relative;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.screen{
+  position:absolute;inset:0;
+  opacity:0;visibility:hidden;
+  transition:opacity 240ms var(--ease),transform 240ms var(--ease);
+  transform:scale(.985);
+  display:flex;flex-direction:column;
+}
+.screen.is-active{opacity:1;visibility:visible;transform:scale(1)}
+.scroll{flex:1 1 auto;overflow-y:auto;overflow-x:hidden;scrollbar-width:none}
+.scroll::-webkit-scrollbar{display:none}
+
+.num{font-variant-numeric:tabular-nums}
+
+/* ---------- 顶部导航 ---------- */
+.navbar{
+  flex:0 0 auto;height:var(--nav-h);
+  display:flex;align-items:center;
+  padding:0 var(--gut);
+  gap:44px;
+  position:relative;z-index:5;
+  background:var(--ground);
+}
+.brand{font-size:30px;font-weight:600;letter-spacing:-.02em}
+.brand i{color:var(--live);font-style:normal}
+.tabs{display:flex;gap:36px;align-items:center}
+.tab{
+  font-size:var(--fs-tab);font-weight:500;color:var(--muted);
+  padding:10px 2px;background:none;border:0;font-family:inherit;
+  transition:color var(--dur) var(--ease),transform var(--dur) var(--ease);
+}
+.tab.is-focused{color:var(--text);transform:scale(1.08)}
+.tab.is-current{color:var(--text);font-weight:600}
+.nav-meta{
+  margin-left:auto;display:flex;align-items:center;gap:16px;
+  font-size:var(--fs-meta);color:var(--faint);
+}
+.nav-meta .dot{width:8px;height:8px;border-radius:50%;background:#30D158}
+
+/* ---------- 主图 ---------- */
+.hero{position:relative;height:478px;margin-bottom:var(--gap-shelf)}
+.hero__img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 56%;filter:brightness(1.22) saturate(1.05)}
+.hero__scrim{
+  position:absolute;inset:0;
+  background:linear-gradient(90deg,rgba(0,0,0,.92) 0%,rgba(0,0,0,.72) 34%,rgba(0,0,0,0) 66%),linear-gradient(0deg,rgba(0,0,0,.85) 0%,rgba(0,0,0,0) 52%);  /* taste-skill-ignore 照片上的中性黑色遮罩，规范允许的唯一例外 */
+}
+.hero__body{
+  position:absolute;left:var(--gut);bottom:56px;width:900px;
+}
+.hero__kicker{
+  display:flex;align-items:center;gap:14px;
+  font-size:var(--fs-meta);color:var(--muted);margin-bottom:18px;
+}
+.hero__no{
+  font-size:26px;font-weight:600;color:var(--text);
+  letter-spacing:.02em;
+}
+.hero__sep{width:4px;height:4px;border-radius:50%;background:#6E6E73}
+.livedot{width:12px;height:12px;border-radius:50%;background:var(--live);display:inline-block}
+.hero h1{
+  font-size:var(--fs-hero);font-weight:600;line-height:1.06;
+  letter-spacing:-.025em;margin-bottom:18px;
+}
+.hero__meta{font-size:var(--fs-body);color:var(--muted);margin-bottom:30px}
+
+/* 主按钮：白底黑字 */
+.btn{
+  display:inline-flex;align-items:center;gap:12px;
+  height:72px;padding:0 40px;border-radius:var(--r-pill);
+  border:0;background:#fff;color:#000;
+  font-family:inherit;font-size:26px;font-weight:600;
+  transition:transform var(--dur) var(--ease);
+}
+/* 焦点语言（对齐 tvOS）：不放边框，只靠放大 + 提亮 + 浮起。
+   真黑底上投影看不见，所以"浮起"由 scale 表达，"选中"由底色明度表达。 */
+.btn.is-focused{transform:scale(1.07)}
+.btn--ghost{background:rgba(255,255,255,.14);color:#fff}
+.btn--ghost.is-focused{transform:scale(1.07);background:rgba(255,255,255,.34)}
+
+/* ---------- 内容行 ---------- */
+.shelf{padding:0 var(--gut);margin-bottom:var(--gap-shelf)}
+.shelf__head{
+  display:flex;align-items:baseline;gap:20px;margin-bottom:18px;
+}
+.shelf__head h2{font-size:var(--fs-h2);font-weight:600;letter-spacing:-.02em}
+.shelf__head .count{font-size:var(--fs-meta);color:var(--faint)}
+.shelf__head .more{margin-left:auto;font-size:var(--fs-meta);color:var(--muted)}
+
+/* 16:9 卡 */
+.card{width:380px;flex:0 0 auto}
+.card__lift{
+  border-radius:var(--r-card);
+  transition:transform var(--dur) var(--ease);
+  will-change:transform;
+}
+.card.is-focused .card__lift{transform:scale(1.08)}
+.card__media{
+  position:relative;width:100%;aspect-ratio:16/9;
+  border-radius:var(--r-card);overflow:hidden;background:var(--panel);
+}
+.card__media img{
+  width:100%;height:100%;object-fit:cover;display:block;
+  filter:brightness(.86);transition:filter var(--dur) var(--ease),transform 600ms var(--ease);
+}
+.card.is-focused .card__media img{filter:brightness(1);transform:scale(1.04)}
+/* 台号：黑底药丸，靠底色保证在任意封面上都清晰，不靠阴影 */
+.card__no{
+  position:absolute;left:12px;top:12px;
+  padding:3px 11px 4px;border-radius:10px;
+  background:rgba(0,0,0,.62);
+  font-size:24px;font-weight:600;letter-spacing:.02em;
+  font-variant-numeric:tabular-nums;
+  color:#fff;
+}
+.card__live{
+  position:absolute;right:14px;top:14px;
+  display:flex;align-items:center;gap:8px;
+  padding:6px 14px;border-radius:var(--r-pill);
+  background:var(--live);color:#fff;
+  font-size:19px;font-weight:600;line-height:1;
+}
+.card__warn{
+  position:absolute;right:14px;top:14px;
+  padding:6px 14px;border-radius:var(--r-pill);
+  background:rgba(0,0,0,.72);color:var(--muted);
+  font-size:19px;line-height:1;
+}
+.card__body{padding:16px 4px 0}
+.card__title{
+  font-size:var(--fs-title);font-weight:600;color:var(--muted);
+  line-height:1.3;letter-spacing:-.01em;
+  display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;
+  transition:color var(--dur) var(--ease);
+}
+.card.is-focused .card__title{color:var(--text)}
+.card__meta{
+  margin-top:8px;font-size:var(--fs-meta);color:var(--faint);
+  display:flex;align-items:center;gap:10px;
+}
+.card__meta .plat{color:var(--muted)}
+
+/* 卡片网格：关注页与搜索结果共用，一行 3–4 列自适应 */
+.card-grid{
+  display:grid;gap:36px 24px;
+  grid-template-columns:repeat(auto-fill,minmax(400px,1fr));
+}
+.card-grid .card{width:100%}
+
+/* 主播卡：封面 + 主播名 + 状态，比直播卡更强调"人" */
+.card__host{display:flex;align-items:center;gap:12px}
+.card__state{margin-top:10px;font-size:var(--fs-meta);color:var(--faint)}
+.card--off .card__media img{filter:brightness(.5) saturate(.55)}
+.card--off.card.is-focused .card__media img{filter:brightness(.75) saturate(.7)}
+.state{display:flex;align-items:center;gap:10px}
+.state .dot{width:10px;height:10px;border-radius:50%;background:#5A5A5E}
+.state--on .dot{background:var(--live)}
+.state--on{color:var(--live);font-weight:600}
+
+/* ---------- 分类页 ---------- */
+.page-head{padding:48px var(--gut) 0}
+.page-head h1{font-size:var(--fs-h1);font-weight:600;letter-spacing:-.025em}
+.page-head p{margin-top:12px;font-size:var(--fs-body);color:var(--muted)}
+
+.browse{display:flex;gap:44px;padding:44px var(--gut) 60px}
+.rail-col{width:320px;flex:0 0 auto}
+.rail-col h1{font-size:var(--fs-h1);font-weight:600;letter-spacing:-.025em}
+.rail-col__sub{margin-top:12px;font-size:20px;line-height:1.5;color:var(--faint)}
+.rail-col__hint{
+  margin-top:36px;padding:24px 26px;border-radius:18px;background:var(--panel);
+  font-size:19px;line-height:1.65;color:var(--faint);
+}
+.rail-col__hint b{display:block;font-size:21px;color:var(--muted);font-weight:600;margin-bottom:10px}
+.rail{display:flex;flex-direction:column;gap:6px;margin-top:26px}
+.rail__item{
+  height:84px;border-radius:16px;padding:0 24px;
+  display:flex;align-items:center;justify-content:space-between;
+  background:transparent;border:0;font-family:inherit;text-align:left;
+  transition:background var(--dur) var(--ease),transform var(--dur) var(--ease);
+}
+.rail__item span:first-child{font-size:26px;font-weight:500;color:var(--muted)}
+.rail__item span:last-child{font-size:20px;color:#5A5A5E;letter-spacing:.02em}
+.rail__item.is-current span:first-child{color:var(--text);font-weight:600}
+.rail__item.is-focused{background:var(--raised-2);transform:scale(1.02)}
+.rail__item.is-focused span:first-child{color:var(--text)}
+
+.grid-area{flex:1 1 auto;min-width:0}
+.chips{display:flex;gap:14px;margin-bottom:40px;flex-wrap:wrap}
+.chip-t{
+  height:56px;padding:0 26px;border-radius:var(--r-pill);
+  background:var(--raised);border:0;color:var(--muted);
+  font-family:inherit;font-size:24px;
+  transition:background var(--dur) var(--ease),color var(--dur) var(--ease),transform var(--dur) var(--ease);
+}
+.chip-t.is-current{background:#fff;color:#000;font-weight:600}
+.chip-t.is-focused{transform:scale(1.06);background:var(--raised-2);color:var(--text)}
+.chip-t.is-current.is-focused{background:#fff;color:#000}
+
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:28px 20px}
+.grid .card{width:100%}
+
+/* ---------- 关注页 ---------- */
+.follow-wrap{padding:40px var(--gut) 80px}
+.group-head{
+  display:flex;align-items:baseline;gap:16px;
+  font-size:28px;font-weight:600;color:var(--text);
+  margin:0 0 34px;padding-left:4px;
+}
+.group-head span{font-size:var(--fs-meta);font-weight:400;color:var(--faint)}
+.group-head--gap{margin-top:56px}
+
+/* ---------- 搜索页 ---------- */
+.search-wrap{display:flex;gap:44px;padding:32px var(--gut) 80px}
+.kb{width:740px;flex:0 0 auto}
+.kb__display{
+  height:96px;border-radius:var(--r-card);background:var(--raised);
+  display:flex;align-items:center;padding:0 32px;gap:6px;
+  font-size:36px;font-weight:500;margin-bottom:28px;
+}
+.kb__display .ph{color:#5A5A5E}
+.kb__caret{width:3px;height:40px;background:var(--live);animation:blink 1.1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.kb__grid{display:grid;grid-template-columns:repeat(6,1fr);gap:14px}
+.key{
+  height:92px;border-radius:16px;background:var(--raised);border:0;
+  color:var(--text);font-family:inherit;font-size:30px;font-weight:500;
+  transition:transform var(--dur) var(--ease),background var(--dur) var(--ease);
+}
+.key.is-focused{background:#fff;color:#000;transform:scale(1.06)}
+.key--wide{grid-column:span 2}
+.key--util{background:var(--raised-2);font-size:24px}
+
+.results{flex:1 1 auto;min-width:0}
+.results__head{font-size:var(--fs-meta);color:var(--faint);margin-bottom:20px}
+/* 搜索结果与关注页共用卡片网格，右侧窄一点，自动落到 3 列 */
+.results .card-grid{grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:30px 20px}
+
+.recent{display:flex;flex-direction:column}
+.rrow-s{
+  display:flex;align-items:center;gap:20px;height:64px;padding:0 20px;border-radius:12px;
+  font-size:23px;color:var(--muted);
+  transition:background var(--dur) var(--ease),color var(--dur) var(--ease);
+}
+.rrow-s.is-focused{background:var(--raised);color:#fff}
+.rrow-s .n{font-size:21px;color:#5A5A5E;width:74px}
+.rrow-s .x{margin-left:auto;font-size:20px;color:#5A5A5E}
+
+/* ---------- 播放页 ---------- */
+.player{position:absolute;inset:0;background:#000}
+.player__video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:brightness(.78)}
+.player__scrim{
+  position:absolute;inset:0;
+  background:linear-gradient(180deg,rgba(0,0,0,.86) 0%,rgba(0,0,0,.1) 22%,rgba(0,0,0,0) 55%,rgba(0,0,0,.88) 92%);  /* taste-skill-ignore 视频上的中性黑色遮罩，规范允许的唯一例外 */
+}
+.danmaku{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+/* 弹幕：描边代替投影，保证在任意画面上都可读，且不给视频蒙上一层灰 */
+.dm{
+  position:absolute;white-space:nowrap;
+  font-size:40px;font-weight:500;color:#fff;
+  -webkit-text-stroke:1px rgba(0,0,0,.6);
+  paint-order:stroke fill;
+  animation:fly linear infinite;
+}
+@keyframes fly{from{transform:translateX(1920px)}to{transform:translateX(-100%)}}
+@media (prefers-reduced-motion:reduce){.dm{animation:none;transform:none;left:200px}}
+
+.p-top{
+  position:absolute;top:56px;left:var(--gut);right:var(--gut);
+  display:flex;align-items:flex-start;gap:20px;
+}
+.p-top__back{
+  width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,.14);
+  border:0;color:#fff;font-size:30px;line-height:1;flex:0 0 auto;
+  display:flex;align-items:center;justify-content:center;
+  transition:transform var(--dur) var(--ease),background var(--dur) var(--ease);
+}
+.p-top__back.is-focused{transform:scale(1.08);background:#fff;color:#000}
+.p-top__main{flex:1 1 auto;padding-top:2px}
+.p-top__line{display:flex;align-items:center;gap:14px;font-size:var(--fs-meta);color:var(--muted);margin-bottom:10px}
+.p-top__no{font-size:26px;font-weight:600;color:#fff}
+.p-top h2{font-size:38px;font-weight:600;letter-spacing:-.02em}
+.p-top__right{text-align:right;font-size:var(--fs-meta);color:var(--muted);line-height:1.7}
+
+.p-bottom{
+  position:absolute;left:var(--gut);right:var(--gut);bottom:56px;
+}
+.p-progress{display:flex;align-items:center;gap:18px;margin-bottom:26px}
+.p-bar{flex:1 1 auto;height:5px;border-radius:3px;background:rgba(255,255,255,.22);overflow:hidden}
+.p-bar i{display:block;height:100%;width:100%;background:var(--live)}
+.p-live{display:flex;align-items:center;gap:9px;font-size:var(--fs-meta);font-weight:600;color:var(--live)}
+.p-live .dot{width:10px;height:10px;border-radius:50%;background:var(--live)}
+.p-ctl{display:flex;align-items:center;gap:16px}
+.pbtn{
+  height:68px;padding:0 30px;border-radius:var(--r-pill);
+  background:rgba(255,255,255,.14);border:0;color:#fff;
+  font-family:inherit;font-size:24px;font-weight:500;
+  display:flex;align-items:center;gap:12px;
+  transition:transform var(--dur) var(--ease),background var(--dur) var(--ease),color var(--dur) var(--ease);
+}
+.pbtn.is-focused{background:#fff;color:#000;transform:scale(1.05)}
+.pbtn .val{color:var(--muted);font-weight:400}
+.pbtn.is-focused .val{color:#3A3A3C}
+.pbtn--primary{background:#fff;color:#000;font-weight:600}
+.pbtn--primary.is-focused{transform:scale(1.06)}
+.p-ctl__right{margin-left:auto;font-size:var(--fs-meta);color:var(--muted)}
+.p-degraded{
+  position:absolute;left:var(--gut);bottom:18px;
+  font-size:19px;color:#C7C7CC;
+}
+
+/* 换台条 */
+.osd{
+  position:absolute;left:var(--gut);bottom:272px;width:1240px;
+  background:rgba(28,28,31,.97);border-radius:28px;padding:34px 44px;
+  display:flex;align-items:center;gap:44px;
+  opacity:0;visibility:hidden;transform:translateY(24px);
+  transition:opacity 280ms var(--ease),transform 280ms var(--ease),visibility 280ms;
+}
+.osd.is-open{opacity:1;visibility:visible;transform:translateY(0)}
+.osd__no{font-size:var(--fs-display);font-weight:600;letter-spacing:-.04em;line-height:1}
+.osd__main{flex:1 1 auto;min-width:0}
+.osd__plat{font-size:var(--fs-meta);color:var(--muted);margin-bottom:12px;letter-spacing:.02em}
+.osd__title{font-size:30px;font-weight:600;margin-bottom:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.osd__host{font-size:var(--fs-meta);color:var(--faint)}
+.osd__thumb{width:300px;height:169px;border-radius:16px;object-fit:cover;flex:0 0 auto;background:var(--panel)}
+.osd__hint{
+  position:absolute;left:var(--gut);bottom:200px;display:flex;gap:30px;
+  font-size:21px;color:var(--faint);opacity:0;transition:opacity 280ms var(--ease);
+}
+.osd__hint.is-open{opacity:1}
+.osd__hint b{color:var(--muted);font-weight:600}
+
+/* ---------- 设置页 ---------- */
+.settings{display:flex;gap:48px;padding:36px var(--gut) 80px}
+.sgroups{width:340px;flex:0 0 auto;display:flex;flex-direction:column;gap:6px}
+.sgroup{
+  height:82px;border-radius:16px;padding:0 26px;display:flex;align-items:center;
+  background:transparent;border:0;font-family:inherit;font-size:26px;color:var(--muted);text-align:left;
+  transition:background var(--dur) var(--ease),transform var(--dur) var(--ease);
+}
+.sgroup.is-current{color:var(--text);font-weight:600}
+.sgroup.is-focused{background:var(--raised-2);transform:scale(1.02);color:var(--text)}
+.sgroups__foot{margin-top:34px;padding-left:26px;font-size:19px;line-height:1.7;color:#5A5A5E}
+
+.panel{flex:1 1 auto;min-width:0;border-radius:24px;background:var(--panel);padding:12px 32px}
+.srow{
+  display:flex;align-items:center;gap:24px;height:104px;
+  border-radius:16px;padding:0 20px;margin:4px 0;
+  transition:background var(--dur) var(--ease);
+}
+.srow.is-focused{background:var(--raised)}
+.srow__label{font-size:26px;font-weight:500}
+.srow__desc{font-size:20px;color:var(--faint);margin-top:6px}
+.srow__main{flex:1 1 auto}
+.seg{display:flex;gap:8px;background:var(--raised-2);border-radius:var(--r-pill);padding:5px}
+.seg b{
+  font-size:21px;font-weight:500;color:var(--muted);padding:10px 20px;border-radius:var(--r-pill);
+}
+.seg b.on{background:#fff;color:#000;font-weight:600}
+.sw{width:88px;height:50px;border-radius:var(--r-pill);background:var(--raised-2);position:relative;flex:0 0 auto;transition:background var(--dur) var(--ease)}
+.sw::after{
+  content:"";position:absolute;top:4px;left:4px;width:42px;height:42px;border-radius:50%;
+  background:#fff;transition:transform var(--dur) var(--ease);
+}
+.sw.on{background:#fff}
+.sw.on::after{transform:translateX(38px);background:#1C1C1F}
+.note{
+  margin:18px 20px 26px;font-size:20px;line-height:1.7;color:var(--faint);
+}
+
+/* ---------- 退出确认 ---------- */
+.dialog{
+  position:absolute;inset:0;background:rgba(0,0,0,.72);
+  display:flex;align-items:center;justify-content:center;
+  opacity:0;visibility:hidden;transition:opacity 200ms var(--ease),visibility 200ms;
+  z-index:20;
+}
+.dialog.is-open{opacity:1;visibility:visible}
+.dialog__box{
+  width:760px;background:#1C1C1F;border-radius:28px;padding:48px;
+  text-align:center;
+}
+.dialog__box h3{font-size:36px;font-weight:600;margin-bottom:14px}
+.dialog__box p{font-size:23px;color:var(--muted);margin-bottom:36px;line-height:1.6}
+.dialog__row{display:flex;gap:16px;justify-content:center}
+</style>
+</head>
+<body>
+
+<div class="chrome">
+  <div class="chrome__title">LiveHub<span>Android TV · 1920×1080 界面原型 · v1.0</span></div>
+  <div class="chrome__screens" id="screenChips"></div>
+</div>
+
+<div class="stage-wrap">
+<div class="stage" id="stage">
+
+  <!-- ================= 首页 ================= -->
+  <section class="screen is-active" data-screen="home" data-title="首页">
+    <nav class="navbar">
+      <div class="brand">Live<i>Hub</i></div>
+      <div class="tabs">
+        <button class="tab focusable is-current" data-go="home">首页</button>
+        <button class="tab focusable" data-go="follow">关注</button>
+        <button class="tab focusable" data-go="browse">分类</button>
+        <button class="tab focusable" data-go="search">搜索</button>
+        <button class="tab focusable" data-go="settings">设置</button>
+      </div>
+      <div class="nav-meta">
+        <span class="dot"></span><span>有线网络</span>
+        <span class="num">21:14</span>
+      </div>
+    </nav>
+
+    <div class="scroll" data-scroll>
+      <!-- 主图 -->
+      <div class="hero">
+        <img class="hero__img" src="../assets/covers/esports-arena.jpg" alt="电竞赛事现场，选手席与巨大屏幕">
+        <div class="hero__scrim"></div>
+        <div class="hero__body">
+          <div class="hero__kicker">
+            <span class="hero__no num">301</span>
+            <span>虎牙</span>
+            <span class="hero__sep"></span>
+            <span class="livedot"></span>
+            <span style="color:#FF453A;font-weight:600">直播中</span>
+          </div>
+          <h1>LPL 夏季赛 决赛日·第三局</h1>
+          <div class="hero__meta num">老炮儿　·　12.4 万人在看　·　已播 2 小时 18 分</div>
+          <button class="btn focusable" data-play="301">进入直播间</button>
+        </div>
+      </div>
+
+      <!-- 热门推荐 -->
+      <div class="shelf">
+        <div class="shelf__head">
+          <h2>正在直播</h2>
+          <span class="count num">全平台 1284 个</span>
+          <span class="more">按人气排序</span>
+        </div>
+        <div class="shelf__track" id="shelfLive" style="display:flex;gap:var(--gap-card)"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 分类 ================= -->
+  <section class="screen" data-screen="browse" data-title="分类">
+    <nav class="navbar">
+      <div class="brand">Live<i>Hub</i></div>
+      <div class="tabs">
+        <button class="tab focusable" data-go="home">首页</button>
+        <button class="tab focusable" data-go="follow">关注</button>
+        <button class="tab focusable is-current" data-go="browse">分类</button>
+        <button class="tab focusable" data-go="search">搜索</button>
+        <button class="tab focusable" data-go="settings">设置</button>
+      </div>
+      <div class="nav-meta"><span class="dot"></span><span>有线网络</span><span class="num">21:14</span></div>
+    </nav>
+    <div class="scroll" data-scroll>
+      <div class="browse">
+        <div class="rail-col">
+          <h1>分类</h1>
+          <p class="rail-col__sub">按平台号段找，或直接按数字键 1–4 直达。</p>
+          <div class="rail" id="rail"></div>
+          <div class="rail-col__hint">
+            <b>号段就是台号</b>
+            100 段哔哩哔哩，200 段斗鱼，300 段虎牙，400 段抖音。记住三个数字就够。
+          </div>
+        </div>
+        <div class="grid-area">
+          <div class="chips" id="chips"></div>
+          <div class="grid" id="browseGrid"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 关注 ================= -->
+  <section class="screen" data-screen="follow" data-title="关注">
+    <nav class="navbar">
+      <div class="brand">Live<i>Hub</i></div>
+      <div class="tabs">
+        <button class="tab focusable" data-go="home">首页</button>
+        <button class="tab focusable is-current" data-go="follow">关注</button>
+        <button class="tab focusable" data-go="browse">分类</button>
+        <button class="tab focusable" data-go="search">搜索</button>
+        <button class="tab focusable" data-go="settings">设置</button>
+      </div>
+      <div class="nav-meta"><span class="dot"></span><span>有线网络</span><span class="num">21:14</span></div>
+    </nav>
+    <div class="scroll" data-scroll>
+      <div class="page-head">
+        <h1>关注</h1>
+        <p class="num">12 位主播　·　6 位正在直播</p>
+      </div>
+      <div class="follow-wrap" id="followList"></div>
+    </div>
+  </section>
+
+  <!-- ================= 搜索 ================= -->
+  <section class="screen" data-screen="search" data-title="搜索">
+    <nav class="navbar">
+      <div class="brand">Live<i>Hub</i></div>
+      <div class="tabs">
+        <button class="tab focusable" data-go="home">首页</button>
+        <button class="tab focusable" data-go="follow">关注</button>
+        <button class="tab focusable" data-go="browse">分类</button>
+        <button class="tab focusable is-current" data-go="search">搜索</button>
+        <button class="tab focusable" data-go="settings">设置</button>
+      </div>
+      <div class="nav-meta"><span class="dot"></span><span>有线网络</span><span class="num">21:14</span></div>
+    </nav>
+    <div class="scroll" data-scroll>
+      <div class="page-head">
+        <h1>搜索</h1>
+        <p>输入主播名或台号。台号三位数会直接跳转。</p>
+      </div>
+      <div class="search-wrap">
+        <div class="kb">
+          <div class="kb__display"><span id="kbText" class="ph">输入拼音首字母，例如 lp</span><span class="kb__caret"></span></div>
+          <div class="kb__grid" id="kbGrid"></div>
+        </div>
+        <div class="results">
+          <div class="results__head" id="searchCount">找到 4 个结果</div>
+          <div id="searchResults"></div>
+          <div class="results__head" style="margin-top:44px">最近搜索</div>
+          <div class="recent" id="recentList"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 播放 ================= -->
+  <section class="screen" data-screen="player" data-title="播放">
+    <div class="player">
+      <img class="player__video" id="pvVideo" src="../assets/covers/esports-arena.jpg" alt="正在播放的直播画面">
+      <div class="player__scrim"></div>
+      <div class="danmaku" id="danmaku"></div>
+
+      <div class="p-top" id="pTop">
+        <button class="p-top__back focusable" data-back="home" aria-label="返回">‹</button>
+        <div class="p-top__main">
+          <div class="p-top__line">
+            <span class="p-top__no num" id="pvNo">301</span>
+            <span id="pvPlat">虎牙</span>
+            <span>·</span>
+            <span id="pvHost">老炮儿</span>
+          </div>
+          <h2 id="pvTitle">LPL 夏季赛 决赛日·第三局</h2>
+        </div>
+        <div class="p-top__right">
+          <div class="num" id="pvViewers">12.4 万人在看</div>
+          <div class="num">1080P60　·　已播 2:18:04</div>
+        </div>
+      </div>
+
+      <div class="p-degraded" id="pDegraded" hidden>已自动切到备用线路 · 720P</div>
+
+      <div class="p-bottom" id="pBottom">
+        <div class="p-progress">
+          <div class="p-bar"><i></i></div>
+          <div class="p-live"><span class="dot"></span>直播中</div>
+        </div>
+        <div class="p-ctl">
+          <button class="pbtn pbtn--primary focusable">＋ 关注</button>
+          <button class="pbtn focusable">弹幕 <span class="val">开</span></button>
+          <button class="pbtn focusable">清晰度 <span class="val">1080P60</span></button>
+          <button class="pbtn focusable">线路 <span class="val">主</span></button>
+          <button class="pbtn focusable" data-action="osd">换台</button>
+          <div class="p-ctl__right">按 ↑ 换台　·　返回键回首页</div>
+        </div>
+      </div>
+
+      <div class="osd" id="osd">
+        <div class="osd__no num" id="osdNo">301</div>
+        <div class="osd__main">
+          <div class="osd__plat" id="osdPlat">虎牙 · 300–399 号段</div>
+          <div class="osd__title" id="osdTitle">LPL 夏季赛 决赛日·第三局</div>
+          <div class="osd__host" id="osdHost">老炮儿　·　12.4 万人在看</div>
+        </div>
+        <img class="osd__thumb" id="osdThumb" src="../assets/covers/esports-arena.jpg" alt="下一台预览">
+      </div>
+      <div class="osd__hint" id="osdHint">
+        <span><b>↑↓</b> 换台</span><span><b>←→</b> 换平台</span><span><b>OK</b> 确定</span><span><b>返回</b> 关闭</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 设置 ================= -->
+  <section class="screen" data-screen="settings" data-title="设置">
+    <nav class="navbar">
+      <div class="brand">Live<i>Hub</i></div>
+      <div class="tabs">
+        <button class="tab focusable" data-go="home">首页</button>
+        <button class="tab focusable" data-go="follow">关注</button>
+        <button class="tab focusable" data-go="browse">分类</button>
+        <button class="tab focusable" data-go="search">搜索</button>
+        <button class="tab focusable is-current" data-go="settings">设置</button>
+      </div>
+      <div class="nav-meta"><span class="dot"></span><span>有线网络</span><span class="num">21:14</span></div>
+    </nav>
+    <div class="scroll" data-scroll>
+      <div class="page-head">
+        <h1>设置</h1>
+        <p>默认值已经调好，不改也能用。</p>
+      </div>
+      <div class="settings">
+        <div class="sgroups" id="sgroups"></div>
+        <div class="panel" id="sPanel"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 退出确认 -->
+  <div class="dialog" id="exitDialog">
+    <div class="dialog__box">
+      <h3>退出 LiveHub？</h3>
+      <p>关注列表和台号已经保存，下次打开还在。</p>
+      <div class="dialog__row">
+        <button class="btn focusable" data-exit="no">继续看</button>
+        <button class="btn btn--ghost focusable" data-exit="yes">退出</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<div class="hintbar">
+  <span><b>方向键</b> 移动焦点</span>
+  <span><b>Enter / OK</b> 确认</span>
+  <span><b>Esc</b> 返回上一级</span>
+  <span><b>播放页</b> ↑↓ 换台，←→ 换平台</span>
+  <span><b>数字键</b> 输入台号直达</span>
+</div>
+
+<script>
+/* ============================================================
+   数据层
+   ============================================================ */
+const PLATFORMS = [
+  { key:'bili',  name:'哔哩哔哩', short:'哔哩', from:100, to:199 },
+  { key:'douyu', name:'斗鱼',     short:'斗鱼', from:200, to:299 },
+  { key:'huya',  name:'虎牙',     short:'虎牙', from:300, to:399 },
+  { key:'dy',    name:'抖音',     short:'抖音', from:400, to:499 },
+];
+
+const ROOMS = [
+  { no:101, p:'bili',  cat:'游戏', host:'阿岚',     title:'峡谷之巅 冲王者 · 第 3 天',      v:'7.8 万',  img:'gaming-room' },
+  { no:102, p:'bili',  cat:'游戏', host:'夜航船',   title:'今晚只打 Inferno',              v:'4.2 万',  img:'esports-arena' },
+  { no:103, p:'bili',  cat:'虚拟', host:'小满',     title:'生日回 · 唱到嗓子哑',            v:'12.4 万', img:'led-stage' },
+  { no:104, p:'bili',  cat:'美食', host:'老周烧菜', title:'一锅红烧肉，从焯水讲起',          v:'1.6 万',  img:'hotpot' },
+  { no:105, p:'bili',  cat:'户外', host:'南方公园', title:'云南 · 沙溪古镇的雨',            v:'3.1 万',  img:'night-camp' },
+  { no:106, p:'bili',  cat:'音乐', host:'三号线',   title:'深夜民谣点歌台',                v:'2.4 万',  img:'livehouse' },
+  { no:201, p:'douyu', cat:'游戏', host:'小鱼干',   title:'亚服前 100 冲分',               v:'9.6 万',  img:'gaming-room' },
+  { no:202, p:'douyu', cat:'游戏', host:'刀客塔',   title:'TI 复盘 + 路人局',              v:'5.3 万',  img:'esports-arena' },
+  { no:203, p:'douyu', cat:'美食', host:'深夜食堂', title:'凌晨两点的炒饭',                v:'0.9 万',  img:'hotpot' },
+  { no:204, p:'douyu', cat:'户外', host:'阿川',     title:'千岛湖夜钓 · 第 4 夜',           v:'2.2 万',  img:'night-camp' },
+  { no:205, p:'douyu', cat:'体育', host:'阿速',     title:'环塔拉力赛 · 第 6 赛段',         v:'6.7 万',  img:'night-track' },
+  { no:206, p:'douyu', cat:'娱乐', host:'大脸猫',   title:'连麦到天亮',                    v:'3.8 万',  img:'livehouse' },
+  { no:301, p:'huya',  cat:'游戏', host:'老炮儿',   title:'LPL 夏季赛 决赛日·第三局',       v:'12.4 万', img:'esports-arena' },
+  { no:302, p:'huya',  cat:'游戏', host:'云端',     title:'四排上分，缺一个',               v:'4.9 万',  img:'gaming-room' },
+  { no:303, p:'huya',  cat:'游戏', host:'阿杰',     title:'LPL 二路解说',                  v:'8.1 万',  img:'esports-arena' },
+  { no:304, p:'huya',  cat:'户外', host:'石头',     title:'徒步 · 贡嘎西坡',                v:'1.4 万',  img:'night-camp' },
+  { no:305, p:'huya',  cat:'音乐', host:'午夜电台', title:'凌晨一点的电台',                v:'1.1 万',  img:'livehouse' },
+  { no:306, p:'huya',  cat:'娱乐', host:'小鹿',     title:'深夜闲聊',                      v:'2.7 万',  img:'stage-dance' },
+  { no:401, p:'dy',    cat:'娱乐', host:'阿泽',     title:'街头采访 · 成都',                v:'5.5 万',  img:'night-camp' },
+  { no:402, p:'dy',    cat:'户外', host:'麦田',     title:'西北自驾 · 第 12 天',            v:'1.8 万',  img:'night-camp' },
+  { no:403, p:'dy',    cat:'音乐', host:'小酒馆',   title:'一个人的 Livehouse',            v:'3.3 万',  img:'livehouse' },
+  { no:404, p:'dy',    cat:'美食', host:'夜市',     title:'长沙夜市一条街',                v:'4.1 万',  img:'hotpot' },
+  { no:405, p:'dy',    cat:'娱乐', host:'阿珍',     title:'排练室日常',                    v:'2.9 万',  img:'stage-dance' },
+  { no:406, p:'dy',    cat:'体育', host:'球场',     title:'野球场 3v3',                    v:'1.2 万',  img:'night-track' },
+];
+
+const FOLLOWS = [
+  { no:301, live:true,  state:'直播中' },
+  { no:103, live:true,  state:'直播中' },
+  { no:201, live:true,  state:'直播中' },
+  { no:101, live:true,  state:'直播中' },
+  { no:403, live:true,  state:'直播中' },
+  { no:204, live:true,  state:'直播中' },
+  { no:305, live:false, state:'未开播 · 预计 22:00' },
+  { no:406, live:false, state:'未开播 · 明天 19:30' },
+];
+
+const CATS = ['全部','游戏','娱乐','户外','虚拟','音乐','美食','体育'];
+
+const SETTINGS = {
+  '播放':[
+    { label:'解码方式', desc:'硬件解码更省电，遇到花屏再切软件', type:'seg', value:'硬件', opts:['硬件','软件'] },
+    { label:'默认画质', desc:'网络不稳时自动降一档', type:'seg', value:'自动', opts:['自动','1080P60','蓝光'] },
+    { label:'线路自动降级', desc:'首帧 3 秒未出，自动切备用线路', type:'sw', value:true },
+    { label:'起播缓冲', desc:'越大越稳，换台越慢', type:'seg', value:'1 秒', opts:['0.5 秒','1 秒','2 秒'] },
+    { label:'开播提醒', desc:'关注的主播开播时，首页主图优先展示', type:'sw', value:true },
+  ],
+  '弹幕':[
+    { label:'默认开启', desc:'进入直播间自动显示弹幕', type:'sw', value:true },
+    { label:'字号', desc:'大屏建议 40px 以上', type:'seg', value:'40', opts:['32','40','48'] },
+    { label:'同屏密度上限', desc:'超出直接丢弃，不排队', type:'seg', value:'12 条', opts:['8 条','12 条','20 条'] },
+    { label:'关键词屏蔽', desc:'默认过滤广告与引战内容', type:'sw', value:true },
+  ],
+  '账号与同步':[
+    { label:'扫码登录哔哩哔哩', desc:'登录后可发弹幕、看 1080P60', type:'seg', value:'未登录', opts:['未登录','扫码'] },
+    { label:'扫码登录抖音', desc:'部分直播间需要登录才能取流', type:'seg', value:'未登录', opts:['未登录','扫码'] },
+    { label:'与手机同步', desc:'关注、台号、观看记录通过同步码互通', type:'sw', value:true },
+  ],
+  '关于':[
+    { label:'版本', desc:'界面原型 v1.0 · 尚未接入真实接口', type:'seg', value:'v1.0', opts:['v1.0'] },
+    { label:'内容来源', desc:'所有直播内容来自各平台公开接口，版权归原作者', type:'sw', value:false },
+    { label:'开源许可', desc:'本项目以 GPL-3.0 发布，仅供学习交流', type:'sw', value:false },
+  ],
+};
+
+const $ = (s,r=document)=>r.querySelector(s);
+const $$ = (s,r=document)=>[...r.querySelectorAll(s)];
+const room = no => ROOMS.find(r=>r.no===+no) || ROOMS[0];
+const platOf = r => PLATFORMS.find(p=>p.key===r.p);
+
+/* ============================================================
+   渲染层（组件）
+   ============================================================ */
+/* 一张卡，两种用法：
+   room —— 直播卡，标题即直播间标题（首页、分类、搜索结果）
+   host —— 主播卡，标题即主播名（关注页） */
+function cardHTML(r, o={}){
+  const p = platOf(r);
+  const mode = o.mode || 'room';
+  const live = o.live !== false;
+  const meta = o.meta || `${p.short} · ${r.host} · ${r.v}人`;
+  const title = mode === 'host' ? r.host : r.title;
+  const badge = live
+    ? `<span class="card__live"><span style="width:8px;height:8px;border-radius:50%;background:#fff"></span>LIVE</span>`
+    : `<span class="card__warn">未开播</span>`;
+  return `<div class="card focusable ${live?'':'card--off'}" data-play="${r.no}">
+    <div class="card__lift">
+      <div class="card__media">
+        <img src="../assets/covers/${r.img}.jpg" alt="${r.host} 的直播间封面">
+        <span class="card__no num">${r.no}</span>
+        ${badge}
+      </div>
+      <div class="card__body">
+        <div class="card__title">${title}</div>
+        <div class="card__meta num">${meta}</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ---- 首页：只做热门推荐 ---- */
+const HOT = [301,103,201,101,205,403,102,303];
+$('#shelfLive').innerHTML = HOT.map(n=>cardHTML(room(n))).join('');
+
+/* ---- 分类 ---- */
+$('#rail').innerHTML = [{key:'all',name:'全部平台',from:'',to:''},...PLATFORMS].map((p,i)=>`
+  <button class="rail__item focusable ${i===0?'is-current':''}" data-rail="${p.key}">
+    <span>${p.name}</span><span class="num">${p.from?p.from+'–'+p.to:''}</span>
+  </button>`).join('');
+
+$('#chips').innerHTML = CATS.map((c,i)=>`<button class="chip-t focusable ${i===0?'is-current':''}" data-cat="${c}">${c}</button>`).join('');
+
+function renderGrid(plat='all', cat='全部'){
+  let list = ROOMS.filter(r=> (plat==='all'||r.p===plat) && (cat==='全部'||r.cat===cat));
+  if(!list.length) list = ROOMS.slice(0,4);
+  $('#browseGrid').innerHTML = list.map(r=>cardHTML(r)).join('');
+}
+renderGrid();
+
+/* ---- 关注：卡片网格，一行 3–4 列 ---- */
+(function(){
+  const on = FOLLOWS.filter(f=>f.live), off = FOLLOWS.filter(f=>!f.live);
+  const fcard = f => cardHTML(room(f.no), {
+    mode:'host', live:f.live,
+    meta: f.live ? `${platOf(room(f.no)).short} · ${f.no} · ${room(f.no).v} 人在看`
+                 : `${platOf(room(f.no)).short} · ${f.no} · ${f.state}`,
+  });
+  $('#followList').innerHTML =
+    `<div class="group-head">正在直播<span class="num">${on.length} 位</span></div>` +
+    `<div class="card-grid">${on.map(fcard).join('')}</div>` +
+    `<div class="group-head group-head--gap">未开播<span class="num">${off.length} 位</span></div>` +
+    `<div class="card-grid">${off.map(fcard).join('')}</div>`;
+})();
+
+/* ---- 搜索 ---- */
+const KEYS = 'QWERTYUIOPASDFGHJKLZXCVBNM'.split('');
+$('#kbGrid').innerHTML = KEYS.map(k=>`<button class="key focusable" data-key="${k}">${k}</button>`).join('')
+  + `<button class="key key--util focusable" data-key="del">删除</button>
+     <button class="key key--util key--wide focusable" data-key="space">空格</button>
+     <button class="key key--util focusable" data-key="go">搜索</button>`;
+
+/* ---- 搜索：结果与关注页同款卡片网格 ---- */
+const SEARCH = [
+  { no:301, why:'主播名匹配' },
+  { no:101, why:'主播名匹配' },
+  { no:303, why:'标题匹配' },
+  { no:201, why:'分类匹配 · 游戏' },
+];
+$('#searchResults').innerHTML = `<div class="card-grid">${SEARCH.map(s=>{
+  const r = room(s.no);
+  return cardHTML(r, { meta:`${platOf(r).short} · ${r.host} · ${s.why}` });
+}).join('')}</div>`;
+$('#searchCount').textContent = `找到 ${SEARCH.length} 个结果`;
+
+$('#recentList').innerHTML = [
+  { t:'老炮儿 · LPL 决赛', n:'301' },
+  { t:'虚拟主播 · 生日回', n:'103' },
+  { t:'夜钓 千岛湖', n:'204' },
+  { t:'环塔拉力赛', n:'205' },
+].map(r=>`<div class="rrow-s focusable" data-play="${r.n}">
+    <span class="n num">${r.n}</span><span>${r.t}</span><span class="x">三天前</span>
+  </div>`).join('');
+const GROUPS = Object.keys(SETTINGS);
+$('#sgroups').innerHTML = GROUPS.map((g,i)=>`<button class="sgroup focusable ${i===0?'is-current':''}" data-sgroup="${g}">${g}</button>`).join('')
+  + `<div class="sgroups__foot">LiveHub v1.0<br>仅观看各平台公开直播内容</div>`;
+
+function renderPanel(g){
+  $('#sPanel').innerHTML = SETTINGS[g].map(it=>`
+    <div class="srow focusable" data-opt="${it.label}">
+      <div class="srow__main">
+        <div class="srow__label">${it.label}</div>
+        <div class="srow__desc">${it.desc}</div>
+      </div>
+      ${ it.type==='seg'
+        ? `<div class="seg">${it.opts.map(o=>`<b class="${o===it.value?'on':''}">${o}</b>`).join('')}</div>`
+        : `<div class="sw ${it.value?'on':''}"></div>` }
+    </div>`).join('') + `<div class="note">这一屏只影响本机。关注与台号跟账号走，换电视后扫码即可恢复。</div>`;
+}
+renderPanel(GROUPS[0]);
+
+/* ---- 弹幕 ---- */
+(function(){
+  const lines = ['这波团开得漂亮','301 台锁了','第三局了吧','主播嘴硬','刚才那个闪现值了','音画同步没问题','大屏看着真爽','1080P60 挺稳'];
+  $('#danmaku').innerHTML = lines.map((t,i)=>{
+    const top = 200 + (i%5)*78;
+    const dur = 20 + (i%4)*4;
+    const delay = -(i*2.7);
+    return `<span class="dm" style="top:${top}px;animation-duration:${dur}s;animation-delay:${delay}s">${t}</span>`;
+  }).join('');
+})();
+
+/* ============================================================
+   焦点引擎（空间寻址）
+   ============================================================ */
+let currentScreen = 'home';
+let focusEl = null;
+
+const activeScreen = () => $(`.screen.is-active`);
+const focusables = () => $$('.focusable', activeScreen()).filter(el=>el.offsetParent!==null);
+
+function setFocus(el, scroll=true){
+  if(!el) return;
+  if(focusEl && focusEl!==el) focusEl.classList.remove('is-focused');
+  focusEl = el;
+  el.classList.add('is-focused');
+  if(scroll) el.scrollIntoView({block:'nearest',inline:'nearest',behavior:'smooth'});
+}
+
+function centerOf(el){
+  const r = el.getBoundingClientRect();
+  return {x:r.left+r.width/2, y:r.top+r.height/2, r};
+}
+
+function moveFocus(dir){
+  const list = focusables();
+  if(!list.length) return;
+  if(!focusEl || !list.includes(focusEl)){ setFocus(list[0]); return; }
+  const c = centerOf(focusEl);
+  let best = null, bestScore = Infinity;
+
+  for(const el of list){
+    if(el===focusEl) continue;
+    const o = centerOf(el);
+    let primary, secondary, ok = false;
+    if(dir==='up'){    primary = c.y-o.y; secondary = Math.abs(o.x-c.x); ok = primary>4; }
+    if(dir==='down'){  primary = o.y-c.y; secondary = Math.abs(o.x-c.x); ok = primary>4; }
+    if(dir==='left'){  primary = c.x-o.x; secondary = Math.abs(o.y-c.y); ok = primary>4; }
+    if(dir==='right'){ primary = o.x-c.x; secondary = Math.abs(o.y-c.y); ok = primary>4; }
+    if(!ok) continue;
+    const score = primary + secondary*2.4;
+    if(score < bestScore){ bestScore = score; best = el; }
+  }
+  if(best) setFocus(best);
+}
+
+/* ============================================================
+   界面切换
+   ============================================================ */
+const DEFAULT_FOCUS = {
+  home: () => $('[data-screen="home"] .hero .btn'),
+  browse: () => $('#browseGrid .card'),
+  follow: () => $('#followList .card'),
+  search: () => $('#kbGrid .key'),
+  player: () => $$('[data-screen="player"] .pbtn')[0],
+  settings: () => $('#sgroups .sgroup'),
+};
+
+const screenFocusMemory = {};
+
+function showScreen(name, opts={}){
+  if(currentScreen===name && !opts.force) return;
+  if(focusEl) screenFocusMemory[currentScreen] = focusEl;
+
+  $$('.is-focused').forEach(el=>el.classList.remove('is-focused'));   // 清掉旧界面的残留焦点
+  $('.screen.is-active')?.classList.remove('is-active');
+  const next = $(`.screen[data-screen="${name}"]`);
+  next.classList.add('is-active');
+  currentScreen = name;
+  focusEl = null;
+  $$('.tab').forEach(t=>t.classList.toggle('is-current', t.dataset.go===name));
+
+  // 播放页：进入时清空导航焦点，控制条默认显示
+  if(name==='player'){ playerState='controls'; renderPlayerState(); }
+
+  const remembered = opts.remember ? screenFocusMemory[name] : null;
+  const target = remembered || DEFAULT_FOCUS[name]?.();
+  if(target) setFocus(target, false);
+
+  $$('#screenChips .chip').forEach(c=>c.setAttribute('aria-pressed', c.dataset.jump===name));
+}
+
+/* ============================================================
+   播放页状态机
+   ============================================================ */
+let playerState = 'controls';   // idle | controls | osd
+let curNo = 301;
+
+function loadRoom(no){
+  const r = room(no);
+  curNo = r.no;
+  $('#pvVideo').src = `../assets/covers/${r.img}.jpg`;
+  $('#pvNo').textContent = r.no;
+  $('#pvPlat').textContent = platOf(r).short;
+  $('#pvHost').textContent = r.host;
+  $('#pvTitle').textContent = r.title;
+  $('#pvViewers').textContent = r.v + ' 人在看';
+  $('#osdNo').textContent = r.no;
+  $('#osdPlat').textContent = platOf(r).short + ' · ' + platOf(r).from + '–' + platOf(r).to + ' 号段';
+  $('#osdTitle').textContent = r.title;
+  $('#osdHost').textContent = r.host + '　·　' + r.v + ' 人在看';
+  $('#osdThumb').src = `../assets/covers/${r.img}.jpg`;
+  $('#pDegraded').hidden = r.no !== 202;   // 演示降级状态
+}
+
+function renderPlayerState(){
+  const top = $('#pTop'), bottom = $('#pBottom');
+  const osd = $('#osd'), hint = $('#osdHint');
+  const show = playerState !== 'idle';
+  top.style.opacity = show ? '1' : '0';
+  top.style.transition = 'opacity 200ms ease';
+  bottom.style.opacity = show ? '1' : '0';
+  bottom.style.transition = 'opacity 200ms ease';
+  osd.classList.toggle('is-open', playerState==='osd');
+  hint.classList.toggle('is-open', playerState==='osd');
+  $('#pvVideo').style.filter = playerState==='idle' ? 'brightness(.92)' : 'brightness(.78)';
+}
+
+function openPlayer(no){
+  loadRoom(no);
+  showScreen('player', {force:true});
+  playerState = 'controls';
+  renderPlayerState();
+  setFocus($$('[data-screen="player"] .pbtn')[0], false);
+}
+
+function surf(delta){
+  const list = ROOMS.map(r=>r.no).sort((a,b)=>a-b);
+  let i = list.indexOf(curNo);
+  i = (i + delta + list.length) % list.length;
+  loadRoom(list[i]);
+}
+
+function surfPlatform(dir){
+  const p = platOf(room(curNo));
+  const idx = PLATFORMS.findIndex(x=>x.key===p.key);
+  const nextP = PLATFORMS[(idx + dir + PLATFORMS.length) % PLATFORMS.length];
+  const first = ROOMS.find(r=>r.p===nextP.key);
+  if(first) loadRoom(first.no);
+}
+
+/* ============================================================
+   键盘
+   ============================================================ */
+let numBuf = '', numTimer = null;
+
+document.addEventListener('keydown', e=>{
+  const k = e.key;
+
+  if(!$('#exitDialog').classList.contains('is-open')){
+    if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(k)) e.preventDefault();
+  }
+
+  // 退出确认层
+  if($('#exitDialog').classList.contains('is-open')){
+    if(k==='Enter'){ activate(focusEl); e.preventDefault(); }
+    if(k==='ArrowLeft'||k==='ArrowRight'||k==='ArrowUp'||k==='ArrowDown'){ moveFocus(k.replace('Arrow','').toLowerCase()); e.preventDefault(); }
+    if(k==='Escape'){ closeExit(); }
+    return;
+  }
+
+  // 数字键跳台
+  if(/^[0-9]$/.test(k) && (currentScreen==='home'||currentScreen==='player')){
+    numBuf = (numBuf + k).slice(-3);
+    clearTimeout(numTimer);
+    if(numBuf.length===3){ openPlayer(numBuf); numBuf=''; }
+    else numTimer = setTimeout(()=>{ numBuf=''; }, 1200);
+    return;
+  }
+
+  // 播放页
+  if(currentScreen==='player'){
+    const dir = {ArrowUp:-1, ArrowDown:1}[k];
+    if(playerState==='osd'){
+      if(dir){ surf(dir); e.preventDefault(); return; }
+      if(k==='ArrowLeft'){ surfPlatform(-1); e.preventDefault(); return; }
+      if(k==='ArrowRight'){ surfPlatform(1); e.preventDefault(); return; }
+      if(k==='Enter'){ playerState='idle'; renderPlayerState(); e.preventDefault(); return; }
+      if(k==='Escape'){ playerState='idle'; renderPlayerState(); return; }
+      return;
+    }
+    if(k==='ArrowUp'||k==='ArrowDown'){
+      playerState='osd'; renderPlayerState();
+      surf(k==='ArrowUp'?-1:1);
+      e.preventDefault(); return;
+    }
+    if(k==='ArrowLeft'||k==='ArrowRight'){ surfPlatform(k==='ArrowLeft'?-1:1); e.preventDefault(); return; }
+    if(k==='Enter'){
+      if(playerState==='idle'){ playerState='controls'; renderPlayerState(); setFocus($$('[data-screen="player"] .pbtn')[0],false); }
+      else activate(focusEl);
+      e.preventDefault(); return;
+    }
+    if(k==='Escape'){
+      if(playerState==='controls'){ playerState='idle'; renderPlayerState(); focusEl?.classList.remove('is-focused'); focusEl=null; }
+      else showScreen('home');
+      return;
+    }
+    if(k.startsWith('Arrow')){ moveFocus(k.replace('Arrow','').toLowerCase()); e.preventDefault(); }
+    return;
+  }
+
+  // 其它界面
+  if(k.startsWith('Arrow')){ moveFocus(k.replace('Arrow','').toLowerCase()); e.preventDefault(); return; }
+  if(k==='Enter'){ activate(focusEl); e.preventDefault(); return; }
+  if(k==='Escape'){
+    if(currentScreen!=='home'){ showScreen('home'); }
+    else openExit();
+    return;
+  }
+});
+
+function activate(el){
+  if(!el) return;
+  if(el.dataset.play) { openPlayer(el.dataset.play); return; }
+  if(el.dataset.go){ 
+    if(el.dataset.plat){
+      showScreen('browse');
+      const item = $(`[data-rail="${el.dataset.plat}"]`);
+      if(item){ $$('.rail__item').forEach(x=>x.classList.remove('is-current')); item.classList.add('is-current'); renderGrid(el.dataset.plat, currentCat); setFocus(item,false); }
+      return;
+    }
+    showScreen(el.dataset.go); return;
+  }
+  if(el.dataset.back){ showScreen(el.dataset.back); return; }
+  if(el.dataset.action==='osd'){ playerState='osd'; renderPlayerState(); return; }
+  if(el.dataset.rail){
+    $$('.rail__item').forEach(x=>x.classList.remove('is-current'));
+    el.classList.add('is-current'); currentPlat = el.dataset.rail; renderGrid(currentPlat, currentCat); return;
+  }
+  if(el.dataset.cat){
+    $$('.chip-t').forEach(x=>x.classList.remove('is-current'));
+    el.classList.add('is-current'); currentCat = el.dataset.cat; renderGrid(currentPlat, currentCat); return;
+  }
+  if(el.dataset.sgroup){
+    $$('.sgroup').forEach(x=>x.classList.remove('is-current'));
+    el.classList.add('is-current'); renderPanel(el.dataset.sgroup); return;
+  }
+  if(el.dataset.opt){ 
+    const sw = el.querySelector('.sw'); if(sw) sw.classList.toggle('on');
+    const seg = el.querySelectorAll('.seg b');
+    if(seg.length){ const i=[...seg].findIndex(b=>b.classList.contains('on')); seg.forEach(b=>b.classList.remove('on')); seg[(i+1)%seg.length].classList.add('on'); }
+    return;
+  }
+  if(el.dataset.key){
+    const v = el.dataset.key;
+    const t = $('#kbText');
+    if(v==='del'){ t.textContent = (t.textContent==='输入拼音首字母，例如 lp')?'':t.textContent.slice(0,-1); }
+    else if(v==='space'){ t.textContent += ' '; }
+    else if(v==='123'){ }
+    else if(v==='go'){ }
+    else { if(t.classList.contains('ph')){ t.textContent=''; t.classList.remove('ph'); } t.textContent += v.toLowerCase(); }
+    if(!t.textContent){ t.textContent='输入拼音首字母，例如 lp'; t.classList.add('ph'); }
+    return;
+  }
+  if(el.dataset.exit){ if(el.dataset.exit==='yes'){ closeExit(); } else closeExit(); return; }
+}
+
+let currentPlat = 'all', currentCat = '全部';
+
+/* 鼠标也能聚焦 */
+document.addEventListener('mouseover', e=>{
+  const f = e.target.closest('.focusable');
+  if(f && f.offsetParent!==null && f!==focusEl) setFocus(f, false);
+});
+document.addEventListener('click', e=>{
+  const f = e.target.closest('.focusable');
+  if(f){ setFocus(f,false); activate(f); }
+});
+
+/* 返回最高级：先回首页，再确认退出 */
+function openExit(){
+  const d = $('#exitDialog');
+  d.classList.add('is-open');
+  const b = $$('[data-exit]', d); 
+  setFocus(b[0], false);
+}
+function closeExit(){
+  $('#exitDialog').classList.remove('is-open');
+  const t = $('.screen.is-active .tab'); if(t) setFocus(t,false);
+}
+
+/* ============================================================
+   外壳：画布缩放 + 界面切换按钮
+   ============================================================ */
+const SCREENS = [
+  ['home','首页'],['follow','关注'],['browse','分类'],['search','搜索'],
+  ['player','播放'],['settings','设置']
+];
+$('#screenChips').innerHTML = SCREENS.map(([k,t])=>
+  `<button class="chip" data-jump="${k}" aria-pressed="${k==='home'}">${t}</button>`).join('');
+$('#screenChips').addEventListener('click', e=>{
+  const c = e.target.closest('[data-jump]'); if(!c) return;
+  if(c.dataset.jump==='player'){ openPlayer(curNo); return; }
+  showScreen(c.dataset.jump);
+});
+
+function fit(){
+  if(document.body.classList.contains('canvas')){ $('#stage').style.transform='none'; return; }
+  const wrap = $('.stage-wrap');
+  const s = Math.min(wrap.clientWidth/1920, wrap.clientHeight/1080) * 0.97;
+  $('#stage').style.transform = `translate(-50%,-50%) scale(${s})`;
+}
+window.addEventListener('resize', fit);
+
+/* 初始化 */
+const PARAMS = new URLSearchParams(location.search);
+if(PARAMS.has('canvas')) document.body.classList.add('canvas');
+fit();
+
+const startScreen = PARAMS.get('screen');
+if(startScreen==='player'){ openPlayer(PARAMS.get('no')||curNo); }
+else if(startScreen){ showScreen(startScreen,{force:true}); }
+else { showScreen('home',{force:true}); }
+if(PARAMS.get('osd')==='1'){ playerState='osd'; renderPlayerState(); }
+</script>
+</body>
+</html>
