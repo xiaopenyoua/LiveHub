@@ -22,13 +22,16 @@ const SHOTS = [
   ['01-home',          `showScreen('home')`],
   ['02-browse',        `showScreen('browse')`],
   ['03-follow',        `showScreen('follow')`],
-  ['04-search',        `showScreen('search')`],
+  // 搜索页空查询不显示结果（那是假状态），所以这里先输一个真查询，拍到的才是"搜到了"的一帧
+  ['04-search',        `showScreen('search'); setQuery('lp')`],
   ['05-player',        `showScreen('player')`],
   ['06-settings',      `showScreen('settings')`],
   ['07-channel-osd',   `showScreen('player'); playerState='osd'; renderPlayerState()`],
   ['08-exit-dialog',   `showScreen('home'); openExit()`],
   // 焦点放到左栏：证明左右两栏用的是同一块玻璃，不是两套语言
   ['09-settings-nav',  `showScreen('settings'); setFocus($('#sgroups .sgroup'), false)`],
+  // 数字键盘 + 台号直达：123 切过去、输满三位、结果区给出「按搜索直达」那一句
+  ['10-search-num',    `showScreen('search'); kbMode='num'; renderKeyboard(); setQuery('301'); setFocus($('[data-key="3"]'), false)`],
 ];
 
 async function main() {

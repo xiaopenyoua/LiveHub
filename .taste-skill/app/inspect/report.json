@@ -1,6 +1,6 @@
 {
  "url": "design/_canvas.html",
- "at": "2026-10-29T03:31:20.671Z",
+ "at": "2026-10-29T04:37:12.804Z",
  "allow": [
   "edge-text",
   "button-fx"
@@ -31,7 +31,7 @@
      "height": 1200,
      "screens": 1,
      "words": 161,
-     "img": 51,
+     "img": 47,
      "video": 0,
      "canvas": 0,
      "svg": 0,
@@ -40,7 +40,7 @@
      "overflowCulprits": [],
      "uiFragments": 0,
      "uiAbuse": false,
-     "realPictures": 51,
+     "realPictures": 47,
      "videoCount": 0,
      "uiPictures": 0,
      "pictureSamples": [
@@ -126,7 +126,7 @@
      "familyCount": 1,
      "sizes": [
       18,
-      19,
+      20,
       22,
       24,
       26,
@@ -427,7 +427,7 @@
       13,
       15,
       18,
-      19,
+      20,
       22,
       24,
       26,

@@ -1,6 +1,6 @@
 {
  "url": "design/index.html",
- "at": "2026-10-29T03:31:11.008Z",
+ "at": "2026-10-29T04:37:17.455Z",
  "allow": [
   "edge-text",
   "button-fx",
@@ -32,7 +32,7 @@
      "height": 900,
      "screens": 1,
      "words": 188,
-     "img": 51,
+     "img": 47,
      "video": 0,
      "canvas": 0,
      "svg": 0,
@@ -41,7 +41,7 @@
      "overflowCulprits": [],
      "uiFragments": 0,
      "uiAbuse": false,
-     "realPictures": 51,
+     "realPictures": 47,
      "videoCount": 0,
      "uiPictures": 0,
      "pictureSamples": [
@@ -276,7 +276,7 @@
       13,
       15,
       18,
-      19,
+      20,
       22,
       24,
       26,
@@ -620,7 +620,7 @@
       13,
       15,
       18,
-      19,
+      20,
       22,
       24,
       26,
@@ -663,7 +663,7 @@
      "height": 1024,
      "screens": 1,
      "words": 188,
-     "img": 51,
+     "img": 47,
      "video": 0,
      "canvas": 0,
      "svg": 0,
@@ -1174,7 +1174,7 @@
       13,
       15,
       18,
-      19,
+      20,
       22,
       24,
       26,
@@ -1472,7 +1472,7 @@
       13,
       15,
       18,
-      19,
+      20,
       22,
       24,
       26,
@@ -1486,7 +1486,7 @@
      "size": 76,
      "top": 426
     },
-    "colourShare": 0.034
+    "colourShare": 0.035
    },
    "consoleErrors": []
   },
@@ -1515,7 +1515,7 @@
      "height": 844,
      "screens": 1,
      "words": 188,
-     "img": 51,
+     "img": 47,
      "video": 0,
      "canvas": 0,
      "svg": 0,
@@ -2047,7 +2047,7 @@
       13,
       15,
       18,
-      19,
+      20,
       22,
       24,
       26,
@@ -2115,7 +2115,7 @@
        "text": "LIVE",
        "ratio": 3.4,
        "need": 4.5,
-       "size": 19,
+       "size": 20,
        "fg": "#ffffff",
        "bg": "#ff453a"
       },
@@ -2123,7 +2123,7 @@
        "text": "LIVE",
        "ratio": 3.4,
        "need": 4.5,
-       "size": 19,
+       "size": 20,
        "fg": "#ffffff",
        "bg": "#ff453a"
       },
@@ -2131,7 +2131,7 @@
        "text": "LIVE",
        "ratio": 3.4,
        "need": 4.5,
-       "size": 19,
+       "size": 20,
        "fg": "#ffffff",
        "bg": "#ff453a"
       },
@@ -2139,7 +2139,7 @@
        "text": "LIVE",
        "ratio": 3.4,
        "need": 4.5,
-       "size": 19,
+       "size": 20,
        "fg": "#ffffff",
        "bg": "#ff453a"
       },
@@ -2147,7 +2147,7 @@
        "text": "LIVE",
        "ratio": 3.4,
        "need": 4.5,
-       "size": 19,
+       "size": 20,
        "fg": "#ffffff",
        "bg": "#ff453a"
       },
@@ -2155,7 +2155,7 @@
        "text": "LIVE",
        "ratio": 3.4,
        "need": 4.5,
-       "size": 19,
+       "size": 20,
        "fg": "#ffffff",
        "bg": "#ff453a"
       }
@@ -2362,7 +2362,7 @@
       13,
       15,
       18,
-      19,
+      20,
       22,
       24,
       26,
