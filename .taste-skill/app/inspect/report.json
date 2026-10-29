@@ -1,6 +1,6 @@
 {
  "url": "design/_canvas.html",
- "at": "2026-10-29T03:12:05.547Z",
+ "at": "2026-10-29T03:31:20.671Z",
  "allow": [
   "edge-text",
   "button-fx"
@@ -12,7 +12,7 @@
    "load": "load",
    "screens": 1,
    "filled": [
-    0.58
+    0.56
    ],
    "motion": {
     "elements": 18,
@@ -30,8 +30,8 @@
     "page": {
      "height": 1200,
      "screens": 1,
-     "words": 120,
-     "img": 47,
+     "words": 161,
+     "img": 51,
      "video": 0,
      "canvas": 0,
      "svg": 0,
@@ -40,7 +40,7 @@
      "overflowCulprits": [],
      "uiFragments": 0,
      "uiAbuse": false,
-     "realPictures": 47,
+     "realPictures": 51,
      "videoCount": 0,
      "uiPictures": 0,
      "pictureSamples": [
@@ -151,8 +151,8 @@
      "microLabels": 0,
      "microLabelShare": 0,
      "microSamples": [],
-     "upperShare": 0.18,
-     "centerShare": 0.04,
+     "upperShare": 0.16,
+     "centerShare": 0.03,
      "smallText": 0
     },
     "eyebrows": [],
@@ -179,11 +179,11 @@
      "textColors": [
       {
        "color": "#8e8e93",
-       "share": 0.39
+       "share": 0.42
       },
       {
        "color": "#b4b4b4",
-       "share": 0.37
+       "share": 0.35
       },
       {
        "color": "#ffffff",
@@ -191,7 +191,7 @@
       },
       {
        "color": "#ff453a",
-       "share": 0.02
+       "share": 0.01
       },
       {
        "color": "#000000",
@@ -235,10 +235,10 @@
      "outlinedBoxes": 0,
      "dashed": 0,
      "blurred": 1,
-     "roundedBoxes": 8,
+     "roundedBoxes": 12,
      "boxRadius": 20,
      "squareMedia": 1,
-     "roundedMedia": 8,
+     "roundedMedia": 12,
      "mediaRadius": 20,
      "textShadow": 0,
      "cardRows": []
@@ -298,19 +298,19 @@
       "sel": "div.shelf",
       "tag": "div",
       "top": 644,
-      "height": 363,
-      "words": 95,
-      "media": 8,
-      "middle": 1299,
+      "height": 1195,
+      "words": 136,
+      "media": 12,
+      "middle": 24,
       "heading": {
        "text": "正在直播",
        "size": 34,
        "tag": "h2"
       },
       "left": 80,
-      "right": 0,
+      "right": 80,
       "textLeft": 80,
-      "textRight": -1340,
+      "textRight": 80,
       "fullBleed": false,
       "footer": true,
       "hero": false,
@@ -339,12 +339,12 @@
     "stage": false,
     "explains": true,
     "slivers": [],
-    "voidShare": 0.13,
+    "voidShare": 0.04,
     "voidBox": {
-     "x": 0,
-     "y": 1040,
-     "w": 1920,
-     "h": 160
+     "x": 400,
+     "y": 640,
+     "w": 1280,
+     "h": 80
     }
    },
    "app": {
@@ -358,7 +358,7 @@
     "topbar": null,
     "canvas": {
      "left": 73,
-     "right": -1340
+     "right": 80
     },
     "hero": {
      "text": "LPL 夏季赛 决赛日·第三局",
@@ -379,18 +379,18 @@
     },
     "charts": 0,
     "layout": {
-     "panels": 9,
+     "panels": 13,
      "firstScreen": 9,
      "ragged": [],
      "voids": []
     },
     "tiles": 0,
     "panels": {
-     "count": 9,
+     "count": 13,
      "radii": [
       [
        20,
-       8
+       12
       ],
       [
        999,
@@ -412,7 +412,7 @@
     "numbers": {
      "cells": 0,
      "leftAligned": 0,
-     "figures": 9,
+     "figures": 13,
      "tabularShare": 1,
      "kpiMax": 26
     },
@@ -441,7 +441,7 @@
      "size": 76,
      "top": 304
     },
-    "colourShare": 0.078
+    "colourShare": 0.08
    },
    "consoleErrors": []
   }
