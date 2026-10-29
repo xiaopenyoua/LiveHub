@@ -43,7 +43,7 @@ async function main(){
 
   const press = k => evalJS(`document.dispatchEvent(new KeyboardEvent('keydown',{key:${JSON.stringify(k)},bubbles:true}))`);
 
-  // 焦点描述：优先台号，其次文字，最后 class —— 三卡片同号时也不会误判
+  // 焦点描述：优先直播间标识，其次文字，最后 class
   const describe = () => evalJS(`(()=>{
       const s=document.querySelector('.screen.is-active').dataset.screen;
       const f=document.querySelector('.is-focused');
@@ -51,11 +51,13 @@ async function main(){
       if(dlg && dlg.classList.contains('is-open')) return s+'  |  退出确认弹层已打开';
       let t='—';
       if(s==='player'){
-        const osd=document.getElementById('osd');
-        t=[document.getElementById('pvNo').textContent, osd.classList.contains('is-open')?'换台条':'控制条'].join(' · ');
+        // 三态要说清：换台条 / 控制条 / 空闲。以前只分"是不是换台条"，
+        // 于是"收起控制条"和"呼出控制条"看起来一模一样，没法验收。
+        const st = playerState;
+        t=[document.getElementById('pvRid').textContent, st==='osd'?'换台条':(st==='controls'?'控制条':'空闲')].join(' · ');
       } else if(f){
         const txt = f.textContent.trim().replace(/\\s+/g,' ');
-        t = (f.dataset.play ? '台号 '+f.dataset.play+' · ' : '') + (txt? txt.slice(0,16) : f.className.split(' ')[0]);
+        t = (f.dataset.play ? '直播间 '+f.dataset.play+' · ' : '') + (txt? txt.slice(0,16) : f.className.split(' ')[0]);
       }
       return s+'  |  '+t;
   })()`);
@@ -66,7 +68,7 @@ async function main(){
     rows.push([label, await describe()]);
   }
 
-  // 走一遍真实使用路径：首页 → 换卡 → 进直播间 → 换台 → 换平台 → 数字直达 → 回首页 → 退出
+  // 走一遍真实使用路径：首页 → 换卡 → 进直播间 → 换台 → 换平台 → 回首页 → 退出
   await step('初始（首页主图按钮）');
   await step('→ 第一张卡', 'ArrowRight');
   await step('→ 下一张卡', 'ArrowRight');
@@ -76,7 +78,8 @@ async function main(){
   await step('↑ 再上一台', 'ArrowUp');
   await step('← 换平台', 'ArrowLeft');
   await step('OK 关闭换台条', 'Enter');
-  await step('数字 2 0 3 直达', '2','0','3');
+  await step('→ 换平台', 'ArrowRight');
+  await step('OK 呼出控制条', 'Enter');
   await step('Esc 收起控制条', 'Escape');
   await step('Esc 回首页', 'Escape');
   await step('Esc 弹退出确认', 'Escape');
@@ -97,6 +100,25 @@ async function main(){
     }
   }
 
+  // 搜索链路：一块键盘、没有模式切换、纯内容匹配。验四件事——
+  //   数字与字母同屏；模式切换键确实不存在；房间号/拼音/抖音号/前缀都能命中；空查询不出假结果
+  const searchCases = await evalJS(`(()=>{
+    const has = k => !!document.querySelector('#kbGrid [data-key="'+k+'"]');
+    const probe = q => { const h = searchHits(q); return h.length ? h[0].r.rid + ' · ' + h[0].why + ' · rank' + h[0].rank : '无结果'; };
+    const o = {};
+    o['数字 6 与字母 L 同屏']       = has('6') && has('L');
+    o['123 / ABC 模式键已删除']     = !has('123') && !has('abc');
+    o['数字行满十列']               = document.querySelectorAll('#kbGrid > .kb__row:first-child .key').length === 10;
+    o['660000 虎牙房间号']          = probe('660000');
+    o['9999 斗鱼短号']              = probe('9999');
+    o['lpe 拼音首字母']             = probe('lpe');
+    o['xiaojiuguan 抖音号']         = probe('xiaojiuguan');
+    o['88 房间号前缀']              = probe('88');
+    o['zzzz 无匹配']                = probe('zzzz');
+    o['空查询结果数']               = searchHits('').length;
+    return o;
+  })()`);
+
   // 每个界面的可聚焦元素数量（防止某一屏没有入口）
   const counts = await evalJS(`(()=>{
     const o={};
@@ -111,6 +133,9 @@ async function main(){
   console.log('\n步骤'.padEnd(28), '状态');
   console.log('─'.repeat(76));
   for(const [a,b] of rows) console.log(String(a).padEnd(28), b);
+  console.log('─'.repeat(76));
+  console.log('搜索：');
+  for(const [k,v] of Object.entries(searchCases || {})) console.log('  ' + String(k).padEnd(26), v);
   console.log('─'.repeat(76));
   console.log('可聚焦元素：', JSON.stringify(counts));
   console.log('焦点原地不动：'+stuckDetail.length+' / '+total+'  '+JSON.stringify(stuckDetail));

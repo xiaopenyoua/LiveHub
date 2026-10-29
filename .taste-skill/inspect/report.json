@@ -1,10 +1,8 @@
 {
  "url": "design/index.html",
- "at": "2026-10-29T04:37:17.455Z",
+ "at": "2026-10-29T04:50:46.818Z",
  "allow": [
-  "edge-text",
-  "button-fx",
-  "covered-text"
+  "button-fx"
  ],
  "viewports": [
   {
@@ -374,19 +372,19 @@
       },
       {
        "color": "#b4b4b4",
-       "share": 0.29
+       "share": 0.3
       },
       {
        "color": "#ffffff",
-       "share": 0.18
+       "share": 0.16
       },
       {
        "color": "#5f5f64",
-       "share": 0.1
+       "share": 0.11
       },
       {
        "color": "#2c2c2e",
-       "share": 0.03
+       "share": 0.04
       }
      ],
      "button": {
@@ -605,7 +603,7 @@
     "numbers": {
      "cells": 0,
      "leftAligned": 0,
-     "figures": 13,
+     "figures": 1,
      "tabularShare": 1,
      "kpiMax": 26
     },
@@ -1231,19 +1229,19 @@
       },
       {
        "color": "#b4b4b4",
-       "share": 0.29
+       "share": 0.3
       },
       {
        "color": "#ffffff",
-       "share": 0.18
+       "share": 0.16
       },
       {
        "color": "#5f5f64",
-       "share": 0.1
+       "share": 0.11
       },
       {
        "color": "#2c2c2e",
-       "share": 0.03
+       "share": 0.04
       }
      ],
      "button": {
@@ -1457,7 +1455,7 @@
     "numbers": {
      "cells": 0,
      "leftAligned": 0,
-     "figures": 13,
+     "figures": 1,
      "tabularShare": 1,
      "kpiMax": 26
     },
@@ -1496,7 +1494,7 @@
    "load": "load",
    "screens": 1,
    "filled": [
-    0.34
+    0.39
    ],
    "motion": {
     "elements": 18,
@@ -1548,7 +1546,7 @@
      "weight": 600,
      "tracking": -0.02,
      "leading": 1.06,
-     "top": 398,
+     "top": 381,
      "tag": "h1",
      "kind": "heading",
      "align": "left",
@@ -1579,7 +1577,7 @@
       "align": "center",
       "position": "left",
       "widthRatio": 0.05,
-      "top": 343,
+      "top": 326,
       "tag": "button",
       "kind": "heading"
      },
@@ -1600,7 +1598,7 @@
       "align": "center",
       "position": "left",
       "widthRatio": 0.05,
-      "top": 343,
+      "top": 326,
       "tag": "button",
       "kind": "heading"
      },
@@ -1621,7 +1619,7 @@
       "align": "center",
       "position": "left",
       "widthRatio": 0.05,
-      "top": 343,
+      "top": 326,
       "tag": "button",
       "kind": "heading"
      },
@@ -1642,7 +1640,7 @@
       "align": "center",
       "position": "left",
       "widthRatio": 0.05,
-      "top": 343,
+      "top": 326,
       "tag": "button",
       "kind": "heading"
      },
@@ -1663,7 +1661,7 @@
       "align": "center",
       "position": "left",
       "widthRatio": 0.05,
-      "top": 343,
+      "top": 326,
       "tag": "button",
       "kind": "heading"
      },
@@ -1684,7 +1682,7 @@
       "align": "left",
       "position": "left",
       "widthRatio": 0.05,
-      "top": 346,
+      "top": 328,
       "tag": "div",
       "kind": "heading"
      },
@@ -1705,7 +1703,7 @@
       "align": "left",
       "position": "right",
       "widthRatio": 0.1,
-      "top": 347,
+      "top": 329,
       "tag": "div",
       "kind": "heading"
      },
@@ -1726,7 +1724,7 @@
       "align": "left",
       "position": "left",
       "widthRatio": 0.45,
-      "top": 398,
+      "top": 381,
       "tag": "h1",
       "kind": "heading"
      },
@@ -1747,7 +1745,7 @@
       "align": "center",
       "position": "left",
       "widthRatio": 0.11,
-      "top": 429,
+      "top": 412,
       "tag": "button",
       "kind": "heading"
      },
@@ -1768,7 +1766,7 @@
       "align": "left",
       "position": "left",
       "widthRatio": 0.07,
-      "top": 465,
+      "top": 447,
       "tag": "h2",
       "kind": "heading"
      },
@@ -1789,7 +1787,7 @@
       "align": "left",
       "position": "left",
       "widthRatio": 0.21,
-      "top": 531,
+      "top": 514,
       "tag": "div",
       "kind": "heading"
      },
@@ -1810,7 +1808,7 @@
       "align": "left",
       "position": "left",
       "widthRatio": 0.21,
-      "top": 531,
+      "top": 514,
       "tag": "div",
       "kind": "heading"
      },
@@ -1831,7 +1829,7 @@
       "align": "left",
       "position": "right",
       "widthRatio": 0.21,
-      "top": 531,
+      "top": 514,
       "tag": "div",
       "kind": "heading"
      },
@@ -1852,7 +1850,7 @@
       "align": "left",
       "position": "right",
       "widthRatio": 0.21,
-      "top": 531,
+      "top": 514,
       "tag": "div",
       "kind": "heading"
      },
@@ -1873,7 +1871,7 @@
       "align": "left",
       "position": "left",
       "widthRatio": 0.21,
-      "top": 601,
+      "top": 584,
       "tag": "div",
       "kind": "heading"
      },
@@ -1894,7 +1892,7 @@
       "align": "left",
       "position": "left",
       "widthRatio": 0.21,
-      "top": 601,
+      "top": 584,
       "tag": "div",
       "kind": "heading"
      },
@@ -1915,7 +1913,7 @@
       "align": "left",
       "position": "right",
       "widthRatio": 0.21,
-      "top": 601,
+      "top": 584,
       "tag": "div",
       "kind": "heading"
      },
@@ -1936,7 +1934,7 @@
       "align": "left",
       "position": "right",
       "widthRatio": 0.21,
-      "top": 601,
+      "top": 584,
       "tag": "div",
       "kind": "heading"
      },
@@ -1957,7 +1955,7 @@
       "align": "left",
       "position": "left",
       "widthRatio": 0.21,
-      "top": 671,
+      "top": 654,
       "tag": "div",
       "kind": "heading"
      },
@@ -1978,7 +1976,7 @@
       "align": "left",
       "position": "left",
       "widthRatio": 0.21,
-      "top": 671,
+      "top": 654,
       "tag": "div",
       "kind": "heading"
      },
@@ -1999,7 +1997,7 @@
       "align": "left",
       "position": "right",
       "widthRatio": 0.21,
-      "top": 671,
+      "top": 654,
       "tag": "div",
       "kind": "heading"
      },
@@ -2020,7 +2018,7 @@
       "align": "left",
       "position": "right",
       "widthRatio": 0.21,
-      "top": 671,
+      "top": 654,
       "tag": "div",
       "kind": "heading"
      }
@@ -2094,19 +2092,19 @@
       },
       {
        "color": "#b4b4b4",
-       "share": 0.29
+       "share": 0.3
       },
       {
        "color": "#ffffff",
-       "share": 0.18
+       "share": 0.16
       },
       {
        "color": "#5f5f64",
-       "share": 0.1
+       "share": 0.11
       },
       {
        "color": "#2c2c2e",
-       "share": 0.03
+       "share": 0.04
       }
      ],
      "button": null,
@@ -2242,7 +2240,7 @@
       "sel": "div.stage-wrap",
       "tag": "div",
       "top": 123,
-      "height": 643,
+      "height": 608,
       "words": 162,
       "media": 1,
       "middle": 0,
@@ -2267,7 +2265,7 @@
      {
       "text": "LPL 夏季赛 决赛日·第三局",
       "size": 76,
-      "top": 398,
+      "top": 381,
       "firstScreen": true
      }
     ],
@@ -2310,7 +2308,7 @@
      "weight": 600,
      "tracking": -0.02,
      "leading": 1.06,
-     "top": 398,
+     "top": 381,
      "tag": "h1",
      "kind": "heading",
      "align": "left",
@@ -2347,7 +2345,7 @@
     "numbers": {
      "cells": 0,
      "leftAligned": 0,
-     "figures": 13,
+     "figures": 1,
      "tabularShare": 1,
      "kpiMax": 26
     },
@@ -2374,7 +2372,7 @@
     "title": {
      "text": "LPL 夏季赛 决赛日·第三局",
      "size": 76,
-     "top": 398
+     "top": 381
     },
     "colourShare": 0.02
    },

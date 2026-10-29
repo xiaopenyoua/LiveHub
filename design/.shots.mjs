@@ -30,8 +30,8 @@ const SHOTS = [
   ['08-exit-dialog',   `showScreen('home'); openExit()`],
   // 焦点放到左栏：证明左右两栏用的是同一块玻璃，不是两套语言
   ['09-settings-nav',  `showScreen('settings'); setFocus($('#sgroups .sgroup'), false)`],
-  // 数字键盘 + 台号直达：123 切过去、输满三位、结果区给出「按搜索直达」那一句
-  ['10-search-num',    `showScreen('search'); kbMode='num'; renderKeyboard(); setQuery('301'); setFocus($('[data-key="3"]'), false)`],
+  // 房间号直达：一块键盘里直接打 660000（没有"数字模式"可切），结果区给出「按搜索直达」那一句
+  ['10-search-rid',    `showScreen('search'); setQuery('660000'); setFocus($('[data-key="6"]'), false)`],
 ];
 
 async function main() {
