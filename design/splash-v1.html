@@ -1,0 +1,649 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>LiveHub · 应用内开屏 · 1920×1080</title>
+<style>
+/* ============================================================
+   LiveHub — 应用内开屏（03 视觉规格 v1.2 终稿 / 04 动效 v4）
+   单文件、无构建、1920×1080 TV 画布，可直接浏览器打开看动效。
+   `?canvas=1` 剥掉演示外壳（与 design/index.html 同一套约定）。
+
+   三根柱子，同轴居中于 x=960（03 §0）：
+     品牌 图标视口 200 @ 860–1060 / 232–432
+     字标 120/600/−2.4，cap 顶 496 / baseline 583
+     状态 22/400，基线 695 / 743 / 791 / 839，块 x 862–1058
+   ============================================================ */
+
+/* 拉丁与数字用 Inter（自托管）；中文落回系统黑体 —— 规范 §3 的两段式字族 */
+@font-face{
+  font-family:"Inter";
+  src:url("../assets/fonts/InterVariable.woff2") format("woff2-variations");
+  font-weight:100 900;
+  font-display:block;
+}
+
+:root{
+  /* ---------- 五个颜色值，一个都不多（03 §1） ----------
+     后两个只给文字，不给任何图形构件。 */
+  --black:#000000;
+  --white:#FFFFFF;
+  --red:#FF453A;
+  --dim:#B4B4B4;      /* 还没有结论 */
+  --dim2:#8E8E93;     /* 已确定，但这一家不可用 */
+
+  /* 首页层的面板色（docs/02 §10 的加载态面板），不属于开屏层 */
+  --panel:#121214;
+
+  /* ---------- 三条曲线（04 §3.1） ---------- */
+  --in:cubic-bezier(.22,1,.36,1);     /* 入场：一切「到来」 */
+  --out:cubic-bezier(.4,0,1,1);       /* 退场：开屏层离开 */
+  --ease:cubic-bezier(.32,.72,0,1);   /* 既有 --ease：三态翻转、首页、顶栏 */
+
+  /* ---------- 尺寸（与 index.html 同名同值） ---------- */
+  --nav-h:116px;
+  --gut:80px;
+  --r-card:20px;
+  --r-pill:999px;
+
+  /* ---------- 字阶（04 §1） ---------- */
+  --fs-display:120px;
+  --fs-hero:76px;
+  --fs-h1:44px;
+  --fs-h2:34px;
+  --fs-title:26px;
+  --fs-body:24px;
+  --fs-meta:22px;
+  --fs-tab:30px;
+  --fs-small:20px;
+  --fs-card-meta:18px;
+
+  --latin:"Inter";
+  --sans:"Inter","PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+
+  /* ---------- 一条把「baseline」翻译成 CSS top 的公式 ----------
+     Inter 的 hhea 度量：ascender 1984 / descender 496 / unitsPerEm 2048。
+     line-height:1 时行盒高 = 1em，半行距 = (1em − (A+D)) / 2，
+     于是行盒顶到基线的距离 = 半行距 + A = 0.5em + (A−D)/2
+                              = 0.5em + 0.3633em = 0.8633em。
+     所有文字的 top 都写成 `calc(<基线> − .8633em)`，em 取该元素自己的字号 ——
+     这样代码里留下的是基线的数字，不是一串看不懂的偏移量。 */
+}
+
+html,body{margin:0;padding:0;background:#0B0C0F}
+body{-webkit-font-smoothing:antialiased}
+
+/* ============================================================
+   演示外壳（?canvas=1 时整块剥掉）
+   ============================================================ */
+.chrome{
+  position:fixed;left:0;right:0;top:0;height:88px;z-index:10;
+  display:flex;align-items:center;gap:18px;padding:0 22px;
+  background:#0B0C0F;border-bottom:1px solid #1C1E23;
+  font:400 13px/1.45 ui-sans-serif,system-ui,-apple-system,"PingFang SC",sans-serif;
+  color:#8E8E93;
+}
+.chrome .ttl{color:#FFFFFF;font-weight:600;font-size:14px;letter-spacing:.01em;white-space:nowrap}
+.chrome .ttl span{color:#6E6E73;font-weight:400;font-size:12px;margin-left:10px;letter-spacing:0}
+.chrome .sw{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.chrome button{
+  font:inherit;color:#B4B4B4;background:#16181D;border:0;border-radius:8px;
+  padding:6px 11px;cursor:pointer;white-space:nowrap;
+}
+.chrome button:hover{background:#20232A;color:#fff}
+.chrome button.on{background:#2C3038;color:#fff}
+.chrome .readout{
+  margin-left:auto;display:flex;gap:16px;align-items:center;
+  font:400 12px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:#6E6E73;white-space:nowrap;
+}
+.chrome .readout b{color:#B4B4B4;font-weight:500}
+
+.stage-wrap{position:absolute;left:0;right:0;top:88px;bottom:0;overflow:hidden;background:#000}
+body.canvas .chrome{display:none}
+body.canvas .stage-wrap{top:0}
+body.canvas{overflow:hidden;background:#000}
+
+/* ============================================================
+   画布：唯一的底色在这里。开屏层与首页层都不携带自己的底色
+   （04 §4「底色由根 Box 恒定提供」）—— 于是撤层可以在任意一帧
+   瞬间发生，零视觉变化。
+   ============================================================ */
+#stage{
+  position:absolute;left:0;top:0;width:1920px;height:1080px;
+  background:var(--black);overflow:hidden;
+  transform-origin:0 0;
+
+  /* 时长旋钮：reduced-motion 只改这里，不改结构（04 §5） */
+  --dE1:200ms;   /* E1 开屏层淡出 */
+  --dE2:240ms;   /* E2 首页内容 / E3a 顶栏结构 */
+  --dE3b:80ms;   /* E3b 顶栏字标（T+200 → T+280） */
+  --delE3b:200ms;
+  --dP4:200ms;   /* P4 单行三态交叉淡变 */
+}
+
+/* ============================================================
+   开屏层
+   ============================================================ */
+.layer-splash{position:absolute;inset:0;z-index:2}
+
+/* --- 图标：只画两块墨，不画底板 / 安全圆 / 容器 / 蒙版（03 §3） ---
+   viewBox 取 108 图层的 18→90（= 72 视口），width 200 →
+   k = 200/72 = 2.7778，坐标原样照抄 ic_launcher_foreground.svg，
+   一个数都不重算。 */
+.mark{
+  position:absolute;left:860px;top:232px;width:200px;height:200px;
+  transform-origin:50% 50%;
+  overflow:visible;
+}
+
+/* --- 字标：一段文本、两个着色区间（03 §4 实现纪律） ---
+   `Hub` 用 <i> 只换颜色，不换盒子：letter-spacing 仍然由父元素整段施加，
+   `e` 与 `H` 之间不会多出 1–2px。拆成两个并排元素才会断字距。 */
+.wm{
+  position:absolute;left:960px;
+  /* 基线 583。+.8633em 是行盒顶到基线的距离（见 :root 里的推导）。
+     末尾 +1px 是实测补正：Chrome 把 120px 的基线吸到上一格整像素，
+     照公式摆会落在 582，实测 L 的墨底 = 582.0、cap 顶 494.7；
+     补 1px 后墨底 583.0 / cap 顶 495.7（= 583 − 87.3）。 */
+  top:calc(583px - .8633em + 1px);
+  font:600 var(--fs-display)/1 var(--latin);
+  /* 关掉光学尺寸。Inter 是可变字体，opsz 轴在 120px 会把字标换成 Display 切法：
+     排版宽 461.9（= 03 §4 的 461.7）会缩到 3.590em ≈ 430.9，差 3%，
+     448–476 的验收窗口直接假性失败。03 §4 的 3.847em 是在默认光学尺寸（opsz 14）
+     上量的，所以这一行不是调字号，是把字体按规格的方式取用。 */
+  font-optical-sizing:none;
+  letter-spacing:-2.4px;              /* = −0.02em */
+  transform:translateX(-50%);
+  padding-right:2.4px;                /* 尾字距也占盒宽；还回去，墨迹才真的居中于 960 */
+  color:var(--white);white-space:pre;
+}
+.wm i{font-style:normal;color:var(--red)}
+
+/* --- 状态区：四行，基线与基线相距 48（03 §5） --- */
+.status{position:absolute;left:862px;top:0;width:196px;height:0}
+.st{position:absolute;left:0;top:0;width:196px;height:0}
+.st .face{position:absolute;left:0;top:var(--bl);width:196px;height:0}
+
+/* 指示构件：16×4，四角 r=2（全圆）。不是点、不是线、不脉动。 */
+.st .bar{position:absolute;left:0;top:-10px;width:16px;height:4px;border-radius:2px;background:currentColor}
+/* 超时态只缩短墨迹、不缩槽位：槽固定 16，墨迹 8 左对齐 */
+.st .face.late .bar{width:8px}
+
+.st .plat{position:absolute;left:32px;top:calc(-.8633em);font:400 var(--fs-meta)/1 var(--sans)}
+.st .word{position:absolute;left:108px;top:calc(-.8633em);font:400 var(--fs-meta)/1 var(--sans)}
+
+.st .face.conn{color:var(--dim)}     /* 连接中 */
+.st .face.ready{color:var(--white)}  /* 就绪 */
+.st .face.late{color:var(--dim2)}    /* 超时降级 */
+
+/* 单行三态：交叉淡变，宽度不做动画（P4）。旧文案连墨迹一起淡出。 */
+.st .face:first-child{opacity:0}
+.st .face:last-child{opacity:1}
+.live:not(.is-final) .st .face:first-child{opacity:1}
+.live:not(.is-final) .st .face:last-child{opacity:0}
+.is-final.xf .st .face{animation-duration:var(--dP4);animation-timing-function:var(--ease);animation-fill-mode:both;
+  animation-name:xfOut;animation-delay:calc(0ms - var(--seekC,0ms))}
+.is-final.xf .st .face:last-child{animation-name:xfIn}
+
+/* --- 整体降级态：整块替换四行（03 §6） ---
+   宽 196 的槽塞不下 34px 八字的标题（272）与 24px 的说明（456/528），
+   所以整块以 960 为轴居中：标题 272、说明单行、按钮 132（正好 894–1026，
+   与 03 §6 给的按钮左右缘一字不差）。三条基线与 776 的按钮只容得下单行。 */
+.fail{position:absolute;left:960px;top:0;width:0;height:0;opacity:0;text-align:center}
+.fail .t{
+  position:absolute;left:50%;transform:translateX(-50%);
+  top:calc(704px - .8633em);          /* 基线 704 / cap 顶 679 */
+  font:600 var(--fs-h2)/1 var(--sans);color:var(--white);white-space:nowrap;
+}
+.fail .d{
+  position:absolute;left:50%;transform:translateX(-50%);
+  top:calc(746px - .8633em);          /* 基线 746 / cap 顶 728 */
+  font:400 var(--fs-body)/1 var(--sans);color:var(--dim);white-space:nowrap;
+}
+/* 重试：实心白胶囊，黑字。尺寸继承 PillButton，材质按 04 §2 裁决换成实心 ——
+   黑底上没有东西可模糊，玻璃分支只会剩一道被禁的白边。 */
+.fail .b{
+  position:absolute;left:50%;transform:translateX(-50%);top:776px;
+  width:132px;height:72px;border-radius:var(--r-pill);
+  background:var(--white);color:var(--black);border:0;
+  font:500 var(--fs-title)/1 var(--sans);
+  display:flex;align-items:center;justify-content:center;
+}
+
+/* 失败态整块替换：状态区淡出、降级块淡入（同一套 200ms 交叉） */
+.live.is-fail:not(.is-final) .status{opacity:1}
+.live.is-fail:not(.is-final) .fail{opacity:0}
+.live.is-fail.is-final .status{opacity:0}
+.live.is-fail.is-final .fail{opacity:1}
+.is-fail.is-final.xf .status,.is-fail.is-final.xf .fail{
+  animation-duration:var(--dP4);animation-timing-function:var(--ease);animation-fill-mode:both;
+  animation-name:xfOut;animation-delay:calc(0ms - var(--seekC,0ms));
+}
+.is-fail.is-final.xf .fail{animation-name:xfIn}
+
+/* --- 系统开屏那一帧（?sys=1）：#000000 + 居中 192px 图标，无字、禁止动 ---
+   192 = Android 12 可见区 192dp，1dp=1px；200 × 0.96 = 192（03 §9 第五条）。 */
+.is-sys .wm,.is-sys .status,.is-sys .fail,.is-sys .layer-home{display:none}
+.is-sys .mark{left:calc(50% - 96px);top:calc(50% - 96px);width:192px;height:192px}
+
+/* ============================================================
+   首页层（开屏之下的真实一层，用来做交叉；不复制其余五屏）
+   底色同样为 #000000 —— 若这里是 index.html 的 #15161A，
+   E1 淡出的那 200ms 里底色会从 #000 跳到 #15161A，
+   那正是 04 §4 禁止的那次亮度跃变。
+   ============================================================ */
+/* 层本身不挂 alpha：E2 与 E3a 是两块（内容 / 顶栏结构），
+   各自动各自的 alpha —— 层再挂一层，就会变成「两份 alpha 相乘」，
+   顶栏结构的曲线被内容拖慢。两层在 t=0 都靠子元素的 opacity:0 隐形。 */
+.layer-home{position:absolute;inset:0;z-index:1;color:var(--white);font-family:var(--sans)}
+
+.home-nav{
+  position:absolute;left:0;right:0;top:0;height:var(--nav-h);
+  display:flex;align-items:center;padding:0 var(--gut);gap:44px;opacity:0;
+}
+/* 顶栏字标：30/600，x=80，baseline=69 —— 116 的行内居中 + line-height:1
+   自然给出 43 + 0.8633×30 = 68.9。它是屏上最后一个停下的东西（E3b）。 */
+.home-brand{
+  font:600 var(--fs-tab)/1 var(--latin);letter-spacing:-.6px;
+  color:var(--white);opacity:0;white-space:pre;
+}
+.home-brand i{font-style:normal;color:var(--red)}
+
+.tabs{display:flex;gap:14px;align-items:center}
+.tab{
+  font:500 var(--fs-tab)/1 var(--sans);color:var(--dim);
+  padding:13px 24px;border-radius:var(--r-pill);
+}
+.tab.on{color:var(--white);font-weight:600;background:rgba(255,255,255,.14)}
+.nav-meta{margin-left:auto;display:flex;align-items:center;gap:16px;font:400 var(--fs-meta)/1 var(--sans);color:var(--dim2)}
+
+.home-body{position:absolute;left:0;right:0;top:var(--nav-h);bottom:0;opacity:0}
+
+.hero{position:relative;height:478px;overflow:hidden}
+.hero img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 56%;filter:brightness(1.22) saturate(1.05)}
+/* 照片上的中性黑遮罩：规范允许的唯一例外（封面必须压暗才贴得住文字） */
+.hero .scrim{
+  position:absolute;inset:0;
+  background:
+    linear-gradient(90deg,rgba(0,0,0,.92) 0%,rgba(0,0,0,.72) 34%,rgba(0,0,0,0) 66%),
+    linear-gradient(0deg,rgba(0,0,0,.85) 0%,rgba(0,0,0,0) 52%);
+}
+.hero .body{position:absolute;left:var(--gut);bottom:56px;width:900px}
+.kicker{display:flex;align-items:center;gap:14px;font:400 var(--fs-meta)/1 var(--sans);color:var(--dim);margin-bottom:18px}
+.kicker .sep{width:4px;height:4px;border-radius:50%;background:#6E6E73}
+.kicker .live{color:var(--red);font-weight:600}
+.livedot{width:12px;height:12px;border-radius:50%;background:var(--red);display:inline-block}
+.hero h1{
+  margin:0 0 18px;font:600 var(--fs-hero)/1.06 var(--sans);letter-spacing:-.025em;color:var(--white);
+}
+.hero .meta{margin:0 0 30px;font:400 var(--fs-body)/1 var(--sans);color:var(--dim);font-variant-numeric:tabular-nums}
+.btn{
+  display:inline-flex;align-items:center;height:72px;padding:0 40px;border:0;border-radius:var(--r-pill);
+  background:var(--white);color:var(--black);font:600 var(--fs-title)/1 var(--sans);
+}
+
+.shelf{padding:50px var(--gut) 0}
+.shelf-head{display:flex;align-items:baseline;gap:20px;margin-bottom:34px}
+.shelf-head h2{margin:0;font:600 var(--fs-h2)/1 var(--sans);letter-spacing:-.02em;color:var(--white)}
+.shelf-head .count{font:400 var(--fs-meta)/1 var(--sans);color:var(--dim2)}
+.shelf-head .more{margin-left:auto;font:400 var(--fs-meta)/1 var(--sans);color:var(--dim)}
+.cards{display:flex;gap:24px}
+.card{width:380px;flex:0 0 auto}
+.card .media{position:relative;aspect-ratio:16/9;border-radius:var(--r-card);overflow:hidden;background:var(--panel)}
+.card .media img{width:100%;height:100%;object-fit:cover;display:block;filter:brightness(.86)}
+.card.is-focused .media img{filter:brightness(1)}
+.card .plat{
+  position:absolute;left:12px;top:12px;padding:4px 12px 5px;border-radius:10px;
+  background:rgba(0,0,0,.62);font:600 var(--fs-small)/1 var(--sans);color:#fff;
+}
+.card .pill-live{
+  position:absolute;right:14px;top:14px;padding:6px 14px;border-radius:var(--r-pill);
+  background:var(--red);font:600 var(--fs-small)/1 var(--sans);color:#fff;
+}
+.card .txt{padding:16px 4px 0}
+.card .title{
+  font:600 var(--fs-title)/1.3 var(--sans);letter-spacing:-.01em;color:var(--dim);
+  overflow:hidden;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;
+}
+.card.is-focused .title{color:var(--white)}
+.card .cmeta{margin-top:8px;font:400 var(--fs-card-meta)/1.3 var(--sans);color:var(--dim2);font-variant-numeric:tabular-nums}
+
+/* ============================================================
+   动效：CSS 默认值 = 终值；动画只负责「从哪里来」。
+   于是 ?still=1（不挂 .run）天然就是静止终态，不需要第二套规则。
+   ============================================================ */
+@keyframes iconIn{from{transform:translateY(208px) scale(.96)}to{transform:translateY(0) scale(1)}}
+@keyframes wmIn{from{opacity:0;transform:translate(-50%,16px)}to{opacity:1;transform:translate(-50%,0)}}
+@keyframes rowIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes xfOut{from{opacity:1}to{opacity:0}}
+@keyframes xfIn{from{opacity:0}to{opacity:1}}
+@keyframes splashOut{from{opacity:1}to{opacity:0}}
+@keyframes homeIn{from{opacity:0}to{opacity:1}}
+
+/* P1 图标 0→340；P2 字标 340→600；P3 四行 600/660/720/780 各 180（零交叠接力） */
+.run .mark{animation:iconIn 340ms var(--in) both;animation-delay:calc(0ms - var(--seekA,0ms))}
+.run .wm{animation:wmIn 260ms var(--in) both;animation-delay:calc(340ms - var(--seekA,0ms))}
+.run .st{animation:rowIn 180ms var(--in) both;animation-delay:calc(var(--d,600ms) - var(--seekA,0ms))}
+
+/* E1 开屏层 / E2 首页内容 / E3a 顶栏结构 / E3b 顶栏字标 */
+.is-exiting .layer-splash{animation:splashOut var(--dE1) var(--out) both;animation-delay:calc(0ms - var(--seekB,0ms))}
+.is-exiting .home-body,.is-exiting .home-nav{
+  animation:homeIn var(--dE2) var(--ease) both;animation-delay:calc(0ms - var(--seekB,0ms));
+}
+.is-exiting .home-brand{animation:homeIn var(--dE3b) var(--ease) both;animation-delay:calc(var(--delE3b) - var(--seekB,0ms))}
+
+/* reduced-motion：首帧即终态、只把时长压到 1 帧；不删 transform，状态必须到达。
+   整段开屏仍保留 960ms 静止曝光（04 §5）。
+   选择器必须是 #stage.reduced —— 写 .reduced 会被 #stage 的 id 权重压掉，
+   时长静默变回 200ms，实测 A 会晚 30ms 而看不出原因。 */
+#stage.reduced{--dE1:16ms;--dE2:16ms;--dE3b:16ms;--delE3b:0ms;--dP4:16ms}
+#stage.reduced .mark,#stage.reduced .wm,#stage.reduced .st{animation:none}
+
+/* ?t=NNN：把整条时间轴按在同一格里 —— 暂停动画 + 负 delay，
+   曲线与中间值仍然由浏览器自己算，不是我在 JS 里重写一遍缓动。 */
+.seek,.seek *{animation-play-state:paused!important}
+</style>
+</head>
+<body>
+
+<div class="chrome" id="chrome">
+  <div class="ttl">LiveHub 开屏<span>1920×1080 · 03 v1.2 / 04 v4</span></div>
+  <div class="sw" id="sw"></div>
+  <div class="readout" id="readout"></div>
+</div>
+
+<div class="stage-wrap" id="wrap">
+<div id="stage">
+
+  <!-- ===== 首页层（开屏之下） ===== -->
+  <div class="layer-home" id="home">
+    <nav class="home-nav">
+      <div class="home-brand" id="homeBrand">Live<i>Hub</i></div>
+      <div class="tabs">
+        <div class="tab on">首页</div>
+        <div class="tab">关注</div>
+        <div class="tab">分类</div>
+        <div class="tab">搜索</div>
+        <div class="tab">设置</div>
+      </div>
+      <div class="nav-meta"><span>有线网络</span><span style="font-variant-numeric:tabular-nums">21:14</span></div>
+    </nav>
+
+    <div class="home-body">
+      <div class="hero">
+        <img src="../assets/covers/esports-arena.jpg" alt="电竞赛事现场，选手席与巨大屏幕">
+        <div class="scrim"></div>
+        <div class="body">
+          <div class="kicker">
+            <span>虎牙</span><span class="sep"></span><i class="livedot"></i>
+            <span class="live">直播中</span>
+          </div>
+          <h1>LPL 夏季赛 决赛日·第三局</h1>
+          <div class="meta">老炮儿　·　12.4 万人在看　·　已播 2 小时 18 分</div>
+          <button class="btn">进入直播间</button>
+        </div>
+      </div>
+
+      <div class="shelf">
+        <div class="shelf-head">
+          <h2>正在直播</h2>
+          <span class="count">全平台 1284 个</span>
+          <span class="more">按人气排序</span>
+        </div>
+        <div class="cards">
+          <div class="card is-focused">
+            <div class="media">
+              <img src="../assets/covers/night-track.jpg" alt="夜间赛道与看台灯光">
+              <div class="plat">斗鱼</div>
+              <div class="pill-live">直播中</div>
+            </div>
+            <div class="txt">
+              <div class="title">澳门站 排位赛·第二日</div>
+              <div class="cmeta">3.7 万人在看</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="media">
+              <img src="../assets/covers/hotpot.jpg" alt="热气腾腾的火锅">
+              <div class="plat">哔哩</div>
+            </div>
+            <div class="txt">
+              <div class="title">深夜食堂 第 4 季 · 火锅局</div>
+              <div class="cmeta">1.2 万人在看</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="media">
+              <img src="../assets/covers/livehouse.jpg" alt="Livehouse 现场乐队">
+              <div class="plat">虎牙</div>
+              <div class="pill-live">直播中</div>
+            </div>
+            <div class="txt">
+              <div class="title">木吉他夜 · 第 12 场</div>
+              <div class="cmeta">6842 人在看</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 开屏层 ===== -->
+  <div class="layer-splash" id="splash">
+
+    <!-- 图标：坐标照抄 108 图层，viewBox 18 18 72 72 = 72 视口 -->
+    <svg class="mark" id="mark" viewBox="18 18 72 72" width="200" height="200" aria-hidden="true">
+      <path fill="#FFFFFF" d="M35,30 L35,78 L72,54 Z"/>
+      <path fill="#FF453A" d="M52,31.5 A4.5,4.5 0 0 1 56.5,27 H67.5 A4.5,4.5 0 0 1 72,31.5 A4.5,4.5 0 0 1 67.5,36 H56.5 A4.5,4.5 0 0 1 52,31.5 Z"/>
+    </svg>
+
+    <!-- 字标：一段文本，两个着色区间 -->
+    <div class="wm" id="wm">Live<i>Hub</i></div>
+
+    <!-- 四行状态（由脚本按 state 生成 face） -->
+    <div class="status" id="status" aria-live="polite"></div>
+
+    <!-- 整体降级态 -->
+    <div class="fail" id="fail">
+      <div class="t" id="failTitle"></div>
+      <div class="d" id="failDesc"></div>
+      <button class="b" id="failBtn" type="button">重试</button>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  const P = new URLSearchParams(location.search);
+  const stage = document.getElementById('stage');
+  const wrap = document.getElementById('wrap');
+  const splash = document.getElementById('splash');
+  const brand = document.getElementById('homeBrand');
+
+  /* ---------- 开关 ---------- */
+  const canvas = P.has('canvas');
+  const STATE = (P.get('state') || 'ready').toLowerCase();
+  const NET = P.get('net') === 'off' ? 'off' : 'on';
+  const sys = P.has('sys');
+  const still = P.has('still');
+  const seek = P.has('t') ? Math.max(0, Number(P.get('t')) || 0) : null;
+  const rmQ = P.has('reduced') ? P.get('reduced') !== '0' : null;
+  const reduced = rmQ !== null ? rmQ : matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  if (canvas) document.body.classList.add('canvas');
+
+  /* ---------- 时间轴常数（team-lead 冻结表） ----------
+     结论时刻：就绪 760 / 慢就绪 1200 / site 超时 1500；全失败不退出。
+     T = max(960, 结论+200)；A = T+200（开屏全清）；B = T+280（屏上再没有东西在动）。 */
+  const TC = { ready: 760, slow: 1200, timeout: 1500, allfail: 760 };
+  const tC = TC[STATE] ?? 760;
+  const T = STATE === 'allfail' ? null : Math.max(960, tC + 200);
+  const expA = T === null ? null : T + 200;
+  const expB = T === null ? null : T + 280;
+
+  /* ---------- 四行状态 ----------
+     行序钉死 哔哩/斗鱼/虎牙/抖音，永不重排（03 §5）。 */
+  const PLAT = ['哔哩', '斗鱼', '虎牙', '抖音'];
+  const FINAL = {
+    ready:   ['ready', 'ready', 'ready', 'late'],
+    slow:    ['ready', 'ready', 'ready', 'late'],
+    timeout: ['ready', 'late', 'late', 'late'],
+    allfail: ['ready', 'ready', 'ready', 'late'],
+  }[STATE] || ['ready', 'ready', 'ready', 'late'];
+  const WORD = { ready: '就绪', late: '超时降级' };
+
+  const status = document.getElementById('status');
+  PLAT.forEach((p, i) => {
+    const row = document.createElement('div');
+    row.className = 'st';
+    row.style.setProperty('--bl', (695 + i * 48) + 'px');
+    row.style.setProperty('--d', (600 + i * 60) + 'ms');
+    row.innerHTML =
+      '<div class="face conn"><i class="bar"></i><span class="plat">' + p + '</span><span class="word">连接中</span></div>' +
+      '<div class="face ' + FINAL[i] + '"><i class="bar"></i><span class="plat">' + p + '</span><span class="word">' + WORD[FINAL[i]] + '</span></div>';
+    status.appendChild(row);
+  });
+
+  /* ---------- 降级态文案：判据是系统网络，不是我们猜的 ---------- */
+  document.getElementById('failTitle').textContent = NET === 'off' ? '电视没有连上网' : '四家平台都没连上';
+  document.getElementById('failDesc').textContent = NET === 'off'
+    ? '检查路由器和电视的网络设置，再试一次。'
+    : '网络在，但四家都没有响应。稍等片刻再试一次。';
+
+  /* ---------- 画布缩放：按高度缩放、水平居中裁切（03 §8） ----------
+     演示外壳里用 contain 让整帧可见；?canvas=1 下严格 h/1080（720p = 0.6667）。 */
+  function fit() {
+    const W = wrap.clientWidth, H = wrap.clientHeight;
+    const s = canvas ? H / 1080 : Math.min(W / 1920, H / 1080);
+    stage.style.transform = 'scale(' + s + ')';
+    stage.style.left = Math.round((W - 1920 * s) / 2) + 'px';
+    stage.style.top = Math.round((H - 1080 * s) / 2) + 'px';
+  }
+  addEventListener('resize', fit);
+
+  /* ---------- 读数 ---------- */
+  const S = {
+    state: STATE, net: NET, reduced, still, sys,
+    tC, T, expectA: expA, expectB: expB,
+    tExitStart: null, tClearedA: null, tHomeSettledB: null,
+    seek: null, seeked: false, ready: false,
+  };
+  window.__splash = S;
+
+  const t0ref = () => performance.now();
+  const now = ref => Math.round(performance.now() - ref);
+
+  function readout() {
+    const el = document.getElementById('readout');
+    if (!el || canvas) return;
+    const f = v => v === null ? '—' : v + 'ms';
+    el.innerHTML =
+      '<span>T <b>' + (T === null ? '不退出' : T) + '</b></span>' +
+      '<span>A <b>' + f(S.tClearedA) + '</b>/' + (expA === null ? '—' : expA) + '</span>' +
+      '<span>B <b>' + f(S.tHomeSettledB) + '</b>/' + (expB === null ? '—' : expB) + '</span>' +
+      '<span>退场 <b>' + f(S.tExitStart) + '</b></span>' +
+      (reduced ? '<span>reduced</span>' : '');
+  }
+
+  /* ---------- 演示外壳的开关按钮 ---------- */
+  if (!canvas) {
+    const sw = document.getElementById('sw');
+    const mk = (label, qs, on) => {
+      const b = document.createElement('button');
+      b.textContent = label;
+      if (on) b.className = 'on';
+      b.onclick = () => { location.search = qs; };
+      sw.appendChild(b);
+    };
+    const q = (o) => '?' + Object.entries(o).map(([k, v]) => k + '=' + v).join('&');
+    mk('就绪 760', q({ state: 'ready' }), STATE === 'ready' && !sys && seek === null && !still);
+    mk('慢就绪 1200', q({ state: 'slow' }), STATE === 'slow');
+    mk('超时 1500', q({ state: 'timeout' }), STATE === 'timeout');
+    mk('四家全失败', q({ state: 'allfail' }), STATE === 'allfail');
+    mk('无网络', q({ state: 'allfail', net: 'off' }), STATE === 'allfail' && NET === 'off');
+    mk('系统帧', q({ sys: 1 }), sys);
+    mk('静止终态', q({ still: 1 }), still);
+    mk('t=0', q({ t: 0 }), seek === 0);
+    mk('t=340', q({ t: 340 }), seek === 340);
+    mk('t=600', q({ t: 600 }), seek === 600);
+    mk('t=960', q({ t: 960 }), seek === 960);
+    mk('reduced', q({ reduced: 1 }), reduced && rmQ !== null);
+    mk('重播', q(NET === 'off' ? { state: STATE, net: 'off' } : { state: STATE }), false);
+  }
+
+  /* ---------- 时间轴 ---------- */
+  function seekTo(t) {
+    stage.classList.add('live', 'run', 'seek');
+    stage.style.setProperty('--seekA', t + 'ms');
+    if (STATE === 'allfail') stage.classList.add('is-fail');
+    if (t >= tC) {
+      stage.classList.add('is-final', 'xf');
+      stage.style.setProperty('--seekC', (t - tC) + 'ms');
+    }
+    if (T !== null && t >= T) {
+      stage.classList.add('is-exiting');
+      stage.style.setProperty('--seekB', (t - T) + 'ms');
+    }
+    S.seek = t; S.seeked = true;
+    S.tExitStart = (T !== null && t >= T) ? T : null;
+    S.tClearedA = (expA !== null && t >= expA) ? expA : null;
+    S.tHomeSettledB = (expB !== null && t >= expB) ? expB : null;
+  }
+
+  function play() {
+    const ref = t0ref();
+    stage.classList.add('live');
+    if (STATE === 'allfail') stage.classList.add('is-fail');
+    if (reduced) stage.classList.add('reduced'); else stage.classList.add('run');
+
+    setTimeout(() => { stage.classList.add('is-final', 'xf'); readout(); }, tC);
+    if (T !== null) {
+      setTimeout(() => {
+        stage.classList.add('is-exiting');
+        S.tExitStart = now(ref);
+        readout();
+      }, T);
+    }
+
+    splash.addEventListener('animationend', e => {
+      if (e.target !== splash) return;
+      if (S.tClearedA === null) { S.tClearedA = now(ref); readout(); }
+    });
+    brand.addEventListener('animationend', e => {
+      if (S.tHomeSettledB === null) { S.tHomeSettledB = now(ref); readout(); }
+    });
+  }
+
+  /* ---------- 启动：等字体与封面解码，第一帧不许是回落字体 ---------- */
+  async function boot() {
+    fit();
+    try { await document.fonts.ready; } catch (e) { }
+    await Promise.all([...document.images].map(i => i.decode().catch(() => 0)));
+    fit();
+
+    if (sys) {
+      stage.classList.add('is-sys');
+    } else if (seek !== null) {
+      seekTo(seek);
+    } else if (still) {
+      stage.classList.add('live', 'is-final');
+      if (STATE === 'allfail') stage.classList.add('is-fail');
+    } else {
+      play();
+    }
+    S.ready = true;
+    readout();
+  }
+
+  if (document.readyState === 'complete') boot();
+  else addEventListener('load', boot, { once: true });
+})();
+</script>
+</body>
+</html>

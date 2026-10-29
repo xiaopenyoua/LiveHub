@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 单独文件名：不要覆盖宿主已有的 values/colors.xml -->
+<resources>
+    <color name="ic_launcher_background">#000000</color>
+</resources>

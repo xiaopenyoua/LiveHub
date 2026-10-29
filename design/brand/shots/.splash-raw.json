@@ -1,0 +1,454 @@
+{
+ "redRight": 1009,
+ "apexRight": 1009,
+ "geom": {
+  "wm": {
+   "x": 729.05,
+   "y": 480.39,
+   "w": 461.91,
+   "h": 120,
+   "right": 1190.95,
+   "cx": 960
+  },
+  "mark": {
+   "x": 860,
+   "y": 232,
+   "w": 200,
+   "h": 200,
+   "right": 1060,
+   "cx": 960
+  },
+  "rows": [
+   {
+    "bl": "695px",
+    "left": 862
+   },
+   {
+    "bl": "743px",
+    "left": 862
+   },
+   {
+    "bl": "791px",
+    "left": 862
+   },
+   {
+    "bl": "839px",
+    "left": 862
+   }
+  ],
+  "faces": [
+   {
+    "i": 0,
+    "op": 0
+   },
+   {
+    "i": 1,
+    "op": 1
+   },
+   {
+    "i": 2,
+    "op": 0
+   },
+   {
+    "i": 3,
+    "op": 1
+   },
+   {
+    "i": 4,
+    "op": 0
+   },
+   {
+    "i": 5,
+    "op": 1
+   },
+   {
+    "i": 6,
+    "op": 0
+   },
+   {
+    "i": 7,
+    "op": 1
+   }
+  ],
+  "fail": {
+   "t": {
+    "x": 824,
+    "y": 674.64,
+    "w": 272,
+    "h": 34,
+    "right": 1096,
+    "cx": 960
+   },
+   "d": {
+    "x": 696,
+    "y": 725.27,
+    "w": 528,
+    "h": 24,
+    "right": 1224,
+    "cx": 960
+   },
+   "b": {
+    "x": 894,
+    "y": 776,
+    "w": 132,
+    "h": 72,
+    "right": 1026,
+    "cx": 960
+   }
+  },
+  "bar": [
+   8
+  ],
+  "font": {
+   "inter": true,
+   "live": true,
+   "cjk": true
+  },
+  "colors": [
+   "rgb(255, 255, 255)",
+   "rgba(0, 0, 0, 0)",
+   "rgb(0, 0, 0)",
+   "none",
+   "rgb(255, 69, 58)",
+   "rgb(180, 180, 180)",
+   "rgb(142, 142, 147)"
+  ],
+  "stage": {
+   "w": 1920,
+   "h": 1080
+  },
+  "brand": {
+   "y": 43,
+   "x": 80,
+   "bl": 68.9
+  },
+  "title": "LiveHub"
+ },
+ "markInk": {
+  "x0": 907,
+  "y0": 257,
+  "x1": 1009,
+  "y1": 398,
+  "w": 103,
+  "h": 142,
+  "n": 8300
+ },
+ "wmInk": {
+  "x0": 737,
+  "y0": 491,
+  "x1": 1185,
+  "y1": 584,
+  "w": 449,
+  "h": 94,
+  "n": 16861
+ },
+ "wmEdge": {
+  "top": 495.91,
+  "bottom": 583,
+  "full": 12
+ },
+ "rowsInk": [
+  {
+   "x0": 895,
+   "y0": 677,
+   "x1": 936,
+   "y1": 697,
+   "w": 42,
+   "h": 21,
+   "n": 521
+  },
+  {
+   "x0": 895,
+   "y0": 725,
+   "x1": 936,
+   "y1": 745,
+   "w": 42,
+   "h": 21,
+   "n": 404
+  },
+  {
+   "x0": 895,
+   "y0": 773,
+   "x1": 936,
+   "y1": 793,
+   "w": 42,
+   "h": 21,
+   "n": 406
+  },
+  {
+   "x0": 894,
+   "y0": 820,
+   "x1": 936,
+   "y1": 841,
+   "w": 43,
+   "h": 22,
+   "n": 406
+  }
+ ],
+ "barInk": [
+  {
+   "x0": 862,
+   "y0": 685,
+   "x1": 877,
+   "y1": 688,
+   "w": 16,
+   "h": 4,
+   "n": 64
+  },
+  {
+   "x0": 862,
+   "y0": 733,
+   "x1": 877,
+   "y1": 736,
+   "w": 16,
+   "h": 4,
+   "n": 64
+  },
+  {
+   "x0": 862,
+   "y0": 781,
+   "x1": 877,
+   "y1": 784,
+   "w": 16,
+   "h": 4,
+   "n": 64
+  },
+  {
+   "x0": 862,
+   "y0": 829,
+   "x1": 869,
+   "y1": 832,
+   "w": 8,
+   "h": 4,
+   "n": 32
+  }
+ ],
+ "failTitle": {
+  "x0": 826,
+  "y0": 675,
+  "x1": 1094,
+  "y1": 707,
+  "w": 269,
+  "h": 33,
+  "n": 4311
+ },
+ "failDesc": {
+  "x0": 698,
+  "y0": 725,
+  "x1": 1209,
+  "y1": 748,
+  "w": 512,
+  "h": 24,
+  "n": 4798
+ },
+ "failBtn": {
+  "x0": 894,
+  "y0": 776,
+  "x1": 1025,
+  "y1": 847,
+  "w": 132,
+  "h": 72,
+  "n": 8128
+ },
+ "sysInk": {
+  "x0": 909,
+  "y0": 468,
+  "x1": 1007,
+  "y1": 603,
+  "w": 99,
+  "h": 136,
+  "n": 7665
+ },
+ "alien": 0,
+ "pure": [
+  [
+   "0,0,0",
+   2043642
+  ],
+  [
+   "255,255,255",
+   14047
+  ],
+  [
+   "255,69,58",
+   8965
+  ],
+  [
+   "142,142,147",
+   255
+  ],
+  [
+   "192,192,192",
+   162
+  ],
+  [
+   "236,63,53",
+   130
+  ],
+  [
+   "78,21,17",
+   114
+  ],
+  [
+   "57,57,57",
+   94
+  ]
+ ],
+ "struct": {
+  "rows": [
+   {
+    "name": "homeIn",
+    "dur": 240,
+    "delay": 0,
+    "end": 240
+   },
+   {
+    "name": "homeIn",
+    "dur": 80,
+    "delay": 200,
+    "end": 280
+   },
+   {
+    "name": "homeIn",
+    "dur": 240,
+    "delay": 0,
+    "end": 240
+   },
+   {
+    "name": "splashOut",
+    "dur": 200,
+    "delay": 0,
+    "end": 200
+   }
+  ],
+  "vars": {
+   "dE1": "200ms",
+   "dE2": "240ms",
+   "dE3b": "80ms",
+   "delE3b": "200ms",
+   "dP4": "200ms"
+  }
+ },
+ "structRM": {
+  "rows": [
+   {
+    "name": "homeIn",
+    "dur": 16,
+    "delay": 0,
+    "end": 16
+   },
+   {
+    "name": "homeIn",
+    "dur": 16,
+    "delay": 0,
+    "end": 16
+   },
+   {
+    "name": "homeIn",
+    "dur": 16,
+    "delay": 0,
+    "end": 16
+   },
+   {
+    "name": "splashOut",
+    "dur": 16,
+    "delay": 0,
+    "end": 16
+   }
+  ],
+  "vars": {
+   "dE1": "200ms",
+   "dE2": "240ms",
+   "dE3b": "80ms",
+   "delE3b": "200ms",
+   "dP4": "200ms"
+  }
+ },
+ "runs": {
+  "ready": {
+   "state": "ready",
+   "net": "on",
+   "reduced": false,
+   "still": false,
+   "sys": false,
+   "tC": 760,
+   "T": 960,
+   "expectA": 1160,
+   "expectB": 1240,
+   "tExitStart": 961,
+   "tClearedA": 1188,
+   "tHomeSettledB": 1255,
+   "seek": null,
+   "seeked": false,
+   "ready": true
+  },
+  "slow": {
+   "state": "slow",
+   "net": "on",
+   "reduced": false,
+   "still": false,
+   "sys": false,
+   "tC": 1200,
+   "T": 1400,
+   "expectA": 1600,
+   "expectB": 1680,
+   "tExitStart": 1401,
+   "tClearedA": 1626,
+   "tHomeSettledB": 1693,
+   "seek": null,
+   "seeked": false,
+   "ready": true
+  },
+  "timeout": {
+   "state": "timeout",
+   "net": "on",
+   "reduced": false,
+   "still": false,
+   "sys": false,
+   "tC": 1500,
+   "T": 1700,
+   "expectA": 1900,
+   "expectB": 1980,
+   "tExitStart": 1701,
+   "tClearedA": 1945,
+   "tHomeSettledB": 2012,
+   "seek": null,
+   "seeked": false,
+   "ready": true
+  },
+  "reduced": {
+   "state": "ready",
+   "net": "on",
+   "reduced": true,
+   "still": false,
+   "sys": false,
+   "tC": 760,
+   "T": 960,
+   "expectA": 1160,
+   "expectB": 1240,
+   "tExitStart": 962,
+   "tClearedA": 988,
+   "tHomeSettledB": 988,
+   "seek": null,
+   "seeked": false,
+   "ready": true
+  },
+  "allfail": {
+   "state": "allfail",
+   "net": "on",
+   "reduced": false,
+   "still": false,
+   "sys": false,
+   "tC": 760,
+   "T": null,
+   "expectA": null,
+   "expectB": null,
+   "tExitStart": null,
+   "tClearedA": null,
+   "tHomeSettledB": null,
+   "seek": null,
+   "seeked": false,
+   "ready": true
+  }
+ }
+}

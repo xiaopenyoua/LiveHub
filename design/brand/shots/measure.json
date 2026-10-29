@@ -1,0 +1,135 @@
+{
+ "_what": "开屏退出时刻实测。三个键按 team-lead 冻结表命名：tExitStart / tClearedA / tHomeSettledB。",
+ "_method": "tExitStart = 加上 .is-exiting 那一刻的 performance.now()（相对 P0 首帧）；tClearedA = #splash 的 splashOut animationend；tHomeSettledB = 顶栏 30px 字标的 homeIn animationend（它是屏上最后一个停下的东西）。",
+ "_caveat": "墙钟由 animationend 采样，headless 无 GPU 时合成帧 25–45ms 一拍（60fps 应为 16.7ms），所以墙钟系统性晚 10–45ms；动画时长本身精确（见 structure，浏览器 Animation.endTime）。",
+ "tExitStart": 961,
+ "tClearedA": 1188,
+ "tHomeSettledB": 1255,
+ "tC": 760,
+ "T": 960,
+ "nominal": {
+  "tExitStart": 960,
+  "tClearedA": 1160,
+  "tHomeSettledB": 1240
+ },
+ "reduced": false,
+ "state": "ready",
+ "byState": {
+  "ready": {
+   "tExitStart": 961,
+   "tClearedA": 1188,
+   "tHomeSettledB": 1255,
+   "tC": 760,
+   "T": 960,
+   "nominal": {
+    "tExitStart": 960,
+    "tClearedA": 1160,
+    "tHomeSettledB": 1240
+   },
+   "reduced": false
+  },
+  "slow": {
+   "tExitStart": 1401,
+   "tClearedA": 1626,
+   "tHomeSettledB": 1693,
+   "tC": 1200,
+   "T": 1400,
+   "nominal": {
+    "tExitStart": 1400,
+    "tClearedA": 1600,
+    "tHomeSettledB": 1680
+   },
+   "reduced": false
+  },
+  "timeout": {
+   "tExitStart": 1701,
+   "tClearedA": 1945,
+   "tHomeSettledB": 2012,
+   "tC": 1500,
+   "T": 1700,
+   "nominal": {
+    "tExitStart": 1700,
+    "tClearedA": 1900,
+    "tHomeSettledB": 1980
+   },
+   "reduced": false
+  },
+  "reduced": {
+   "tExitStart": 962,
+   "tClearedA": 988,
+   "tHomeSettledB": 988,
+   "tC": 760,
+   "T": 960,
+   "nominal": {
+    "tExitStart": 960,
+    "tClearedA": 1160,
+    "tHomeSettledB": 1240
+   },
+   "reduced": true
+  },
+  "allfail": {
+   "tExitStart": null,
+   "tClearedA": null,
+   "tHomeSettledB": null,
+   "tC": 760,
+   "T": null,
+   "nominal": null,
+   "reduced": false,
+   "why": "Async.Failed 不退出开屏（03 §6 / 04 §3.3）"
+  }
+ },
+ "structure": {
+  "normal": [
+   {
+    "name": "homeIn",
+    "dur": 240,
+    "delay": 0,
+    "end": 240
+   },
+   {
+    "name": "homeIn",
+    "dur": 80,
+    "delay": 200,
+    "end": 280
+   },
+   {
+    "name": "homeIn",
+    "dur": 240,
+    "delay": 0,
+    "end": 240
+   },
+   {
+    "name": "splashOut",
+    "dur": 200,
+    "delay": 0,
+    "end": 200
+   }
+  ],
+  "reduced": [
+   {
+    "name": "homeIn",
+    "dur": 16,
+    "delay": 0,
+    "end": 16
+   },
+   {
+    "name": "homeIn",
+    "dur": 16,
+    "delay": 0,
+    "end": 16
+   },
+   {
+    "name": "homeIn",
+    "dur": 16,
+    "delay": 0,
+    "end": 16
+   },
+   {
+    "name": "splashOut",
+    "dur": 16,
+    "delay": 0,
+    "end": 16
+   }
+  ]
+ }
+}

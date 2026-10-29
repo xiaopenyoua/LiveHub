@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>LiveHub · 开屏 v2 · 1920×1080</title>
+<style>
+/* ============================================================
+   LiveHub — 应用内开屏 v2（08 品牌裁决 v2 / 09 开屏动效 v2）
+   单文件、无构建、1920×1080 TV 画布，可直接浏览器打开。
+   `?canvas=1` 剥掉演示外壳（与 design/index.html 同一套约定）。
+
+   用户那句话就是这张图的规格：「首屏 UI 就相当于图标的放大版」。
+   所以开屏不是新构图，是 assets/brand/v2/icon/banner-16x9.svg 的等比放大：
+     · 卡片 1440×810 @ (240,135)，r=101.25 —— 与 banner 320×180/r=22.5 同比例（×4.5）
+     · 字标 cap 226.8 = 50.4×4.5，字号 311.7358，基线 653.4
+     · 字标不是排版出来的字，是同一段矢量路径放大 —— 7 个 <path> 的 d
+       与图标 SVG 逐字节相同，只有外层 scale 不同。字形不可能漂。
+
+   ---- 字标的位置是算出来的，不是摆出来的 ----
+   墨迹宽 3.732655em（含 kerning，见 .v2-wordmark.kern.json）
+   字号 F = 226.8 / 0.7275390625 = 311.7358
+   墨迹宽 = 3.732655 × 311.7358 = 1163.6023  → 左右留白各 138.1988
+   墨迹左缘 = 240 + 138.1988 = 378.1988，右缘 1541.8012，中心 960.0000
+   tx = 墨迹左缘 − 149.7612 × scale = 355.4030（149.7612 是 L 的左边距，units）
+   ============================================================ */
+
+@font-face{
+  font-family:"Inter";
+  src:url("../assets/fonts/InterVariable.woff2") format("woff2-variations");
+  font-weight:100 900;
+  font-display:block;
+}
+
+:root{
+  /* ---------- 四个颜色值，一个都不多（08 §6 四色封闭） ----------
+     第五个值即违规，含任何灰、任何 alpha。所以下面的层次全靠尺寸与字重，
+     没有任何「半透明白」。 */
+  --icon:#231C16;     /* 图标底 = 卡片底 */
+  --app:#1A140F;      /* 开屏底 / 应用内底（与图标底 ΔL* 4.08，只许出现这一次） */
+  --live:#FFFDFA;     /* 字标 Live */
+  --hub:#FF453A;      /* 字标 Hub —— 项目唯一的红 */
+
+  /* ---------- 卡片（= 图标的 4.5 倍） ---------- */
+  --card-w:1440px;
+  --card-h:810px;
+  --card-x:240px;
+  --card-y:135px;
+  --card-r:101.25px;    /* 0.125 × 810，与 banner 的 0.125 × 180 同一条规矩 */
+
+  /* ---------- 时间（09 §4 / §6 / §9） ----------
+     T = homeFeed 给出结论的时刻；本轮没有网络，T 由 ?state 选一个刻度。
+     A = T+200（开屏不可见），B = T+280（屏上再无任何元素在动）。 */
+  --dE:200ms;           /* 字标淡出（A） */
+  --dF:80ms;            /* 异常行出现（09 §7：一次出现不成为一次闪烁的下限） */
+  --out:cubic-bezier(.4,0,1,1);
+}
+
+*{margin:0;padding:0;box-sizing:border-box}
+
+html,body{height:100%;background:#000;overflow:hidden}
+body{display:flex;align-items:center;justify-content:center}
+
+#wrap{position:relative;width:100vw;height:100vh;overflow:hidden}
+body.canvas{display:block;background:#000}
+
+/* ---------- 画布 ---------- */
+#stage{
+  position:absolute;left:0;top:0;
+  width:1920px;height:1080px;
+  background:var(--app);
+  transform-origin:0 0;
+  overflow:hidden;
+  contain:strict;
+}
+
+/* ---------- 卡片：alpha 恒 1，永不淡出（09 §6） ----------
+   不加描边、不加投影、不加渐变、不加高光、不加内阴影、不加外框（08 §5 六项全禁）。
+   它与底的分离只有 ΔL* 4.08 这一件事。 */
+.card{
+  position:absolute;
+  left:var(--card-x);top:var(--card-y);
+  width:var(--card-w);height:var(--card-h);
+  border-radius:var(--card-r);
+  background:var(--icon);
+}
+
+/* ---------- 字标：同一段路径放大，坐标全在 SVG 里 ---------- */
+.wm{
+  position:absolute;left:0;top:0;
+  width:1920px;height:1080px;
+  overflow:visible;
+  display:block;
+}
+
+/* ---------- 异常行（本轮只留容器，文案待主理人下一轮给） ----------
+   卡片下沿在 945；余下 135 是留给这一行与呼吸的。22px 基线落在 1020，
+   视觉中心 1012 ≈ 卡片下沿 + 67.5（余白正中）。
+   颜色取四色之一：09 §7 原写灰阶 #B4B4B4 / #8E8E93，与 08 §6「四色封闭」冲突，
+   这里先用 --live，等主理人裁。 */
+.fail{
+  position:absolute;left:0;top:1001px;width:1920px;
+  font:400 22px/1 "Inter","PingFang SC","Hiragino Sans GB","Noto Sans CJK SC",sans-serif;
+  letter-spacing:.01em;
+  text-align:center;
+  color:var(--live);
+  white-space:pre;
+  opacity:1;
+  display:none;              /* 正常路径永不出现（09 §7） */
+}
+#stage.is-fail .fail{display:block}
+
+/* ---------- 动效：只有两件事会发生 ----------
+   ① 异常行 80ms alpha（且只在 allfail 时）
+   ② 字标淡出 200ms，卡片 alpha 恒 1，字标归零那一帧整层销毁
+   CSS 默认值 = 终态：不挂 .run 时页面就是静止定稿帧，没有第二套规则。 */
+.run.is-fail .fail{animation:fail-in var(--dF) linear var(--tFail,1500ms) both}
+@keyframes fail-in{from{opacity:0}to{opacity:1}}
+
+.wm-out{opacity:1}
+.run.xf .wm-out{animation:wm-out var(--dE) var(--out) var(--T,400ms) forwards}
+@keyframes wm-out{from{opacity:1}to{opacity:0}}
+
+/* 整层销毁：字标归零那一帧，卡片与字标一起不在（卡片不淡） */
+#stage.is-cleared .card,
+#stage.is-cleared .wm{display:none}
+
+/* ---------- reduced-motion：只压时长，不删顺序（09 §9） ---------- */
+#stage.reduced{--dE:16ms;--dF:16ms}
+
+/* ---------- 演示外壳（?canvas=1 下整块不存在） ---------- */
+#shell{
+  position:fixed;left:0;right:0;bottom:0;z-index:9;
+  display:flex;flex-wrap:wrap;gap:6px;align-items:center;
+  padding:8px 12px 10px;
+  font:500 12px/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+  color:#fff;background:#000;border-top:1px solid #222;
+}
+#shell[hidden]{display:none}
+#shell button{
+  font:inherit;color:#fff;background:#141414;border:1px solid #333;border-radius:4px;
+  padding:5px 8px;cursor:pointer
+}
+#shell button:hover{border-color:#666}
+#shell button.on{border-color:#FF453A;color:#FF453A}
+#readout{display:flex;gap:14px;margin-left:auto;flex-wrap:wrap}
+#readout b{color:#FF453A;font-weight:600}
+</style>
+</head>
+<body>
+
+<div id="wrap">
+  <div id="stage">
+
+    <!-- 卡片 = 图标的放大版。只有一块面，六个禁令一个都不犯。 -->
+    <div class="card"></div>
+
+    <!-- 字标：7 个 path，d 与 assets/brand/v2/icon/*.svg 逐字节相同 -->
+    <svg class="wm wm-out" id="wm" viewBox="0 0 1920 1080" role="img" aria-label="LiveHub">
+      <g id="wmg" transform="translate(355.403 653.4) scale(0.152214765)">
+        <g fill="#FFFDFA">
+          <path transform="translate(0 0)" d="M149.761 0.000V-1490.000H416.798V-224.878H1075.119V0.000Z"/>
+          <path transform="translate(1117.056 0)" d="M137.841 0.000V-1118.000H397.758V0.000ZM268.079 -1276.161Q205.920 -1276.161 161.360 -1318.020Q116.800 -1359.879 116.800 -1418.481Q116.800 -1478.280 161.360 -1519.619Q205.920 -1560.959 268.079 -1560.959Q330.776 -1560.959 375.387 -1519.658Q419.998 -1478.357 419.998 -1418.500Q419.998 -1359.840 375.387 -1318.001Q330.776 -1276.161 268.079 -1276.161Z"/>
+          <path transform="translate(1611.68 0)" d="M455.441 0.000 38.881 -1118.000H316.877L521.399 -510.078Q557.239 -403.478 583.019 -295.218Q608.799 -186.958 636.359 -75.839H571.439Q598.639 -186.958 624.239 -295.038Q649.839 -403.118 684.679 -510.078L887.760 -1118.000H1163.597L746.317 0.000Z"/>
+          <path transform="translate(2773.216 0)" d="M631.600 22.560Q463.480 22.560 341.660 -48.180Q219.840 -118.920 154.361 -247.920Q88.881 -376.920 88.881 -552.160Q88.881 -724.520 153.581 -854.980Q218.280 -985.440 336.640 -1058.720Q455.000 -1132.000 614.560 -1132.000Q717.239 -1132.000 809.499 -1098.900Q901.759 -1065.800 973.159 -997.060Q1044.559 -928.321 1085.479 -821.681Q1126.399 -715.041 1126.399 -567.600V-486.480H211.601V-662.959H996.640L875.202 -610.559Q875.202 -705.440 845.921 -776.901Q816.641 -848.361 759.081 -888.221Q701.520 -928.082 616.000 -928.082Q530.479 -928.082 470.359 -887.581Q410.238 -847.081 378.718 -779.461Q347.198 -711.840 347.198 -629.120V-506.881Q347.198 -400.880 383.178 -328.059Q419.158 -255.239 484.239 -218.298Q549.319 -181.358 635.120 -181.358Q692.120 -181.358 738.740 -197.658Q785.361 -213.958 818.961 -246.339Q852.561 -278.719 870.321 -326.359L1109.119 -276.919Q1082.399 -187.160 1017.159 -119.740Q951.919 -52.320 854.299 -14.880Q756.679 22.560 631.600 22.560Z"/>
+        </g>
+        <g fill="#FF453A">
+          <path transform="translate(3905.696 0)" d="M149.761 0.000V-1490.000H416.798V-874.079H1110.242V-1490.000H1377.279V0.000H1110.242V-649.201H416.798V0.000Z"/>
+          <path transform="translate(5391.776 0)" d="M520.801 14.000Q406.001 14.000 319.601 -35.200Q233.201 -84.400 185.521 -178.760Q137.841 -273.120 137.841 -407.280V-1118.000H397.758V-447.119Q397.758 -334.678 456.398 -270.858Q515.038 -207.038 617.279 -207.038Q686.479 -207.038 740.080 -237.178Q793.680 -267.318 824.560 -324.918Q855.441 -382.519 855.441 -463.119V-1118.000H1115.997V0.000H868.920L866.041 -276.400H885.721Q838.760 -130.199 746.860 -58.100Q654.960 14.000 520.801 14.000Z"/>
+          <path transform="translate(6604.64 0)" d="M728.478 20.400Q632.557 20.400 568.817 -12.320Q505.077 -45.040 467.198 -90.820Q429.318 -136.600 408.878 -176.960H392.478V0.000H137.841V-1490.000H397.758V-932.880H408.878Q428.958 -972.600 465.838 -1019.000Q502.717 -1065.400 566.177 -1098.700Q629.637 -1132.000 729.278 -1132.000Q858.838 -1132.000 962.818 -1065.960Q1066.798 -999.920 1128.198 -871.500Q1189.598 -743.080 1189.598 -556.720Q1189.598 -373.320 1129.598 -244.400Q1069.598 -115.480 965.438 -47.540Q861.278 20.400 728.478 20.400ZM657.920 -193.518Q745.280 -193.518 804.261 -241.018Q863.241 -288.518 893.342 -371.059Q923.442 -453.599 923.442 -558.000Q923.442 -662.120 893.662 -743.381Q863.881 -824.641 804.901 -871.362Q745.920 -918.082 657.920 -918.082Q572.199 -918.082 512.999 -873.282Q453.798 -828.482 423.338 -747.861Q392.878 -667.241 392.878 -558.000Q392.878 -449.479 423.658 -367.439Q454.438 -285.398 513.959 -239.458Q573.479 -193.518 657.920 -193.518Z"/>
+        </g>
+      </g>
+    </svg>
+
+    <!-- 异常行容器：正常路径 display:none；内容待主理人下一轮给 -->
+    <div class="fail" id="fail">电视没有连上网 · 按遥控器任意键重试</div>
+
+  </div>
+</div>
+
+<div id="shell" hidden>
+  <span id="sw"></span>
+  <span id="readout"></span>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  /* ---------- 开关 ---------- */
+  const Q = new URLSearchParams(location.search);
+  const canvas  = Q.get('canvas') === '1';
+  const still   = Q.get('still') === '1';
+  const exit    = Q.get('exit') === '1';
+  const state   = Q.get('state') || 'ready';
+  const seek    = Q.has('t') ? Math.max(0, Number(Q.get('t')) || 0) : null;
+  const reduced = Q.get('reduced') === '1'
+    || (Q.get('reduced') !== '0' && matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+  /* 本轮没有网络，T 由 state 选一个刻度（09 §4 的四个数）。
+     allfail 不退出，只出异常行。 */
+  const TC = { ready: 400, slow: 1200, timeout: 1500, allfail: 1500 };
+  const tC = TC[state] ?? TC.ready;
+  const T  = state === 'allfail' ? null : tC;
+  const expA = T === null ? null : T + 200;
+  const expB = T === null ? null : T + 280;   // B 就是「屏上再无任何元素在动」
+
+  if (canvas) document.body.classList.add('canvas');
+
+  const stage = document.getElementById('stage');
+  const wrap  = document.getElementById('wrap');
+  const wm    = document.getElementById('wm');
+  const wmg   = document.getElementById('wmg');
+  const fail  = document.getElementById('fail');
+
+  if (T !== null) stage.style.setProperty('--T', T + 'ms');
+  stage.style.setProperty('--tFail', tC + 'ms');
+  if (reduced) stage.classList.add('reduced');
+
+  /* ---------- 外壳缩放 ----------
+     演示外壳里用 contain 让整帧可见；?canvas=1 下严格 h/1080（720p = 0.6667）。 */
+  function fit() {
+    const W = wrap.clientWidth, H = wrap.clientHeight;
+    const s = canvas ? H / 1080 : Math.min(W / 1920, H / 1080);
+    stage.style.transform = 'scale(' + s + ')';
+    stage.style.left = Math.round((W - 1920 * s) / 2) + 'px';
+    stage.style.top  = Math.round((H - 1080 * s) / 2) + 'px';
+  }
+  addEventListener('resize', fit);
+
+  /* ---------- 读数（只给外壳看） ---------- */
+  const S = {
+    state, T, expA, expB, tC, reduced, still, exit, seek,
+    seeked: false, cleared: null, ready: false, wmInk: null,
+  };
+  window.__splash = S;
+
+  /* 字标墨迹盒（画布坐标）：SVG <g> 的 client rect ÷ 外壳缩放 */
+  function inkBox() {
+    const r = wmg.getBoundingClientRect();
+    const box = stage.getBoundingClientRect();
+    const k = 1920 / box.width;
+    return { w: r.width * k, h: r.height * k, x: (r.left - box.left) * k, y: (r.top - box.top) * k };
+  }
+
+  /* ---------- 时间轴 ----------
+     `?t=NNN` 把每个动画暂停在墙钟 NNN 处：动画的 delay 已含绝对起点，
+     所以 currentTime = NNN 就是那一帧，不用负 delay 拼 CSS 变量。 */
+  async function seekTo(t) {
+    stage.classList.add('run');
+    if (state === 'allfail') stage.classList.add('is-fail');
+    if (exit && T !== null) stage.classList.add('xf');
+
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    for (const a of document.getAnimations()) { a.pause(); a.currentTime = t; }
+
+    if (exit && T !== null && t >= expA) { stage.classList.add('is-cleared'); S.cleared = expA; }
+    S.seek = t; S.seeked = true;
+    measure(); readout();
+  }
+
+  function play() {
+    stage.classList.add('run');
+    if (state === 'allfail') stage.classList.add('is-fail');
+    if (exit && T !== null) {
+      stage.classList.add('xf');
+      wm.addEventListener('animationend', e => {
+        if (e.target !== wm) return;
+        stage.classList.add('is-cleared');
+        S.cleared = Math.round(performance.now());
+        readout();
+      });
+    }
+    if (state === 'allfail') fail.addEventListener('animationend', readout, { once: true });
+  }
+
+  function measure() {
+    const r = inkBox();
+    S.wmInk = {
+      w: +r.w.toFixed(3), h: +r.h.toFixed(3),
+      x0: +r.x.toFixed(3), x1: +(r.x + r.w).toFixed(3),
+      capTop: +r.y.toFixed(3), baseline: +(r.y + r.h).toFixed(3),
+    };
+  }
+
+  function readout() {
+    if (canvas) return;
+    const el = document.getElementById('readout');
+    const n = v => v === null || v === undefined ? '—' : v;
+    el.innerHTML =
+      '<span>T <b>' + (T === null ? '不退出' : T) + '</b></span>' +
+      '<span>A <b>' + n(expA) + '</b></span>' +
+      '<span>B <b>' + n(expB) + '</b></span>' +
+      '<span>墨宽 <b>' + (S.wmInk ? S.wmInk.w.toFixed(2) : '—') + '</b></span>' +
+      '<span>cap顶 <b>' + (S.wmInk ? S.wmInk.capTop.toFixed(2) : '—') + '</b></span>' +
+      '<span>基线 <b>' + (S.wmInk ? S.wmInk.baseline.toFixed(2) : '—') + '</b></span>' +
+      (reduced ? '<span><b>reduced</b></span>' : '');
+  }
+
+  /* ---------- 演示外壳的开关 ---------- */
+  if (!canvas) {
+    document.getElementById('shell').hidden = false;
+    const sw = document.getElementById('sw');
+    const q = o => '?' + Object.entries(o).map(([k, v]) => k + '=' + v).join('&');
+    const mk = (label, qs, on) => {
+      const b = document.createElement('button');
+      b.textContent = label; if (on) b.className = 'on';
+      b.onclick = () => { location.search = qs; };
+      sw.appendChild(b);
+    };
+    mk('静止定稿', q({ still: 1 }), still);
+    mk('ready T=400', q({ state: 'ready', exit: 1 }), state === 'ready');
+    mk('slow T=1200', q({ state: 'slow', exit: 1 }), state === 'slow');
+    mk('timeout T=1500', q({ state: 'timeout', exit: 1 }), state === 'timeout');
+    mk('四家全失败', q({ state: 'allfail' }), state === 'allfail');
+    mk('t=0', q({ t: 0 }), seek === 0);
+    mk('t=420', q({ t: 420 }), seek === 420);
+    mk('t=500', q({ t: 500 }), seek === 500);
+    mk('t=600', q({ t: 600 }), seek === 600);
+    mk('reduced', q({ state: 'ready', exit: 1, reduced: 1 }), Q.get('reduced') === '1');
+  }
+
+  /* ---------- 启动 ----------
+     第一帧就必须是定稿帧：字标是矢量路径，本来就没有字体回落问题；
+     仍然等一次 fonts.ready 是为了异常行不会突然换字。 */
+  async function boot() {
+    fit();
+    try { await document.fonts.ready; } catch (e) { }
+    fit();
+
+    if (seek !== null) {
+      await seekTo(seek);
+    } else if (still) {
+      /* 不挂 .run → CSS 默认值就是这个页面唯一的一套规则 */
+    } else {
+      play();
+    }
+    measure(); readout();
+    S.ready = true;
+  }
+
+  boot();
+})();
+</script>
+</body>
+</html>

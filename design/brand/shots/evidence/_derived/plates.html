@@ -1,0 +1,178 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+html,body{margin:0;background:#0a0a0c;color:#e8e8ea;font:12px/1.6 -apple-system,"PingFang SC",sans-serif}
+.mini{position:relative;display:inline-block;width:150px;height:10px;background:#16161a;box-shadow:inset 0 0 0 1px #26262c;vertical-align:middle;margin-right:8px}
+.mf,.mf2{position:absolute;top:0;bottom:0;left:0;background:linear-gradient(90deg,#FF453A,#ff8a6a)}
+.mini .mt{top:-4px;bottom:-4px}
+.mt{position:absolute;top:-4px;bottom:-4px;width:2px;background:#3aa0ff}
+.plate{padding:22px 26px;border-bottom:1px solid #202024}
+.h{font-size:13px;font-weight:600;color:#fff;margin-bottom:14px;letter-spacing:.02em}
+table{border-collapse:collapse}
+th,td{padding:5px 12px 5px 0;text-align:left;vertical-align:top;font-weight:400;color:#c9c9cf;font-size:11px}
+thead th{color:#7c7c86;font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding-bottom:8px}
+tbody th{color:#fff;font-weight:600;font-size:12px}
+td img{display:block;image-rendering:pixelated;box-shadow:0 0 0 1px #2a2a30}
+.num{font-variant-numeric:tabular-nums;color:#9a9aa4;white-space:nowrap}
+.num b{color:#fff}
+.legend{margin-bottom:12px;color:#9a9aa4;font-size:11px;display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.legend i{display:inline-block;width:10px;height:10px;margin:0 5px 0 14px;box-shadow:inset 0 0 0 1px #ffffff22}
+.row{display:flex;gap:30px;align-items:flex-end;flex-wrap:wrap}
+figure{margin:0}
+figcaption{margin-top:7px;font-size:10.5px;color:#8a8a94;letter-spacing:.02em}
+figcaption b{color:#fff}
+.rel{position:relative}
+.rel img{display:block;image-rendering:pixelated}
+.vline{position:absolute;top:0;bottom:0;width:1px;background:#3aa0ff;box-shadow:0 0 0 1px #3aa0ff44}
+.note{margin-top:14px;color:#9a9aa4;font-size:11px;line-height:1.8}
+.note b{color:#fff}
+.bars{display:flex;flex-direction:column;gap:14px;max-width:900px}
+.bar{display:flex;align-items:center;gap:14px}
+.lb{width:150px;font-size:11px;color:#b8b8c0}.lb s{text-decoration:none;color:#6e6e78;margin-left:6px}
+.track{position:relative;flex:1;height:14px;background:#16161a;box-shadow:inset 0 0 0 1px #26262c}
+.fill{height:100%;background:linear-gradient(90deg,#FF453A,#ff8a6a)}
+.thr{position:absolute;top:-4px;bottom:-4px;width:2px;background:#3aa0ff}
+.vl{width:70px;font-size:11px;color:#fff;font-variant-numeric:tabular-nums}
+</style></head><body>
+<section id="A"><div class="plate">
+<div class="h">① 交付 PNG vs 我自己把 SVG 在目标尺寸重新光栅化 —— 热图 = 差异（黑=0，黄→红=差异 96/255 以上）</div>
+<table><thead><tr><th>px</th><th>交付 PNG（1:1）</th><th>我回渲（精确几何）</th><th>差异热图</th><th>我回渲（02 整数坐标）</th><th>差异热图</th><th>差异像素 / 最大通道差</th></tr></thead><tbody>
+<tr><th>48</th>
+<td><img src="file:///Volumes/ssd/projects-github/LiveHub/design/brand/shots/evidence/_derived/delv-48.png" width="48" height="48"></td>
+<td><img src="file:///Volumes/ssd/projects-github/LiveHub/design/brand/shots/evidence/_derived/nat-48.png" width="48" height="48"></td>
+<td><img src="file:///Volumes/ssd/projects-github/LiveHub/design/brand/shots/evidence/_derived/diff-native-48.png" width="48" height="48"></td>
+<td><img src="file:///Volumes/ssd/projects-github/LiveHub/design/brand/shots/evidence/_derived/snp-48.png" width="48" height="48"></td>
+<td><img src="file:///Volumes/ssd/projects-github/LiveHub/design/brand/shots/evidence/_derived/diff-snap-48.png" width="48" height="48"></td>
+<td class="num"><b>118</b>/2304 · Δ79<br><b>0</b>/2304 · Δ0</td></tr><tr><th>72</th>
+<td><img src="file:///Volumes/ssd/projects-github/LiveHub/design/brand/shots/evidence/_derived/delv-72.png" width="72" height="72"></td>
+<td><img src="file:///Volumes/ssd/projects-github/LiveHub/design/brand/shots/evidence/_derived/nat-72.png" width="72" height="72"></td>
+<td><img src="file:///Volumes/ssd/projects-github/LiveHub/design/brand/shots/evidence/_derived/diff-native-72.png" width="72" height="72"></td>
+<td><img src="file:///Volumes/ssd/projects-github/LiveHub/design/brand/shots/evidence/_derived/snp-72.png" width="72" height="72"></td>
+<td><img src="file:///Volumes/ssd/projects-github/LiveHub/design/brand/shots/evidence/_derived/diff-snap-72.png" width="72" height="72"></td>
+<td class="num"><b>0</b>/5184 · Δ0<br><b>0</b>/5184 · Δ0</td></tr><tr><th>96</th>
+<td><img src="file:///Volumes/ssd/projects-github/LiveHub/design/brand/shots/evidence/_derived/delv-96.png" width="96" height="96"></td>
+<td><img src="file:///Volumes/ssd/projects-github/LiveHub/design/brand/shots/evidence/_derived/nat-96.png" width="96" height="96"></td>
+<td><img src="file:///Volumes/ssd/projects-github/LiveHub/design/brand/shots/evidence/_derived/diff-native-96.png" width="96" height="96"></td>
+<td><img src="file:///Volumes/ssd/projects-github/LiveHub/design/brand/shots/evidence/_derived/snp-96.png" width="96" height="96"></td>
+<td><img src="file:///Volumes/ssd/projects-github/LiveHub/design/brand/shots/evidence/_derived/diff-snap-96.png" width="96" height="96"></td>
+<td class="num"><b>209</b>/9216 · Δ92<br><b>92</b>/9216 · Δ11</td></tr><tr><th>144</th>
+<td><img src="file:///Volumes/ssd/projects-github/LiveHub/design/brand/shots/evidence/_derived/delv-144.png" width="144" height="144"></td>
+<td><img src="file:///Volumes/ssd/projects-github/LiveHub/design/brand/shots/evidence/_derived/nat-144.png" width="144" height="144"></td>
+<td><img src="file:///Volumes/ssd/projects-github/LiveHub/design/brand/shots/evidence/_derived/diff-native-144.png" width="144" height="144"></td>
+<td><img src="file:///Volumes/ssd/projects-github/LiveHub/design/brand/shots/evidence/_derived/snp-144.png" width="144" height="144"></td>
+<td><img src="file:///Volumes/ssd/projects-github/LiveHub/design/brand/shots/evidence/_derived/diff-snap-144.png" width="144" height="144"></td>
+<td class="num"><b>3</b>/20736 · Δ13<br><b>0</b>/20736 · Δ0</td></tr><tr><th>192</th>
+<td><img src="file:///Volumes/ssd/projects-github/LiveHub/design/brand/shots/evidence/_derived/delv-192.png" width="192" height="192"></td>
+<td><img src="file:///Volumes/ssd/projects-github/LiveHub/design/brand/shots/evidence/_derived/nat-192.png" width="192" height="192"></td>
+<td><img src="file:///Volumes/ssd/projects-github/LiveHub/design/brand/shots/evidence/_derived/diff-native-192.png" width="192" height="192"></td>
+<td><img src="file:///Volumes/ssd/projects-github/LiveHub/design/brand/shots/evidence/_derived/snp-192.png" width="192" height="192"></td>
+<td><img src="file:///Volumes/ssd/projects-github/LiveHub/design/brand/shots/evidence/_derived/diff-snap-192.png" width="192" height="192"></td>
+<td class="num"><b>469</b>/36864 · Δ88<br><b>192</b>/36864 · Δ20</td></tr>
+</tbody></table></div></section>
+<section id="B"><div class="plate">
+<div class="h">② 逐像素分类（模型：(r,g,b)=w·#FFFFFF+rd·#FF453A+(1−w−rd)·#000000）</div>
+<div class="legend"><i style="background:#000"></i>纯 #000000　<i style="background:#fff"></i>纯 #FFFFFF　<i style="background:#FF453A"></i>纯 #FF453A　<i style="background:#5aa0ff"></i>白线 AA（灰）　<i style="background:#ffd028"></i>红线 AA　<i style="background:#00ff78"></i>第四色/双墨混</div>
+<div class="row"><figure><img src="file:///Volumes/ssd/projects-github/LiveHub/design/brand/shots/evidence/_derived/class-48.png" width="96" height="96" style="image-rendering:pixelated"><figcaption>48px · 2× 像素化</figcaption></figure><figure><img src="file:///Volumes/ssd/projects-github/LiveHub/design/brand/shots/evidence/_derived/class-72.png" width="144" height="144" style="image-rendering:pixelated"><figcaption>72px · 2× 像素化</figcaption></figure><figure><img src="file:///Volumes/ssd/projects-github/LiveHub/design/brand/shots/evidence/_derived/class-96.png" width="192" height="192" style="image-rendering:pixelated"><figcaption>96px · 2× 像素化</figcaption></figure><figure><img src="file:///Volumes/ssd/projects-github/LiveHub/design/brand/shots/evidence/_derived/class-144.png" width="288" height="288" style="image-rendering:pixelated"><figcaption>144px · 2× 像素化</figcaption></figure><figure><img src="file:///Volumes/ssd/projects-github/LiveHub/design/brand/shots/evidence/_derived/class-192.png" width="384" height="384" style="image-rendering:pixelated"><figcaption>192px · 2× 像素化</figcaption></figure></div>
+<div class="note">对全部五档 74304 个像素求残差：<b>落在两条混合线之外的像素 = 0</b>，最大残差 0.9/255。<br>「灰桥」= 一个像素同时含白墨与红墨：<b>0 个</b>。</div></div></section>
+<section id="C"><div class="plate">
+<div class="h">④ 右缘对齐 —— 16× 最近邻放大，蓝线 = 「最右列」的右边界</div>
+<div class="row">
+<figure><div class="rel" style="width:320px;height:576px">
+  <img src="file:///Volumes/ssd/projects-github/LiveHub/design/brand/shots/evidence/_derived/zoom-right-48.png" style="image-rendering:pixelated"><div class="vline" style="left:256px"></div></div>
+  <figcaption>48px　徽章最右列=<b>35</b>　三角最右列=<b>35</b>　同列=<b>true</b>　（蓝线左 = 最右列那 1 列像素）</figcaption></figure><figure><div class="rel" style="width:320px;height:1120px">
+  <img src="file:///Volumes/ssd/projects-github/LiveHub/design/brand/shots/evidence/_derived/zoom-right-96.png" style="image-rendering:pixelated"><div class="vline" style="left:256px"></div></div>
+  <figcaption>96px　徽章最右列=<b>71</b>　三角最右列=<b>71</b>　同列=<b>true</b>　（蓝线左 = 最右列那 1 列像素）</figcaption></figure>
+</div></div></section>
+<section id="D"><div class="plate">
+<div class="h">⑧ 自适应图标蒙版模拟（108 层 → Ø72 圆形可见区）＋ Android 13 主题图标（只取 monochrome 的 alpha 并整体染色）</div>
+<div class="row">
+<figure><svg width="48" height="48" viewBox="18 18 72 72">
+  <defs><clipPath id="c48circle"><circle cx="54" cy="54" r="36"/></clipPath></defs>
+  <g clip-path="url(#c48circle)"><rect x="18" y="18" width="72" height="72" fill="#000"/>
+  <path fill="#FFFFFF" d="M35,30 L35,78 L72,54 Z"/>
+  <path fill="#FF453A" d="M52,31.5 A4.5,4.5 0 0 1 56.5,27 H67.5 A4.5,4.5 0 0 1 72,31.5 A4.5,4.5 0 0 1 67.5,36 H56.5 A4.5,4.5 0 0 1 52,31.5 Z"/>
+  </g></svg><figcaption>48px 圆形蒙版</figcaption></figure><figure><svg width="96" height="96" viewBox="18 18 72 72">
+  <defs><clipPath id="c96circle"><circle cx="54" cy="54" r="36"/></clipPath></defs>
+  <g clip-path="url(#c96circle)"><rect x="18" y="18" width="72" height="72" fill="#000"/>
+  <path fill="#FFFFFF" d="M35,30 L35,78 L72,54 Z"/>
+  <path fill="#FF453A" d="M52,31.5 A4.5,4.5 0 0 1 56.5,27 H67.5 A4.5,4.5 0 0 1 72,31.5 A4.5,4.5 0 0 1 67.5,36 H56.5 A4.5,4.5 0 0 1 52,31.5 Z"/>
+  </g></svg><figcaption>96px 圆形蒙版</figcaption></figure><figure><svg width="96" height="96" viewBox="18 18 72 72">
+  <defs><clipPath id="c96squircle"><rect x="19.5" y="19.5" width="69" height="69" rx="17"/></clipPath></defs>
+  <g clip-path="url(#c96squircle)"><rect x="18" y="18" width="72" height="72" fill="#000"/>
+  <path fill="#FFFFFF" d="M35,30 L35,78 L72,54 Z"/>
+  <path fill="#FF453A" d="M52,31.5 A4.5,4.5 0 0 1 56.5,27 H67.5 A4.5,4.5 0 0 1 72,31.5 A4.5,4.5 0 0 1 67.5,36 H56.5 A4.5,4.5 0 0 1 52,31.5 Z"/>
+  </g></svg><figcaption>96px 圆角方蒙版</figcaption></figure>
+
+<figure><svg width="48" height="48" viewBox="18 18 72 72">
+<defs><clipPath id="t480"><circle cx="54" cy="54" r="36"/></clipPath></defs>
+<g clip-path="url(#t480)"><rect x="18" y="18" width="72" height="72" fill="#20304F"/>
+<path fill="#A8C0FF" d="M35,30 L35,78 L72,54 Z"/>
+<path fill="#A8C0FF" d="M52,31.5 A4.5,4.5 0 0 1 56.5,27 H67.5 A4.5,4.5 0 0 1 72,31.5 A4.5,4.5 0 0 1 67.5,36 H56.5 A4.5,4.5 0 0 1 52,31.5 Z"/>
+</g></svg><figcaption>48px 主题图标（染色）</figcaption></figure>
+<figure><svg width="96" height="96" viewBox="18 18 72 72">
+<defs><clipPath id="t961"><circle cx="54" cy="54" r="36"/></clipPath></defs>
+<g clip-path="url(#t961)"><rect x="18" y="18" width="72" height="72" fill="#20304F"/>
+<path fill="#A8C0FF" d="M35,30 L35,78 L72,54 Z"/>
+<path fill="#A8C0FF" d="M52,31.5 A4.5,4.5 0 0 1 56.5,27 H67.5 A4.5,4.5 0 0 1 72,31.5 A4.5,4.5 0 0 1 67.5,36 H56.5 A4.5,4.5 0 0 1 52,31.5 Z"/>
+</g></svg><figcaption>96px 主题图标（染色）</figcaption></figure>
+<figure><svg width="96" height="96" viewBox="18 18 72 72">
+<defs><clipPath id="t962"><circle cx="54" cy="54" r="36"/></clipPath></defs>
+<g clip-path="url(#t962)"><rect x="18" y="18" width="72" height="72" fill="#4A3520"/>
+<path fill="#FFD9A0" d="M35,30 L35,78 L72,54 Z"/>
+<path fill="#FFD9A0" d="M52,31.5 A4.5,4.5 0 0 1 56.5,27 H67.5 A4.5,4.5 0 0 1 72,31.5 A4.5,4.5 0 0 1 67.5,36 H56.5 A4.5,4.5 0 0 1 52,31.5 Z"/>
+</g></svg><figcaption>96px 主题图标（染色）</figcaption></figure>
+</div>
+<div class="note">主题图标两档里两块之间都留得住缝 —— 缝靠「两个 path 互不相交 → alpha=0」，不是靠填一块底板。</div></div></section>
+<section id="E"><div class="plate">
+<div class="h">⑨ 3 米可读性代理 —— 55″ 1080p（0.635mm/px），观看距离 3 m，1px = 0.728 弧分</div>
+<div class="bars">
+
+<div class="bar"><span class="lb">三角高<s>32px</s></span>
+<div class="track"><div class="fill" style="width:93.12%"></div>
+<div class="thr" style="left:8%"></div></div>
+<span class="vl">23.28 弧分</span></div>
+<div class="bar"><span class="lb">徽章高<s>6px</s></span>
+<div class="track"><div class="fill" style="width:17.48%"></div>
+<div class="thr" style="left:8%"></div></div>
+<span class="vl">4.37 弧分</span></div>
+<div class="bar"><span class="lb">黑缝（纯黑行）<s>3px</s></span>
+<div class="track"><div class="fill" style="width:8.72%"></div>
+<div class="thr" style="left:8%"></div></div>
+<span class="vl">2.18 弧分</span></div>
+<div class="bar"><span class="lb">徽章宽<s>13px</s></span>
+<div class="track"><div class="fill" style="width:37.84%"></div>
+<div class="thr" style="left:8%"></div></div>
+<span class="vl">9.46 弧分</span></div>
+</div>
+<div class="note">竖线 = 2 弧分/特征阈值。四个构件全部在阈值之上，最紧的是黑缝：2.18 弧分，余量 9%。</div></div></section>
+<section id="F"><div class="plate">
+<div class="h">⑤ 红色墨量占比（上限 2%）　⑥ 徽章宽高比（带 2.00–2.25）</div>
+<table><thead><tr><th>px</th><th>红墨 % 画布</th><th>红墨 % 108 立方</th><th>白:红</th><th>徽章 bbox</th><th>宽高比</th></tr></thead><tbody>
+
+<tr><th>48</th>
+<td><div class="mini"><div class="mf" style="width:87.94285714285714%"></div><div class="mt" style="left:57.14285714285714%"></div></div><b>3.078%</b></td>
+<td class="num">1.368%</td><td class="num">5.64 : 1</td><td class="num">13 × 6</td>
+<td><div class="mini"><div class="mf2" style="left:59.333333333333314%;width:13.333333333333334%"></div>
+<div class="mt" style="left:22.22222222222224%"></div><div class="mt" style="left:77.77777777777779%"></div></div><b>2.167</b></td></tr>
+<tr><th>72</th>
+<td><div class="mini"><div class="mf" style="width:89.65714285714286%"></div><div class="mt" style="left:57.14285714285714%"></div></div><b>3.138%</b></td>
+<td class="num">1.395%</td><td class="num">5.46 : 1</td><td class="num">20 × 9</td>
+<td><div class="mini"><div class="mf2" style="left:71.55555555555557%;width:13.333333333333334%"></div>
+<div class="mt" style="left:22.22222222222224%"></div><div class="mt" style="left:77.77777777777779%"></div></div><b>2.222</b></td></tr>
+<tr><th>96</th>
+<td><div class="mini"><div class="mf" style="width:90.05714285714286%"></div><div class="mt" style="left:57.14285714285714%"></div></div><b>3.152%</b></td>
+<td class="num">1.401%</td><td class="num">5.4 : 1</td><td class="num">27 × 12</td>
+<td><div class="mini"><div class="mf2" style="left:77.77777777777779%;width:13.333333333333334%"></div>
+<div class="mt" style="left:22.22222222222224%"></div><div class="mt" style="left:77.77777777777779%"></div></div><b>2.25</b></td></tr>
+<tr><th>144</th>
+<td><div class="mini"><div class="mf" style="width:88.54285714285714%"></div><div class="mt" style="left:57.14285714285714%"></div></div><b>3.099%</b></td>
+<td class="num">1.377%</td><td class="num">5.53 : 1</td><td class="num">40 × 18</td>
+<td><div class="mini"><div class="mf2" style="left:71.55555555555557%;width:13.333333333333334%"></div>
+<div class="mt" style="left:22.22222222222224%"></div><div class="mt" style="left:77.77777777777779%"></div></div><b>2.222</b></td></tr>
+<tr><th>192</th>
+<td><div class="mini"><div class="mf" style="width:88.94285714285715%"></div><div class="mt" style="left:57.14285714285714%"></div></div><b>3.113%</b></td>
+<td class="num">1.383%</td><td class="num">5.52 : 1</td><td class="num">53 × 24</td>
+<td><div class="mini"><div class="mf2" style="left:68.44444444444451%;width:13.333333333333334%"></div>
+<div class="mt" style="left:22.22222222222224%"></div><div class="mt" style="left:77.77777777777779%"></div></div><b>2.208</b></td></tr>
+</tbody></table>
+<div class="note">左侧竖线 = 2% 上限；右侧两条竖线 = 2.00 与 2.25 边界。96 档的比值点<b>正好落在右边界线上</b>。</div></div></section>
+<script>window.__ready=1;</script>
+</body></html>

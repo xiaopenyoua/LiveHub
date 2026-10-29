@@ -1,6 +1,7 @@
 // 极简 CDP 客户端：起一个 headless Chrome、开一个本地文件页、按 clip 1:1 截图、求值。
 // build / verify / shots 三个脚本共用它，避免三份几乎相同的启动样板。
 import { spawn } from 'node:child_process';
+import { deflateSync } from 'node:zlib';
 import { decodePNG } from './.png.mjs';
 
 export const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
@@ -81,6 +82,24 @@ export async function openPage({ file, width = 1920, height = 1080, port = 9500,
     async close() { try { ws.close(); } catch { } proc.kill(); },
   };
   return api;
+}
+
+/* ---------- PNG-32 写出（截图落盘用） ---------- */
+const _CRC = (() => { const t = new Int32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c; } return t; })();
+const _crc32 = b => { let c = ~0; for (let i = 0; i < b.length; i++) c = _CRC[(c ^ b[i]) & 255] ^ (c >>> 8); return (~c) >>> 0; };
+const _chunk = (type, data) => {
+  const len = Buffer.alloc(4); len.writeUInt32BE(data.length);
+  const body = Buffer.concat([Buffer.from(type, 'ascii'), data]);
+  const crc = Buffer.alloc(4); crc.writeUInt32BE(_crc32(body));
+  return Buffer.concat([len, body, crc]);
+};
+export function encodePNG32(w, h, rgba) {
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(w, 0); ihdr.writeUInt32BE(h, 4); ihdr[8] = 8; ihdr[9] = 6;
+  const stride = w * 4, raw = Buffer.alloc((stride + 1) * h);
+  for (let y = 0; y < h; y++) { raw[y * (stride + 1)] = 0; rgba.copy(raw, y * (stride + 1) + 1, y * stride, (y + 1) * stride); }
+  return Buffer.concat([Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]),
+    _chunk('IHDR', ihdr), _chunk('IDAT', deflateSync(raw, { level: 9 })), _chunk('IEND', Buffer.alloc(0))]);
 }
 
 /* ---------- 位图度量工具（与 v1 同一套口径，便于跨版本对比） ---------- */

@@ -139,7 +139,7 @@ function placeNow() {
   const place = {};
   for (const t of TILES) {
     const nodes = document.querySelectorAll('[data-tile="' + t.id + '"]');
-    const base = t.base !== null ? t.base : (48 + CAP * t.em) / 2;
+    const base = (typeof t.base === 'number') ? t.base : (48 + CAP * t.em) / 2;
     let x;
     if (t.kind === 'leg') x = (48 - adv[t.text === 'LH' ? 'lh' : 'livehub'] * t.em) / 2;
     else x = (48 - adv.livehub * t.em) / 2;
@@ -164,8 +164,12 @@ const proc = spawn(CHROME, ['--headless=new', '--no-sandbox', '--disable-gpu', '
   '--force-color-profile=srgb', '--force-device-scale-factor=1', '--allow-file-access-from-files',
   `--remote-debugging-port=${PORT}`, '--window-size=400,320', 'file://' + join(DER, 'bench.html')], { stdio: 'ignore' });
 let target = null;
-for (let i = 0; i < 80; i++) {
-  try { const l = await (await fetch(`http://127.0.0.1:${PORT}/json`)).json(); target = l.find(t => t.type === 'page' && t.webSocketDebuggerUrl); if (target) break; } catch {}
+for (let i = 0; i < 120; i++) {
+  try {
+    const l = await (await fetch(`http://127.0.0.1:${PORT}/json`)).json();
+    target = l.find(t => t.type === 'page' && /bench\.html/.test(t.url)) || null;
+    if (target) break;
+  } catch {}
   await wait(120);
 }
 if (!target) { proc.kill(); throw new Error('Chrome 未就绪'); }
@@ -174,10 +178,22 @@ await new Promise((res, rej) => { ws.onopen = res; ws.onerror = rej; });
 let id = 0; const pend = new Map();
 ws.onmessage = e => { const m = JSON.parse(e.data); if (m.id && pend.has(m.id)) { pend.get(m.id)(m); pend.delete(m.id); } };
 const send = (method, params = {}) => new Promise(res => { const i = ++id; pend.set(i, res); ws.send(JSON.stringify({ id: i, method, params })); });
-const ev = async expr => JSON.parse((await send('Runtime.evaluate', { expression: expr, returnByValue: true })).result.result.value);
+const ev = async (expr) => {
+  const r = await send('Runtime.evaluate', { expression: expr, returnByValue: true });
+  const v = r.result?.result?.value;
+  if (v === undefined) return undefined;
+  try { return JSON.parse(v); } catch { return v; }
+};
 await send('Page.enable'); await send('Runtime.enable');
-for (let i = 0; i < 60; i++) { if (await ev('JSON.stringify(window.__placed)') === 1) break; await wait(100); }
-const fontOk = await ev('JSON.stringify(window.__fontOk)');
+for (let i = 0; i < 60; i++) {
+  const rs = await ev('document.readyState');
+  if (rs === 'complete') break;
+  await wait(100);
+}
+for (let i = 0; i < 80; i++) { if (await ev('JSON.stringify(window.__placed)') === 1) break; await wait(100); }
+const diag = await ev(`JSON.stringify({placed:window.__placed, fontOk:window.__fontOk, status:window.__status, err:window.__err, ready:document.readyState, matches:document.querySelectorAll('[data-tile]').length})`);
+if (diag.placed !== 1) { console.log('DIAG', JSON.stringify(diag)); ws.close(); proc.kill(); throw new Error('页面脚本未就位'); }
+const fontOk = diag.fontOk;
 const info = await ev(`JSON.stringify({adv:Object.fromEntries(Object.entries(window.__adv).map(([k,v])=>[k,+v.toFixed(4)])),
   place:window.__place, boxes:Object.fromEntries(${JSON.stringify(TILES.map(t => t.id))}.map(i=>{const r=document.getElementById(i).getBoundingClientRect();return [i,{x:Math.round(r.x),y:Math.round(r.y)}]}))})`);
 

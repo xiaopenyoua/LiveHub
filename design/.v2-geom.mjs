@@ -56,10 +56,12 @@ export const GEOMS = SPEC.map(g => {
   const baseline = capTop + cap;
   // 组变换：把 units 坐标搬到画布 —— 让墨迹左缘正好落在 inkLeft
   const tx = inkLeft - INK_X0 * scale;
-  const boundaryX = inkLeft + BOUNDARY_U * scale;
+  const boundaryX = inkLeft + BOUNDARY_U * scale;         // 笔位（排版意义上的分界）
+  // 红墨首列 = H 的笔位 + H 自己的左边距；参考图的「分界 50.0%」量的是这个
+  const redX0 = inkLeft + (KERN.penKern[4] + WM.letters[4].inkRel[0] - INK_X0) * scale;
   return {
     ...g, F, scale, cap, inkW, boxW, inkLeft, inkRight, capTop, baseline, tx,
-    boundaryX,
+    boundaryX, redX0,
     margins: inkLeft,
     pctW: inkW / g.W, pctCap: cap / g.H,
     // 主理人表里的值，只为对照
