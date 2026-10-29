@@ -28,7 +28,8 @@ const SHOTS = [
   ['06-settings',      `showScreen('settings')`],
   ['07-channel-osd',   `showScreen('player'); playerState='osd'; renderPlayerState()`],
   ['08-exit-dialog',   `showScreen('home'); openExit()`],
-  // 焦点放到左栏：证明左右两栏用的是同一块玻璃，不是两套语言
+  // 焦点放到分组条：证明分组和条目是同一块玻璃，不是两套语言。
+  // 左栏已改为只读、没有可聚焦元素，这一张不再拍左栏。
   ['09-settings-nav',  `showScreen('settings'); setFocus($('#sgroups .sgroup'), false)`],
   // 房间号直达：一块键盘里直接打 660000（没有"数字模式"可切），结果区给出「按搜索直达」那一句
   ['10-search-rid',    `showScreen('search'); setQuery('660000'); setFocus($('[data-key="6"]'), false)`],

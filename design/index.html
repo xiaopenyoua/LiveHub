@@ -18,15 +18,36 @@
   font-display:block;
 }
 
+/* 把体亮度注册成一个**有类型的数值**。不注册，--a 只是字符串替换，
+   改了它 background-image 会整条重绘；注册之后浏览器能对它做插值，
+   于是文件末尾那段渐变里每一层的 alpha 都跟着时间走，焦点就是"亮起来"
+   而不是"跳一下"。inherits:false —— 每个面各自持有自己的亮度。 */
+@property --a{syntax:"<number>";inherits:false;initial-value:0.03}
+
 :root{
   /* 色彩 */
-  --ground:#000;
-  --panel:#121214;
-  --raised:#1C1C1F;
-  --raised-2:#2A2A2E;
-  --text:#fff;
-  --muted:#B4B4B4;
-  --faint:#8E8E93;
+  /* 暖黑：改成了低饱和度深炭灰。
+     纯黑在 OLED 上像一块关掉的屏；而"暖黑"（R>G>B）会让整个界面偏褐，
+     所有半透明白都带上土色。炭灰是中性偏冷的（R<B），冷的部分交给
+     中央那层暖金光晕去中和 —— 底色负责"沉"，光负责"暖"，两件事分开，
+     玻璃压在上面时才会透出"有光从背后过来"的感觉。
+     文字仍然不用纯白：#FFF 压在炭灰上会发青，退到 #FFFDFA 才和底子是一家人。 */
+  --ground:#15161A;
+  --ground-deep:#0C0D10;   /* 暗角：四角压深，托住中央的光 */
+  --glow:216,166,92;       /* 暖金（背景光晕、底部反光），写成 RGB 供 rgba() 拼 alpha */
+  --glow-lit:255,233,196;  /* 同色光的高光版：金光打到面上会发白，这个直接拿来做顶光 */
+  --panel:#1B1C20;
+  --raised:#232428;
+  --raised-2:#2C2D32;
+  /* 卡片面：一层薄雾，只提亮一点，不带走背后的暖光。零描边的分界全靠它。 */
+  --wash:rgba(255,255,255,.055);
+  /* 烟色玻璃底：掺在白色渐变下面，让面比环境**暗**一档。
+     纯白叠加在亮底上只会加越来越少（255-bg 变小），环境越亮，面越看不见；
+     掺一层暗才会让玻璃"吸收"背后的光，任何亮度的底上都是同一块面。 */
+  --glass-tint:rgba(11,12,15,.22);
+  --text:#FFFDFA;
+  --muted:#C3C4C9;
+  --faint:#9C9DA4;
   --live:#FF453A;
 
   /* 字体阶梯 */
@@ -54,6 +75,10 @@
   --gap-shelf:50px;
   --r-card:20px;
   --r-pill:999px;
+  /* 条目不是胶囊。量过苹果设置页那一行：左缘是一条笔直的竖线（y 从 104 到 135，
+     x 一直是 48），只有很短的角弧。全胶囊的两端半圆放在 96px 高的行上，就成了
+     "药丸"，像网页选项卡，不像电视列表。 */
+  --r-row:14px;
 
   /* 动效
      tvOS 的内置 focus hover 是 ~200ms 的透视抬升配一道 specular 光泽（Apple
@@ -72,36 +97,40 @@
   --sw-delay:55ms;                    /* 颜色等位移走过大半再翻，两件事分开看 */
   --sw-ease:cubic-bezier(.4,0,.2,1);  /* 位移与轨道共用同一条，滑块和轨道才是一个东西 */
   /* 所有可点控件共用同一条过渡，避免"尺寸缓动、颜色瞬跳"的两半不同步。
-     box-shadow 必须在内：镜面高光靠它变化，漏了就会出现"块变大了、光没跟上"。 */
-  --t-surface:transform var(--dur) var(--ease),background-color var(--dur) var(--ease),color var(--dur) var(--ease),box-shadow var(--dur) var(--ease);
+     box-shadow 必须在内：镜面高光靠它变化，漏了就会出现"块变大了、光没跟上"。
+     --a 也在内：它必须被 @property 注册成数值，下面那段渐变才会逐帧重算，
+     否则 background-image 不可插值，焦点提亮会是一记硬切。 */
+  --t-surface:transform var(--dur) var(--ease),--a var(--dur) var(--ease),background-color var(--dur) var(--ease),color var(--dur) var(--ease),box-shadow var(--dur) var(--ease);
+  /* 渐变本身不在这里定义 —— 全项目只有文件末尾那一段公式。 */
 
-  /* ---------- Liquid Glass 材质 ----------
-     Apple 的按钮不是一块涂色，是一片玻璃：顶沿一道镜面高光、高光向下衰减、
-     底沿压暗定义出厚度、底下一点落影把它从背景上抬起。所谓"渐变"就是这层
-     高光的衰减 —— 它是光，不是画上去的色带，所以用 inset 光实现。
+  /* ---------- 材质：一套公式，一个旋钮 ----------
+     以前这里有两套：设置页用平面渐变，其它组件用 --spec 内阴影（顶上一道 1px
+     硬线 + 底部压暗）。两套并排就是两种材质，怎么调都不统一。
 
-     深色玻璃（次按钮、播放器胶囊、键盘键）： */
-  --glass:rgba(255,255,255,.13);
-  --spec:
-    inset 0 1px 0 rgba(255,255,255,.40),
-    inset 0 28px 32px -28px rgba(255,255,255,.52),
-    inset 0 -2px 4px -2px rgba(0,0,0,.45);
-  --spec-on:
-    inset 0 1.5px 0 rgba(255,255,255,.95),
-    inset 0 34px 40px -30px rgba(255,255,255,.85),
-    inset 0 -2px 5px -2px rgba(0,0,0,.30);
-  /* 实心白按钮：白上加白看不见，所以反过来做——顶沿一道纯白、底沿收窄暗边、
-     再铺一层大范围柔暗。自上而下由纯白转微灰，这就是那层"渐变"，
-     不是一块死白的色板，也不会脏。 */
-  --spec-solid:
-    inset 0 2px 0 rgba(255,255,255,.98),
-    inset 0 -3px 5px -3px rgba(0,0,0,.22),
-    inset 0 -16px 24px -10px rgba(0,0,0,.24);
-  /* 小控件版：分段控件的选中块、开关的轨道都只有 40–50px 高，
-     上面那层 16px 柔暗会把它们压脏，所以只留顶沿高光加一道窄暗。 */
-  --spec-chip:
-    inset 0 1.5px 0 rgba(255,255,255,.95),
-    inset 0 -6px 10px -6px rgba(0,0,0,.22);
+     现在全项目只有一段渐变公式（见文件末尾「同一块玻璃」那一节）：
+       顶光带：0 → 14px 内衰减完，柔的，不是一条线（固定像素，不随面高缩放）
+       中段：光走完之后就是平的体
+       体：平到底
+       边光：一圈 1px，比体亮一档
+     每个组件只声明 --a —— 这块面的"体亮度"。渐变和边光都由它算，
+     所以 56px 的胶囊和 96px 的圆角矩形是同一块玻璃，只是薄厚不同。
+
+     --a 的档位（越高越"实"）：
+       .028  黑底上的行、条目         .045  静态说明块
+       .10   压在画面/弹层上的控件     .175  黑底上的焦点
+       .26   压在画面上的焦点          .34   导航焦点胶囊
+
+     白面是另一个家族（--grad-paper）：白玻璃不靠提亮，靠顶部更白、底部略灰
+     来交代厚度，加一圈极淡的暗边把它从黑底上分出来。 */
+  --grad-paper:linear-gradient(180deg,#FFFCF4 0%,#F9F4EB 46%,#EFE8DD 100%);
+  --grad-paper-on:linear-gradient(180deg,#FFFEFA 0%,#FDF8F0 46%,#F2ECE2 100%);
+  --rim-paper:inset 0 0 0 1px rgba(255,255,255,.55), 0 2px 6px -2px rgba(0,0,0,.35);
+  /* 分割线、轨道这类"没有体的面"只留一圈边光 */
+  --spec:inset 0 0 0 1px rgba(255,255,255,.055);
+  --spec-on:inset 0 0 0 1px rgba(255,255,255,.130);
+  --spec-solid:var(--rim-paper);
+  --spec-chip:inset 0 0 0 1px rgba(255,255,255,.075);
+  --glass:rgba(255,255,255,.10);
   /* 这里刻意没有外落影。真黑底上它根本看不见，加了只是让代码"看起来像
      Apple"，而不是让眼睛看到更像 Apple。浮起交给 scale，实体感交给上面那层光。
      卡片压在封面上时才留一点，那是唯一真能看见落影的地方（--card-lift）。 */
@@ -143,7 +172,22 @@ body{
 .stage{
   width:1920px;height:1080px;position:absolute;
   left:50%;top:50%;
-  background:var(--ground);
+  /* 环境光：一层中央暖金光晕 + 一圈暗角，底是深炭灰。
+     以前是三个角落各一点（左上暖橙、右侧冷蓝、底部暖褐），那是"房间里有几盏灯"；
+     现在改成"光从屏幕正中透出来" —— 光晕在中央，四角反而压得更深，
+     于是界面不是一块板，而是一块**被灯从背后照亮的暗面**。
+     卡片是半透明磨砂的，光就从它们背后自然透出来，层级不用画线也成立。
+
+     三层各管一件事，alpha 都收在 .10 以下：
+       1 核部：一小团更亮的金，让光"有来源"，不是均匀的雾；
+       2 主光：1600px 的椭圆，56% 后开始断，72% 完全消失；
+       3 暗角：把四角压到 --ground-deep，让中央的光显得更亮（明度对比，不是加亮度）。
+     全部在内容区之下，不参与文字对比度计算。 */
+  background:
+    radial-gradient(820px 560px at 50% 41%,rgba(var(--glow),.105),transparent 68%),
+    radial-gradient(1720px 1220px at 50% 45%,rgba(var(--glow),.082),rgba(var(--glow),.030) 42%,transparent 70%),
+    radial-gradient(1500px 1100px at 50% 46%,transparent 40%,rgba(8,9,12,.74) 100%),
+    var(--ground);
   transform-origin:center center;
   overflow:hidden;
   border-radius:14px;
@@ -184,7 +228,9 @@ body.canvas .stage{transform:none!important;border-radius:0;box-shadow:none;posi
   padding:0 var(--gut);
   gap:44px;
   position:relative;z-index:5;
-  background:var(--ground);
+  /* 不铺底色：顶栏原来是一层不透明的 --ground，会在屏幕顶上切断中央光晕，
+     一条硬边横在那里。让光晕从顶到底连续走完，导航靠间距和字重分层。 */
+  background:transparent;
 }
 .brand{font-size:30px;font-weight:600;letter-spacing:-.02em}
 .brand i{color:var(--live);font-style:normal}
@@ -194,9 +240,7 @@ body.canvas .stage{transform:none!important;border-radius:0;box-shadow:none;posi
    tab 左右留出 padding、gap 收窄，胶囊才有可依附的形状。 */
 .tabs__pill{
   position:absolute;left:0;top:50%;height:56px;
-  width:var(--pw,0px);border-radius:var(--r-pill);
-  background-color:rgba(255,255,255,.19);
-  box-shadow:var(--spec-on);
+  width:var(--pw,0px);border-radius:var(--r-pill);--a:.26;
   transform:translate(var(--px,0px),-50%);
   transition:transform 260ms var(--ease),width 260ms var(--ease),opacity 180ms var(--ease);
   opacity:0;pointer-events:none;
@@ -242,25 +286,22 @@ body.canvas .stage{transform:none!important;border-radius:0;box-shadow:none;posi
 }
 .hero__meta{font-size:var(--fs-body);color:var(--muted);margin-bottom:30px}
 
-/* 主按钮：白玻璃胶囊。
-   它不是一块死白 —— 底色是半透明的，会吸住并模糊背后的画面，所以压在图上的
-   按钮和压在黑底上的按钮颜色不一样。这才是 Liquid Glass 说的"颜色由环境决定"，
-   比任何一道画上去的渐变都更接近真玻璃。 */
+/* 主按钮：这块玻璃里最厚的一片，但它仍然是一块玻璃，不是一块白。
+   白底黑字曾经是"全屏唯一的主按钮"的语法，代价是它和别的面讲两种语言 ——
+   旁边每一块都是暖灰玻璃，只有它是一张纸。现在主次由 --a 表达：
+   静置 .245（全站最高的一档静置），焦点 .34，配上 72px 高、26px 半粗字。
+   三米外靠体量和字重认出它，而不是靠"只有它是白的"。 */
 .btn{
   display:inline-flex;align-items:center;gap:12px;
   height:72px;padding:0 40px;border-radius:var(--r-pill);
-  border:0;background-color:rgba(255,255,255,.94);color:#000;
-  -webkit-backdrop-filter:blur(24px) saturate(180%);
-  backdrop-filter:blur(24px) saturate(180%);
+  border:0;--a:.245;color:var(--text);
   font-family:inherit;font-size:26px;font-weight:600;
-  box-shadow:var(--spec-solid);
   transition:var(--t-surface);
 }
-/* 焦点语言（对齐 tvOS）：不放边框，只靠放大 + 提亮 + 浮起。
-   真黑底上投影看不见，所以"浮起"由 scale 表达，"选中"由底色明度与高光亮度表达。 */
-.btn.is-focused{transform:scale(1.07);background-color:#fff;box-shadow:var(--spec-on)}
-.btn--ghost{background-color:var(--glass);color:#fff;box-shadow:var(--spec)}
-.btn--ghost.is-focused{transform:scale(1.07);background-color:rgba(255,255,255,.32);box-shadow:var(--spec-on)}
+/* 焦点语言（对齐 tvOS）：不放边框，只靠放大 + 提亮 + 浮起。 */
+.btn.is-focused{transform:scale(1.07);--a:.34}
+.btn--ghost{--a:.10;color:#fff}
+.btn--ghost.is-focused{transform:scale(1.07);--a:.30}
 
 /* ---------- 内容行 ---------- */
 .shelf{padding:0 var(--gut) 80px;margin-bottom:var(--gap-shelf)}
@@ -276,7 +317,12 @@ body.canvas .stage{transform:none!important;border-radius:0;box-shadow:none;posi
 /* 16:9 卡 */
 .card{width:380px;flex:0 0 auto}
 .card__lift{
+  /* 卡的正文现在压在画面里，所以这一层要当"定位父级"用。 */
+  position:relative;
   border-radius:var(--r-card);
+  /* 恒定的一层薄落影。底是纯黑的时候这层等于没有，现在是 L27 的炭灰 + 中央光，
+     它才真的把封面从背景上"抬"起来 —— 悬浮感不是靠放大给的，是靠影给的。 */
+  box-shadow:0 10px 26px -14px rgba(0,0,0,.55);
   transition:transform var(--dur) var(--ease),box-shadow var(--dur) var(--ease);
   will-change:transform;
 }
@@ -288,52 +334,89 @@ body.canvas .stage{transform:none!important;border-radius:0;box-shadow:none;posi
 }
 .card__media img{
   width:100%;height:100%;object-fit:cover;display:block;
-  filter:brightness(.86);transition:filter var(--dur) var(--ease),transform 600ms var(--ease);
+  /* 原来是 .86：封面先压暗，好让下面那块白板上的灰字读得清。
+     字搬上画面之后，压暗的理由没有了 —— 画面是这一屏的主角，
+     再压它就是为了给一块"信息板"让路。现在只留 .95 这一点点收，
+     让封面别跟中央光晕抢亮度。 */
+  filter:brightness(.95);transition:filter var(--dur) var(--ease),transform 600ms var(--ease);
 }
-.card.is-focused .card__media img{filter:brightness(1);transform:scale(1.04)}
+.card.is-focused .card__media img{filter:brightness(1.04);transform:scale(1.04)}
+/* 字要站在画面上，底下就得有块"暗"。这不是装饰，是字幕底。
+   起笔放到 50%：早了整张封面会被一道斜灰切成上下两半，看着像叠了两张图；
+   收口只到 .72（先试过 .90，卡片立刻退回"一块黑底板上放两行字"，
+   画面又没了）。剩下的对比度交给字自己那两层影，别用黑去换。 */
+.card__media::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(180deg,
+    rgba(4,4,6,0) 50%,
+    rgba(4,4,6,.16) 64%,
+    rgba(4,4,6,.44) 80%,
+    rgba(4,4,6,.72) 100%);
+  transition:opacity var(--dur) var(--ease);
+}
 /* 封面左上角：平台名，不是编号。
    原来这里放三位"台号"，可四个平台根本没有跨平台统一编号——斗鱼 4–8 位、
    虎牙 6–8 位、哔哩 8–10 位、抖音干脆没有房间号。把 8 位数字塞进这个药丸，
    宽度从 4 个字到 10 个字不等，一排卡片立刻参差；抖音还放不下。
    而聚合客户端里这一格最该回答的是"这是哪个平台的"——同一个主播常常多平台播。
-   黑底药丸保证它在任意封面上都清晰，不靠阴影。 */
+
+   —— 现在是光字，没有底。
+   胶囊、玻璃、半透明烟色，试过三轮：只要它有一层底，屏幕上就多出一张
+   "贴在封面上的小纸片"，而封面才是这一屏唯一的主角。tvOS 的规矩是
+   "内容即界面"，标签属于元信息，元信息就该退到字里去。
+   没有底，字就要自己站住：两层影，一层贴边收锐（1px，几乎纯黑），
+   一层散开托住（14px，半透）。压在 LED 墙那种白亮画面上也不飘。 */
 .card__plat{
-  position:absolute;left:12px;top:12px;
-  padding:4px 12px 5px;border-radius:10px;
-  background:rgba(0,0,0,.62);
-  font-size:var(--fs-small);font-weight:600;letter-spacing:.02em;
+  /* 22px 和正文的 padding 同值：平台名和标题必须在同一条竖线上，
+     差 4px 就看得出来没对齐。 */
+  position:absolute;left:22px;top:15px;
+  font-size:var(--fs-small);font-weight:600;letter-spacing:.06em;
   color:#fff;
+  text-shadow:0 1px 2px rgba(0,0,0,.92),0 2px 14px rgba(0,0,0,.60);
 }
 .card__live{
-  position:absolute;right:14px;top:14px;
-  display:flex;align-items:center;gap:8px;
-  padding:6px 14px;border-radius:var(--r-pill);
-  background:var(--live);color:#fff;
-  font-size:var(--fs-small);font-weight:600;line-height:1;
+  position:absolute;right:22px;top:16px;
+  font-size:var(--fs-small);font-weight:600;
+  letter-spacing:.14em;line-height:1;color:#fff;
+  /* 字距是加在每个字后面，最后一个字后面那 .14em 是白留的 —— 不抵消掉，
+     右对齐就差了 2.8px，一眼看得出没贴线。 */
+  margin-right:-.14em;
+  text-shadow:0 1px 2px rgba(0,0,0,.92),0 2px 14px rgba(0,0,0,.60);
 }
 .card__warn{
-  position:absolute;right:14px;top:14px;
-  padding:6px 14px;border-radius:var(--r-pill);
-  background:rgba(0,0,0,.72);color:var(--muted);
-  font-size:var(--fs-small);line-height:1;
+  position:absolute;right:22px;top:16px;
+  font-size:var(--fs-small);font-weight:500;
+  letter-spacing:.06em;line-height:1;color:rgba(255,255,255,.66);
+  text-shadow:0 1px 2px rgba(0,0,0,.9);
 }
-.card__body{padding:16px 4px 0}
+/* 正文压在画面里，不再是封面下面的一块白板。
+   这是这一版最要紧的一次取舍：原来"图 + 信息板"是两件事，看卡的时候眼睛要
+   先看图、再往下移一行读字，卡片是一张"带图的信息块"。现在只有一件事 ——
+   一整幅画面，字浮在画面的下沿。卡片从"信息块"变回"节目"。
+   字级也从 26 降到 --fs-meta(22)：压在画面上的字一放大就变成字幕，
+   抢戏。这里要的是"标在画上的名字"，不是标题。 */
+.card__body{
+  position:absolute;left:0;right:0;bottom:0;z-index:2;
+  padding:0 22px 18px;
+}
 .card__title{
-  font-size:var(--fs-title);font-weight:600;color:var(--muted);
-  line-height:1.3;letter-spacing:-.01em;
-  display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;
+  font-size:var(--fs-meta);font-weight:600;color:#fff;
+  line-height:1.28;letter-spacing:-.01em;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+  text-shadow:0 1px 3px rgba(0,0,0,.66);
   transition:color var(--dur) var(--ease);
 }
-.card.is-focused .card__title{color:var(--text)}
+.card.is-focused .card__title{color:#fff}
 .card__meta{
-  margin-top:8px;font-size:var(--fs-card-meta);color:var(--faint);
+  margin-top:6px;font-size:var(--fs-card-meta);color:rgba(255,255,255,.78);
   display:flex;align-items:center;gap:10px;
+  text-shadow:0 1px 2px rgba(0,0,0,.62);
 }
-.card__meta .plat{color:var(--muted)}
+.card__meta .plat{color:rgba(255,255,255,.92)}
 
 /* 卡片网格：关注页与搜索结果共用，一行 3–4 列自适应 */
 .card-grid{
-  display:grid;gap:36px 24px;
+  display:grid;gap:34px 24px;
   grid-template-columns:repeat(auto-fill,minmax(400px,1fr));
 }
 .card-grid .card{width:100%}
@@ -368,9 +451,9 @@ body.canvas .stage{transform:none!important;border-radius:0;box-shadow:none;posi
 .rail-col__hint b{display:block;font-size:var(--fs-meta);color:var(--muted);font-weight:600;margin-bottom:10px}
 .rail{display:flex;flex-direction:column;gap:6px;margin-top:26px}
 .rail__item{
-  height:84px;border-radius:16px;padding:0 24px;
+  height:84px;border-radius:var(--r-row);padding:0 32px;
   display:flex;align-items:center;justify-content:space-between;
-  background-color:transparent;border:0;font-family:inherit;text-align:left;
+  --a:.062;border:0;font-family:inherit;text-align:left;
   transition:var(--t-surface);
 }
 .rail__item span{transition:color var(--dur) var(--ease)}
@@ -378,25 +461,31 @@ body.canvas .stage{transform:none!important;border-radius:0;box-shadow:none;posi
 .rail__item span:last-child{font-size:var(--fs-small);color:#5A5A5E;letter-spacing:.02em}
 .rail__item.is-current span:first-child{color:var(--text);font-weight:600}
 /* 列表行不给落影：它不是浮起的按钮，是侧栏里被点亮的一行 */
-.rail__item.is-focused{background-color:rgba(255,255,255,.13);transform:scale(1.02);box-shadow:var(--spec)}
+.rail__item.is-focused{--a:.215;transform:scale(1.02)}
 .rail__item.is-focused span:first-child{color:var(--text)}
 
-.grid-area{flex:1 1 auto;min-width:0;padding:0 var(--gut) 60px 0}
+/* 和搜索页 .results 同一个毛病、同一个手法：.grid-area 自己就是滚动容器，
+   它的 padding 边就是 overflow 的裁剪线。卡片焦点放大 1.08，334px 的卡
+   左右各长 13.4px，左边那 13px 正好落在裁剪线外——被切平，看上去像被左栏压住了。
+   负 margin 把裁剪线退到 16px 外，等量 padding 把内容位置顶回原地。
+   （16 而不是 14：卡是 1.08 不是 1.02，浮得多一点。） */
+.grid-area{flex:1 1 auto;min-width:0;margin-left:-16px;padding:0 var(--gut) 60px 16px}
 .chips{display:flex;gap:14px;margin-bottom:40px;flex-wrap:wrap}
 .chip-t{
   height:56px;padding:0 26px;border-radius:var(--r-pill);
-  background-color:rgba(255,255,255,.09);border:0;color:var(--muted);
+  border:0;color:var(--muted);--a:.10;
   -webkit-backdrop-filter:blur(24px) saturate(180%);
   backdrop-filter:blur(24px) saturate(180%);
   font-family:inherit;font-size:24px;
-  box-shadow:var(--spec);
   transition:var(--t-surface);
 }
-.chip-t.is-current{background-color:rgba(255,255,255,.94);color:#000;font-weight:600;box-shadow:var(--spec-solid)}
-.chip-t.is-focused{transform:scale(1.06);background-color:rgba(255,255,255,.26);color:var(--text);box-shadow:var(--spec-on)}
-.chip-t.is-current.is-focused{background-color:#fff;color:#000}
+/* 选中的标签不是"翻成白底黑字"，是同一块玻璃厚一档：.10 → .17，字转白加粗。
+   焦点再推到 .34。三档都在同一条灰阶上，切过去不会有材质跳变。 */
+.chip-t.is-current{--a:.22;color:var(--text);font-weight:600}
+.chip-t.is-focused{transform:scale(1.06);--a:.34;color:var(--text)}
+.chip-t.is-current.is-focused{--a:.36;color:var(--text)}
 
-.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:28px 20px}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:32px 20px}
 .grid .card{width:100%}
 
 /* ---------- 关注页 ---------- */
@@ -416,7 +505,7 @@ body.canvas .stage{transform:none!important;border-radius:0;box-shadow:none;posi
    1920 − 80(左栏距) − 44(栏间) − 80(右栏距) − 880 = 836。键盘取 830，留 6px 余量。 */
 .kb{width:830px;flex:0 0 auto}
 .kb__display{
-  height:96px;border-radius:var(--r-card);background:var(--raised);
+  height:96px;border-radius:var(--r-card);--a:.055;
   display:flex;align-items:center;padding:0 32px;gap:6px;
   font-size:var(--fs-h2);font-weight:500;margin-bottom:28px;
 }
@@ -440,15 +529,14 @@ body.canvas .stage{transform:none!important;border-radius:0;box-shadow:none;posi
 .kb__row--2{padding-left:calc((100% + 14px)/20)}
 .kb__row--3{padding-left:calc((100% + 14px)*3/20)}
 .key{
-  height:92px;border-radius:16px;background-color:rgba(255,255,255,.10);border:0;
+  height:92px;border-radius:var(--r-row);border:0;--a:.10;
   -webkit-backdrop-filter:blur(24px) saturate(180%);
   backdrop-filter:blur(24px) saturate(180%);
   color:var(--text);font-family:inherit;font-size:30px;font-weight:500;
-  box-shadow:var(--spec);
   transition:var(--t-surface);
 }
-.key.is-focused{background-color:#fff;color:#000;transform:scale(1.06);box-shadow:var(--spec-on)}
-.key--util{background-color:rgba(255,255,255,.19);font-size:24px}
+.key.is-focused{background-image:var(--grad-paper-on);color:#000;transform:scale(1.06);box-shadow:var(--rim-paper)}
+.key--util{--a:.18;font-size:24px}
 .key--s2{grid-column:span 2}
 .key--s3{grid-column:span 3}
 .key--s4{grid-column:span 4}
@@ -462,35 +550,52 @@ body.canvas .stage{transform:none!important;border-radius:0;box-shadow:none;posi
    多放一个可聚焦元素就是多一次方向键。 */
 .hit-go{
   display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 14px;
-  padding:16px 22px;margin-bottom:24px;border-radius:14px;
-  background:rgba(255,255,255,.08);box-shadow:var(--spec);
+  padding:16px 22px;margin-bottom:24px;border-radius:var(--r-row);
+  --a:.045;
   font-size:22px;color:var(--muted);
 }
 .hit-go b{color:var(--text);font-weight:600}
 .hit-go .num{font-variant-numeric:tabular-nums}
 
-.results{flex:1 1 auto;min-width:0;padding:0 var(--gut) 80px 0;overflow-y:auto;overflow-x:hidden;scrollbar-width:none}
+/* 负 margin 配等量 padding：把 overflow 的裁剪边界退到行外面 14px。
+   和设置页 .spane 是同一个手法——那边滚动容器就是 .spane 自己，这边是 .results，
+   所以这 14px 必须加在 .results 上，加在行上没用（裁剪边界不会跟着走）。
+   焦点放大 1.02 在 1200px 宽的行上是左右各 9px，14px 刚好容得下。 */
+.results{flex:1 1 auto;min-width:0;margin-left:-14px;padding:0 var(--gut) 80px 14px;overflow-y:auto;overflow-x:hidden;scrollbar-width:none}
 .results::-webkit-scrollbar{display:none}
 .results__head{font-size:var(--fs-meta);color:var(--faint);margin-bottom:20px}
 /* 搜索结果与关注页共用同一套卡片尺寸（.card-grid 的 400px 下限），不做特殊化。
    之前为了让 740px 宽的键盘旁边塞下 3 列，这里压到 280px——282px 的卡放 26px 标题，
    十三四个字就要截成"第…"，搜索结果最需要读的就是标题。宁可少一列、让面板多滚一点。 */
 
-.recent{display:flex;flex-direction:column}
+/* 最近搜索是一组并排的"词"，不是一串"条目"。
+   一行一条会在 886px 宽的右栏里拉成一根 880px 长的横条——那是列表项的形状，
+   而这里四五个短词的地位是平行的，并排摆才读得出"这是几个可以挑的东西"。
+   auto-fill + minmax(320px)：栏宽 886 时是两列（437 一块），
+   窗口或栏宽变窄会自己掉到一列，宽屏也不会窜到三列——
+   三列每块只剩 287px，"xiaojiuguan" 这种 11 个字符的抖音号就被截了。
+   每块都是自己一整圈 14px 圆角，所以必须有缝：零间距时两条圆弧在接缝处一夹，
+   夹出一条上宽下窄的锯齿黑线，既不像分组，也不像独立的块。12px 与 .sgroups 同值。 */
+.recent{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px}
 /* 查询为空时，结果区没有内容，最近搜索要顶到最上面当主角，不留 44px 的空档 */
 #recentWrap{margin-top:44px}
 #recentWrap.is-lead{margin-top:0}
 .rrow-s{
-  display:flex;align-items:center;gap:20px;height:64px;padding:0 20px;border-radius:12px;
+  display:flex;align-items:center;gap:16px;min-height:64px;padding:0 26px;
+  border-radius:var(--r-row);--a:.062;
   font-size:var(--fs-body);color:var(--muted);
   transition:var(--t-surface);
 }
-.rrow-s.is-focused{background:var(--raised);color:#fff}
+.rrow-s.is-focused{--a:.215;color:var(--text);transform:scale(1.02)}
 /* 最近搜索行：左边是你打过的字符串，右边是时间。
    原来 .n 是给三位台号留的 74px 固定宽，好让四行数字码齐；现在这串字符长度不一
    （9999 到 xiaojiuguan），固定宽度要么截断要么留一片空白，所以让它自然宽度。 */
 .rrow-s .n{font-variant-numeric:tabular-nums}
-.rrow-s .x{margin-left:auto;font-size:var(--fs-small);color:#5A5A5E}
+/* 时间是次要信息，但"次要"不等于"看不见"。#5A5A5E 压在 L51 的块上只有 1.3:1，
+   三米外完全没有；焦点块提亮到 L108 之后更是灰盖灰。用 --faint（4.9:1），
+   焦点时再抬到 --muted —— 它仍然是这一块里最弱的一行字，但不是消失的那一行。 */
+.rrow-s .x{margin-left:auto;font-size:var(--fs-small);color:var(--faint);transition:color var(--dur) var(--ease)}
+.rrow-s.is-focused .x{color:var(--muted)}
 
 /* ---------- 播放页 ---------- */
 .player{position:absolute;inset:0;background:#000}
@@ -553,7 +658,7 @@ body.canvas .stage{transform:none!important;border-radius:0;box-shadow:none;posi
   display:flex;align-items:flex-start;gap:20px;
 }
 .p-top__back{
-  width:64px;height:64px;border-radius:50%;background-color:var(--glass);
+  width:64px;height:64px;border-radius:50%;--a:.10;
   border:0;color:#fff;font-size:30px;line-height:1;flex:0 0 auto;
   -webkit-backdrop-filter:blur(24px) saturate(180%);
   backdrop-filter:blur(24px) saturate(180%);
@@ -561,7 +666,7 @@ body.canvas .stage{transform:none!important;border-radius:0;box-shadow:none;posi
   box-shadow:var(--spec);
   transition:var(--t-surface);
 }
-.p-top__back.is-focused{transform:scale(1.08);background-color:#fff;color:#000;box-shadow:var(--spec-on)}
+.p-top__back.is-focused{transform:scale(1.08);--a:.30;color:var(--text)}
 .p-top__main{flex:1 1 auto;padding-top:2px}
 .p-top__line{display:flex;align-items:center;gap:14px;font-size:var(--fs-meta);color:var(--muted);margin-bottom:10px}
 /* 房间号按平台原样显示，前缀也跟着平台走：抖音没有房间号，写"抖音号" */
@@ -580,7 +685,7 @@ body.canvas .stage{transform:none!important;border-radius:0;box-shadow:none;posi
 .p-ctl{display:flex;align-items:center;gap:16px}
 .pbtn{
   height:68px;padding:0 30px;border-radius:var(--r-pill);
-  background-color:var(--glass);border:0;color:#fff;
+  border:0;color:#fff;--a:.10;
   -webkit-backdrop-filter:blur(24px) saturate(180%);
   backdrop-filter:blur(24px) saturate(180%);
   font-family:inherit;font-size:24px;font-weight:500;
@@ -588,11 +693,13 @@ body.canvas .stage{transform:none!important;border-radius:0;box-shadow:none;posi
   box-shadow:var(--spec);
   transition:var(--t-surface);
 }
-.pbtn.is-focused{background-color:#fff;color:#000;transform:scale(1.05);box-shadow:var(--spec-on)}
+.pbtn.is-focused{--a:.30;color:var(--text);transform:scale(1.05)}
 .pbtn .val{color:var(--muted);font-weight:400}
-.pbtn.is-focused .val{color:#3A3A3C}
-.pbtn--primary{background-color:rgba(255,255,255,.94);color:#000;font-weight:600;box-shadow:var(--spec-solid)}
-.pbtn--primary.is-focused{transform:scale(1.06);background-color:#fff}
+.pbtn.is-focused .val{color:var(--muted)}
+/* ＋关注是这一排里的主按钮：不换颜色，只比邻居厚一档（.10 → .165）。
+   播放页压在画面上，任何"变白"的控件都会和画面抢亮度。 */
+.pbtn--primary{--a:.165;color:var(--text);font-weight:600}
+.pbtn--primary.is-focused{transform:scale(1.06);--a:.32}
 .p-ctl__right{margin-left:auto;font-size:var(--fs-meta);color:var(--muted)}
 .p-degraded{
   position:absolute;left:var(--gut);bottom:18px;
@@ -631,37 +738,54 @@ body.canvas .stage{transform:none!important;border-radius:0;box-shadow:none;posi
 .osd__hint b{color:var(--text);font-weight:600}
 
 /* ---------- 设置页 ---------- */
-/* 同分类页：左栏分组固定，只有右侧面板滚。 */
-.settings{flex:1 1 auto;min-height:0;display:flex;gap:48px;padding:36px 0 0 var(--gut)}
-.sgroups{width:340px;flex:0 0 auto;display:flex;flex-direction:column;gap:6px}
-.sgroup{
-  height:82px;border-radius:16px;padding:0 26px;display:flex;align-items:center;
-  background-color:transparent;border:0;font-family:inherit;font-size:26px;color:var(--muted);text-align:left;
-  transition:var(--t-surface);
-}
-.sgroup.is-current{color:var(--text);font-weight:600}
-.sgroup.is-focused{background-color:rgba(255,255,255,.13);transform:scale(1.02);color:var(--text);box-shadow:var(--spec)}
-.sgroups__foot{margin-top:34px;padding-left:26px;font-size:var(--fs-small);line-height:1.7;color:#5A5A5E}
+/* 两栏分工：左栏陈述状态（只读），右栏提供动作（可聚焦）。
+   左栏一个可聚焦元素都没有——它不是"不可点"，它压根不是选项。 */
+.settings{flex:1 1 auto;min-height:0;display:flex;gap:56px;padding:36px 0 36px var(--gut)}
 
-.panel{
-  flex:1 1 auto;min-width:0;border-radius:24px;background:var(--panel);
-  padding:16px 32px 26px;margin:0 var(--gut) 36px 0;
-  /* 贴合内容：内容少时它就是一张内容高的卡片，不撑成一块半空的白板；
-     内容超过可视高度时才滚。align-self + max-height 一起用，缺一个都会撑满。 */
-  align-self:flex-start;max-height:100%;
-  overflow-y:auto;overflow-x:hidden;scrollbar-width:none;
+.sstatus{
+  width:496px;flex:0 0 auto;align-self:flex-start;max-height:100%;overflow:hidden;
+  border-radius:28px;background:var(--wash);padding:38px 40px 34px;
 }
-.panel::-webkit-scrollbar{display:none}
-/* 设置行：和左栏导航是同一套焦点语言。这里没有"行"和"按钮"两种东西——
-   焦点落在哪，哪就是一块被举起来的玻璃：同样的半透明底、同样的顶沿高光、同样的 1.02。
-   之前只把底色换成 --raised，看着像网页的 hover，不像电视的焦点。 */
-.srow{
-  display:flex;align-items:center;gap:24px;height:104px;
-  border-radius:16px;padding:0 20px;margin:4px 0;
-  background-color:transparent;
+.sstatus__kicker{font-size:var(--fs-small);color:var(--faint);letter-spacing:.06em}
+.sstatus__title{margin-top:14px;font-size:var(--fs-h1);font-weight:600;letter-spacing:-.025em;line-height:1.12}
+.sstatus__sub{margin-top:12px;font-size:var(--fs-small);line-height:1.55;color:var(--muted)}
+.sstatus__list{margin:30px 0 0;display:flex;flex-direction:column;gap:18px}
+.sstatus__row{display:flex;align-items:baseline;justify-content:space-between;gap:24px}
+.sstatus__row dt{font-size:var(--fs-small);color:var(--faint)}
+.sstatus__row dd{margin:0;font-size:var(--fs-meta);color:var(--text);font-variant-numeric:tabular-nums}
+.sstatus__note{margin-top:32px;font-size:var(--fs-small);line-height:1.6;color:#989AA1}
+
+.sbody{flex:1 1 auto;min-width:0;min-height:0;display:flex;flex-direction:column;padding-right:var(--gut)}
+/* 分组条改成横排的等宽圆头。竖排 340px 左栏太占地方，而分组只有四个，
+   横排后右栏能拿到全部宽度去放条目。 */
+.sgroups{flex:0 0 auto;display:flex;gap:12px;margin:0 0 24px 0}
+.sgroup{
+  height:60px;padding:0 28px;border-radius:var(--r-row);border:0;
+  font-family:inherit;font-size:var(--fs-small);font-weight:500;color:var(--muted);
+  /* background-color 必须显式透明：button 自带一层 UA 底色，会从半透明渐变底下透上来，
+     焦点态越透，露得越多，整块囊肿成一块白。 */
+  --a:.10;
   transition:var(--t-surface);
 }
-.srow.is-focused{background-color:rgba(255,255,255,.13);transform:scale(1.02);box-shadow:var(--spec)}
+.sgroup.is-current{--a:.22;color:var(--text);font-weight:600}
+.sgroup.is-focused{--a:.34;color:var(--text);transform:scale(1.04)}
+
+/* 面板不再是一张卡片：条目直接铺在暖黑上，靠条目自己的面分界。
+   零描边——没有 1px 边框，也没有外框。内容多时只有这一块滚。
+   负 margin 配等量 padding：把裁剪边界退到条目边缘外 14px，
+   这样焦点缩放 1.02 多了那 13px 也不会被切掉。 */
+.spane{
+  flex:1 1 auto;min-height:0;margin:0 -14px;padding:6px 14px 26px;
+  overflow-y:auto;overflow-x:hidden;scrollbar-width:none;
+  display:flex;flex-direction:column;gap:8px;
+}
+.spane::-webkit-scrollbar{display:none}
+.srow{
+  display:flex;align-items:center;gap:24px;min-height:96px;padding:14px 44px;
+  border-radius:var(--r-row);--a:.062;
+  transition:var(--t-surface);
+}
+.srow.is-focused{--a:.215;transform:scale(1.02)}
 .srow__label{font-size:26px;font-weight:500}
 .srow__desc{font-size:var(--fs-small);color:var(--faint);margin-top:6px;transition:color var(--dur) var(--ease)}
 .srow.is-focused .srow__desc{color:var(--muted)}
@@ -671,13 +795,11 @@ body.canvas .stage{transform:none!important;border-radius:0;box-shadow:none;posi
    不靠给每个选项加底色来"表示选中"——那样切换是硬切，眼睛接不住。 */
 .seg{
   position:relative;display:flex;gap:8px;padding:5px;
-  background-color:rgba(255,255,255,.08);
-  border-radius:var(--r-pill);box-shadow:var(--spec-chip);
+  border-radius:var(--r-pill);--a:.06;
 }
 .seg__pill{
   position:absolute;left:0;top:5px;height:calc(100% - 10px);
-  width:var(--sw,0px);border-radius:var(--r-pill);
-  background-color:#fff;box-shadow:var(--spec-chip);
+  width:var(--sw,0px);border-radius:var(--r-pill);--a:.34;
   transform:translateX(var(--sx,0px));
   transition:transform 260ms var(--ease),width 260ms var(--ease);
   pointer-events:none;
@@ -688,7 +810,7 @@ body.canvas .stage{transform:none!important;border-radius:0;box-shadow:none;posi
   padding:10px 20px;border-radius:var(--r-pill);
   transition:color var(--dur) var(--ease);
 }
-.seg b.on{color:#000;font-weight:600}
+.seg b.on{color:var(--text);font-weight:600}
 
 /* 开关：轨道是玻璃，滑块滑过去。
    以前顿的三个原因（都是采样出来的，不是感觉）：
@@ -712,10 +834,93 @@ body.canvas .stage{transform:none!important;border-radius:0;box-shadow:none;posi
              background-color var(--dur-sw-color) var(--ease) var(--sw-delay);
 }
 .sw.on{background-color:#fff}
-.sw.on::after{transform:translateX(38px);background-color:#1C1C1F}
+.sw.on::after{transform:translateX(38px);background-color:#191A1E}
 .note{
   margin:18px 20px 26px;font-size:var(--fs-small);line-height:1.7;color:var(--faint);
 }
+
+/* ============================================================
+   同一块玻璃 —— 全项目唯一的一段材质公式
+   ============================================================
+   每个可聚焦的面在这里拿到底色和边光，自己只声明一个 --a（体亮度）。
+   56px 的胶囊、96px 的圆角矩形、92px 的键盘键、300px 的弹层，
+   在这里是同一种材质，只是薄厚不同。
+
+   停靠点用**绝对像素**，不用百分比 —— 这条是想清楚才改的：
+     光的衰减距离是一个物理量，不随物体变高而变长。
+     用 14% 的时候，96px 的行拿到 13px（一段柔边，对），
+     300px 的弹层却拿到 42px（一片灰雾，错）——同一句公式，
+     在高的面上变成了另一种材质。改成 14px 之后，无论面多高，
+     顶上那道光都是同样一段 14px 的柔边，然后一路平到底。
+
+   光从哪里来：屏幕的光是**正中一团暖金**，面上接到的也是这盏灯 ——
+   所以顶光从"纯白"换成了"白里透金"，底沿再加一道极浅的暖反光，
+   面就不再是"一块被提亮的灰板"，而是"一块被这盏灯照到的玻璃"。
+
+   为什么顶光不用 radial（试过，退回来了）：radial 的尺寸要么按百分比、
+   要么按像素，两种都会让同一条公式在不同形状上画出不同的东西 ——
+   1220px 宽的行拿到一片光，150px 宽的胶囊只拿到中间一个小点。
+   更要紧的是，每块面各点一盏小灯，屏幕上就有几十个光源，
+   和"正中只有一盏灯"直接打架。**光源只有一个，面只负责被它照到。**
+
+   三层，各管一件事：
+     ① 暖金顶光：横贯全宽，34px 走完。① 和 ② 在 0px 加起来是 1.0a 金 +
+        0.95a 白 ≈ 1.9a —— 和原来那道白顶光同样的量级，所以不会更刺眼，
+        只是从"白"变成"白里透金"。
+     ② 中性体：16px 之内落到 --a，之后一路平到底。
+        底边不压暗 —— 压暗会让它像塑料扣子。
+
+   底部**不再加暖反光**（加过，去掉了）：60px 的胶囊里，34px 的顶光和
+   20px 的底光会互相盖掉，中间反而变成最暗的一段，一颗胶囊看起来像
+   "两头亮的沙漏"。这说明光源变成了两个。光只从上面来，底沿交给那圈
+   1px 边光就够了。
+
+   边光用 --a 推导（0.7a + 0.045），所以薄的面边光也薄，
+   不会出现"行几乎看不见、边框却很清楚"的怪东西。
+
+   磨砂：底色是深炭灰 + 中央暖金光晕，所以玻璃必须真的"透"——
+   backdrop-filter 把背后那层光晕揉散后透上来，卡片的暖调不是画上去的，
+   是从环境里来的。saturate 稍微把金光提纯，否则透过白玻璃会发灰。 */
+.srow,.rrow-s,.sgroup,.rail__item,.chip-t,.key,.btn,.btn--ghost,.pbtn,
+.p-top__back,.tabs__pill,.hit-go,.seg,.seg__pill,.dialog__box,.kb__display{
+  background-color:var(--glass-tint);
+  background-image:
+    /* ① 暖金顶光：横贯全宽，34px 走完 */
+    linear-gradient(180deg,
+      rgba(var(--glow-lit),calc(var(--a,.03) * 1.0)) 0px,
+      rgba(var(--glow-lit),calc(var(--a,.03) * .30)) 14px,
+      rgba(var(--glow-lit),0) 34px),
+    /* ② 中性顶光 + 平体 */
+    linear-gradient(180deg,
+      rgba(255,255,255,calc(var(--a,.03) * .95)) 0px,
+      rgba(255,255,255,var(--a,.03)) 16px,
+      rgba(255,255,255,var(--a,.03)) 100%);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,calc(var(--a,.03) * .7 + .045));
+  -webkit-backdrop-filter:blur(18px) saturate(150%);
+  backdrop-filter:blur(18px) saturate(150%);
+}
+
+/* 卡片上的平台名与 LIVE 曾经是这一套材质里唯一的成员 —— 因为"压在照片上
+   的玻璃"确实需要比别处更低的身体亮度。但那件事已经不做了：它们是字，
+   不是玻璃。这里只留一条界线说明它为什么不属于这张表：
+   **凡是要靠 --a 描述"自己是多厚的一片"的东西，都是面；字不是面。** */
+
+/* 玻璃"浮起来"：以前底色是 L8 的黑，任何落影都看不见，所以刻意不加。
+   现在底是 L22 的炭灰、中央还有一层光，落影是能看见的 —— 于是它回来。
+   只给焦点用：一块 96px 的行铺 40 个落影，GPU 全花在看不见的地方。 */
+.srow.is-focused,.rrow-s.is-focused,.sgroup.is-focused,.chip-t.is-focused,
+.key.is-focused,.btn.is-focused,.btn--ghost.is-focused,.pbtn.is-focused,
+.hit-go.is-focused,.rail__item.is-focused{
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,calc(var(--a,.03) * .7 + .045)),
+    0 22px 48px -22px rgba(0,0,0,.72),
+    0 6px 16px -10px rgba(0,0,0,.5);
+}
+
+/* 弹层要托住一段正文，所以它是这一族里最"实"的一块：90% 的烟色底 + 磨砂，
+   只剩一成让背后的光透过来。完全实心会变成屏幕正中一块灰塑料；完全不透光
+   又会和背后的画面打起来。0.9 是"读得清"和"还是一块玻璃"的交点。 */
+.dialog__box{background-color:rgba(25,24,24,.9)}
 
 /* ---------- 退出确认 ---------- */
 .dialog{
@@ -726,7 +931,7 @@ body.canvas .stage{transform:none!important;border-radius:0;box-shadow:none;posi
 }
 .dialog.is-open{opacity:1;visibility:visible}
 .dialog__box{
-  width:760px;background:#1C1C1F;border-radius:28px;padding:48px;
+  width:760px;border-radius:28px;padding:48px;--a:.075;
   text-align:center;
 }
 .dialog__box h3{font-size:var(--fs-h2);font-weight:600;margin-bottom:14px}
@@ -948,13 +1153,14 @@ body.canvas .stage{transform:none!important;border-radius:0;box-shadow:none;posi
       </div>
       <div class="nav-meta"><span class="dot"></span><span>有线网络</span><span class="num">21:14</span></div>
     </nav>
-    <div class="page-head">
-      <h1>设置</h1>
-      <p>默认值已经调好，不改也能用。</p>
-    </div>
     <div class="settings">
-      <div class="sgroups" id="sgroups"></div>
-      <div class="panel" id="sPanel" data-scroll></div>
+      <!-- 左栏只读：只回答"现在是什么状态"，没有一个可聚焦元素。
+           它故意不是按钮——状态没有"按下去"这个动作。 -->
+      <aside class="sstatus" id="sStatus"></aside>
+      <div class="sbody">
+        <div class="sgroups" id="sgroups"></div>
+        <div class="spane" id="sPanel" data-scroll></div>
+      </div>
     </div>
   </section>
 
@@ -1108,7 +1314,7 @@ function cardHTML(r, o={}){
   const meta = o.meta || `${p.short} · ${r.host} · ${r.v}人`;
   const title = mode === 'host' ? r.host : r.title;
   const badge = live
-    ? `<span class="card__live"><span style="width:8px;height:8px;border-radius:50%;background:#fff"></span>LIVE</span>`
+    ? `<span class="card__live">LIVE</span>`
     : `<span class="card__warn">未开播</span>`;
   return `<div class="card focusable ${live?'':'card--off'}" data-play="${r.rid}">
     <div class="card__lift">
@@ -1308,8 +1514,7 @@ $('#recentList').innerHTML = RECENT.map(x =>
     <span class="n num">${x.q}</span><span class="x">${x.ago}</span>
   </div>`).join('');
 const GROUPS = Object.keys(SETTINGS);
-$('#sgroups').innerHTML = GROUPS.map((g,i)=>`<button class="sgroup focusable ${i===0?'is-current':''}" data-sgroup="${g}">${g}</button>`).join('')
-  + `<div class="sgroups__foot">LiveHub v1.0<br>仅观看各平台公开直播内容</div>`;
+$('#sgroups').innerHTML = GROUPS.map((g,i)=>`<button class="sgroup focusable ${i===0?'is-current':''}" data-sgroup="${g}">${g}</button>`).join('');
 
 /* 分段控件的玻璃药丸滑到选中项下。用 offsetLeft/offsetWidth 定位：
    getBoundingClientRect 会在面板重新渲染的那一帧读到布局前的值，药丸会落错位置。 */
@@ -1345,6 +1550,59 @@ function renderPanel(g){
   syncSegPills(true);   // 新面板刚渲染，药丸直接到位，不从上一组滑过来
 }
 renderPanel(GROUPS[0]);
+
+/* ------------------------------------------------------------------
+   左栏状态卡：文案不是写死的字符串，是从 SETTINGS 现值当场拼出来的。
+   写死的话，右边拨了开关、左边还在说旧话，两栏各说各话——那还不如不放这一栏。
+   ------------------------------------------------------------------ */
+const STATUS = {
+  '播放':{
+    kicker:'当前播放',
+    big:s=>`${s['默认画质']} · ${s['解码方式']}解码`,
+    sub:s=>`${s['线路自动降级']==='开'?'线路降级已开启':'线路降级已关闭'} · 起播缓冲 ${s['起播缓冲']}`,
+    rows:['默认画质','解码方式','起播缓冲','HDR 优先'],
+    note:'首帧 1.4 秒。过去 7 天没有触发过降级。',
+  },
+  '弹幕':{
+    kicker:'当前弹幕',
+    big:s=>`${s['字号']}px · ${s['显示区域']}`,
+    sub:s=>`${s['默认开启']==='开'?'进直播间自动显示':'默认关闭，要手动开'} · 同屏最多 ${s['同屏密度上限']}`,
+    rows:['默认开启','不透明度','关键词屏蔽','同屏密度上限'],
+    note:'关键词屏蔽已过滤 12 个词。',
+  },
+  '账号与同步':{
+    kicker:'当前账号',
+    big:s=>`${s['扫码登录哔哩哔哩']==='扫码'?'哔哩已登录':'哔哩未登录'} · ${s['扫码登录抖音']==='扫码'?'抖音已登录':'抖音未登录'}`,
+    sub:s=>`${s['与手机同步']==='开'?'同步已开启':'只存本机，不同步'} · ${s['同步频率']}`,
+    rows:['与手机同步','同步频率','跨设备续播'],
+    note:'上次同步 2 分钟前。换电视扫码即可恢复。',
+  },
+  '关于':{
+    kicker:'关于',
+    big:s=>`LiveHub ${s['版本']}`,
+    sub:()=>'仅观看各平台公开直播内容，版权归原作者',
+    rows:['版本','内容来源','开源许可'],
+    note:'以 GPL-3.0 发布，仅供学习交流。',
+  },
+};
+function settingsState(g){
+  const s = {};
+  (SETTINGS[g]||[]).forEach(it=>{ s[it.label] = it.type==='sw' ? (it.value?'开':'关') : it.value; });
+  return s;
+}
+function renderStatus(g){
+  const st = STATUS[g]; if(!st) return;
+  const s = settingsState(g);
+  $('#sStatus').innerHTML = `
+    <div class="sstatus__kicker">${st.kicker}</div>
+    <div class="sstatus__title">${st.big(s)}</div>
+    <div class="sstatus__sub">${st.sub(s)}</div>
+    <dl class="sstatus__list">
+      ${st.rows.map(k=>`<div class="sstatus__row"><dt>${k}</dt><dd>${s[k] ?? '—'}</dd></div>`).join('')}
+    </dl>
+    <div class="sstatus__note">${st.note}</div>`;
+}
+renderStatus(GROUPS[0]);
 
 /* ---- 弹幕 ---- */
 (function(){
@@ -1641,12 +1899,25 @@ function activate(el){
   }
   if(el.dataset.sgroup){
     $$('.sgroup').forEach(x=>x.classList.remove('is-current'));
-    el.classList.add('is-current'); renderPanel(el.dataset.sgroup); return;
+    el.classList.add('is-current'); renderPanel(el.dataset.sgroup);
+    renderStatus(el.dataset.sgroup); return;
   }
-  if(el.dataset.opt){ 
-    const sw = el.querySelector('.sw'); if(sw) sw.classList.toggle('on');
+  if(el.dataset.opt){
+    /* 改完必须写回 SETTINGS，再让左栏重画。以前只改了 DOM，数据层还是旧值，
+       左栏一读就是错的——"同一件事两个来源"是这类页面最容易出的错。 */
+    const cur = $('.sgroup.is-current');
+    const g = cur ? cur.dataset.sgroup : GROUPS[0];
+    const item = (SETTINGS[g]||[]).find(x=>x.label===el.dataset.opt);
+    const sw = el.querySelector('.sw');
+    if(sw){ sw.classList.toggle('on'); if(item) item.value = sw.classList.contains('on'); }
     const seg = el.querySelectorAll('.seg b');
-    if(seg.length){ const i=[...seg].findIndex(b=>b.classList.contains('on')); seg.forEach(b=>b.classList.remove('on')); seg[(i+1)%seg.length].classList.add('on'); syncSegPills(false); }
+    if(seg.length){
+      const i=[...seg].findIndex(b=>b.classList.contains('on'));
+      seg.forEach(b=>b.classList.remove('on'));
+      const nx=(i+1)%seg.length; seg[nx].classList.add('on'); syncSegPills(false);
+      if(item && item.opts) item.value = item.opts[nx];
+    }
+    renderStatus(g);
     return;
   }
   if(el.dataset.key){

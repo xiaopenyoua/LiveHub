@@ -1,0 +1,75 @@
+{
+ "_what": "含 kerning 的笔位（units, y 向下, 基线=0），由 Chrome 排版 7 个前缀串反推",
+ "_method": "font 600 1000px, letter-spacing −0.02em, font-optical-sizing:none, font-kerning:normal",
+ "measuredPrefixPxAt1000": [
+  0,
+  545.4375,
+  786.953125,
+  1354.109375,
+  1907.078125,
+  2632.703125,
+  3224.921875,
+  3829.1875
+ ],
+ "px2u": 2.048,
+ "lsPx": -20,
+ "F": 1000,
+ "penPure": [
+  0,
+  1117.04,
+  1612.08,
+  2773.12,
+  3943.16,
+  5429.2,
+  6642.24
+ ],
+ "penKern": [
+  0,
+  1117.056,
+  1611.68,
+  2773.216,
+  3905.696,
+  5391.776,
+  6604.64
+ ],
+ "pairs": [
+  {
+   "pair": "Li",
+   "kern": 0.016,
+   "cum": 0.016
+  },
+  {
+   "pair": "iv",
+   "kern": -0.416,
+   "cum": -0.4
+  },
+  {
+   "pair": "ve",
+   "kern": 0.496,
+   "cum": 0.096
+  },
+  {
+   "pair": "eH",
+   "kern": -37.56,
+   "cum": -37.464
+  },
+  {
+   "pair": "Hu",
+   "kern": 0.04,
+   "cum": -37.424
+  },
+  {
+   "pair": "ub",
+   "kern": -0.176,
+   "cum": -37.6
+  }
+ ],
+ "totalKern": -37.6,
+ "boxWidth": 7841.68,
+ "inkWidth": 7644.4772,
+ "inkX0": 149.7612,
+ "boundaryFromInkLeft": 3755.9348,
+ "boundaryPct": 49.1327,
+ "inkWidthEm": 3.732655,
+ "boxWidthEm": 3.828945
+}
