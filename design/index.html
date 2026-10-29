@@ -38,6 +38,10 @@
   --fs-body:24px;
   --fs-meta:22px;
   --fs-tab:30px;
+  /* 卡片内的副文本单独退一档。26px 标题配 22px 副文本，三米外这两层会糊成
+     一片，主次读不出来；退到 18px 才拉出 1.44 倍的层级。卡片信息密度最高，
+     副文本本来就该比页面其它地方的 meta 更弱。 */
+  --fs-card-meta:18px;
 
   /* 尺寸 */
   --gut:80px;
@@ -112,7 +116,7 @@ body{
   padding:14px 28px 10px;flex:0 0 auto;
 }
 .chrome__title{font-size:15px;font-weight:600;letter-spacing:-.01em}
-.chrome__title span{color:#8E8E93;font-weight:400;margin-left:10px}
+.chrome__title span{color:#5F5F64;font-weight:400;margin-left:10px}
 .chrome__screens{display:flex;gap:6px;flex-wrap:wrap}
 .chip{
   font:inherit;font-size:13px;line-height:1;
@@ -136,9 +140,9 @@ body{
 }
 .hintbar{
   flex:0 0 auto;padding:10px 28px 16px;
-  font-size:12.5px;color:#6E6E73;display:flex;gap:18px;flex-wrap:wrap;
+  font-size:12.5px;color:#5F5F64;display:flex;gap:18px;flex-wrap:wrap;
 }
-.hintbar b{color:#3A3A3C;font-weight:600}
+.hintbar b{color:#2C2C2E;font-weight:600}
 
 /* 截图/嵌入模式：只留 1920×1080 画布 */
 body.canvas .chrome,body.canvas .hintbar{display:none}
@@ -305,7 +309,7 @@ body.canvas .stage{transform:none!important;border-radius:0;box-shadow:none;posi
 }
 .card.is-focused .card__title{color:var(--text)}
 .card__meta{
-  margin-top:8px;font-size:var(--fs-meta);color:var(--faint);
+  margin-top:8px;font-size:var(--fs-card-meta);color:var(--faint);
   display:flex;align-items:center;gap:10px;
 }
 .card__meta .plat{color:var(--muted)}
@@ -319,7 +323,7 @@ body.canvas .stage{transform:none!important;border-radius:0;box-shadow:none;posi
 
 /* 主播卡：封面 + 主播名 + 状态，比直播卡更强调"人" */
 .card__host{display:flex;align-items:center;gap:12px}
-.card__state{margin-top:10px;font-size:var(--fs-meta);color:var(--faint)}
+.card__state{margin-top:10px;font-size:var(--fs-card-meta);color:var(--faint)}
 .card--off .card__media img{filter:brightness(.5) saturate(.55)}
 .card--off.card.is-focused .card__media img{filter:brightness(.75) saturate(.7)}
 .state{display:flex;align-items:center;gap:10px}
@@ -550,27 +554,58 @@ body.canvas .stage{transform:none!important;border-radius:0;box-shadow:none;posi
 .sgroups__foot{margin-top:34px;padding-left:26px;font-size:19px;line-height:1.7;color:#5A5A5E}
 
 .panel{flex:1 1 auto;min-width:0;border-radius:24px;background:var(--panel);padding:12px 32px}
+/* 设置行：和左栏导航是同一套焦点语言。这里没有"行"和"按钮"两种东西——
+   焦点落在哪，哪就是一块被举起来的玻璃：同样的半透明底、同样的顶沿高光、同样的 1.02。
+   之前只把底色换成 --raised，看着像网页的 hover，不像电视的焦点。 */
 .srow{
   display:flex;align-items:center;gap:24px;height:104px;
   border-radius:16px;padding:0 20px;margin:4px 0;
-  transition:background var(--dur) var(--ease);
+  background-color:transparent;
+  transition:var(--t-surface);
 }
-.srow.is-focused{background:var(--raised)}
+.srow.is-focused{background-color:rgba(255,255,255,.13);transform:scale(1.02);box-shadow:var(--spec)}
 .srow__label{font-size:26px;font-weight:500}
-.srow__desc{font-size:20px;color:var(--faint);margin-top:6px}
+.srow__desc{font-size:20px;color:var(--faint);margin-top:6px;transition:color var(--dur) var(--ease)}
+.srow.is-focused .srow__desc{color:var(--muted)}
 .srow__main{flex:1 1 auto}
-.seg{display:flex;gap:8px;background:var(--raised-2);border-radius:var(--r-pill);padding:5px}
-.seg b{
-  font-size:21px;font-weight:500;color:var(--muted);padding:10px 20px;border-radius:var(--r-pill);
+
+/* 分段控件：轨道是玻璃，选中块是一枚会滑动的玻璃药丸。
+   不靠给每个选项加底色来"表示选中"——那样切换是硬切，眼睛接不住。 */
+.seg{
+  position:relative;display:flex;gap:8px;padding:5px;
+  background-color:rgba(255,255,255,.08);
+  border-radius:var(--r-pill);box-shadow:var(--spec-chip);
 }
-.seg b.on{background:#fff;color:#000;font-weight:600;box-shadow:var(--spec-chip)}
-.sw{width:88px;height:50px;border-radius:var(--r-pill);background:var(--raised-2);position:relative;flex:0 0 auto;transition:background var(--dur) var(--ease),box-shadow var(--dur) var(--ease)}
+.seg__pill{
+  position:absolute;left:0;top:5px;height:calc(100% - 10px);
+  width:var(--sw,0px);border-radius:var(--r-pill);
+  background-color:#fff;box-shadow:var(--spec-chip);
+  transform:translateX(var(--sx,0px));
+  transition:transform 260ms var(--ease),width 260ms var(--ease);
+  pointer-events:none;
+}
+.seg b{
+  position:relative;z-index:1;
+  font-size:21px;font-weight:500;color:var(--muted);
+  padding:10px 20px;border-radius:var(--r-pill);
+  transition:color var(--dur) var(--ease);
+}
+.seg b.on{color:#000;font-weight:600}
+
+/* 开关：轨道同样是玻璃，滑块滑过去而不是跳过去 */
+.sw{
+  width:88px;height:50px;border-radius:var(--r-pill);
+  background-color:rgba(255,255,255,.13);position:relative;flex:0 0 auto;
+  box-shadow:var(--spec-chip);
+  transition:background-color var(--dur) var(--ease),box-shadow var(--dur) var(--ease);
+}
 .sw::after{
   content:"";position:absolute;top:4px;left:4px;width:42px;height:42px;border-radius:50%;
-  background:#fff;transition:transform var(--dur) var(--ease);
+  background-color:#fff;
+  transition:transform var(--dur) var(--ease),background-color var(--dur) var(--ease);
 }
-.sw.on{background:#fff;box-shadow:var(--spec-chip)}
-.sw.on::after{transform:translateX(38px);background:#1C1C1F}
+.sw.on{background-color:#fff}
+.sw.on::after{transform:translateX(38px);background-color:#1C1C1F}
 .note{
   margin:18px 20px 26px;font-size:20px;line-height:1.7;color:var(--faint);
 }
@@ -1019,6 +1054,22 @@ const GROUPS = Object.keys(SETTINGS);
 $('#sgroups').innerHTML = GROUPS.map((g,i)=>`<button class="sgroup focusable ${i===0?'is-current':''}" data-sgroup="${g}">${g}</button>`).join('')
   + `<div class="sgroups__foot">LiveHub v1.0<br>仅观看各平台公开直播内容</div>`;
 
+/* 分段控件的玻璃药丸滑到选中项下。用 offsetLeft/offsetWidth 定位：
+   getBoundingClientRect 会在面板重新渲染的那一帧读到布局前的值，药丸会落错位置。 */
+function syncSegPills(instant){
+  $$('.seg').forEach(seg=>{
+    const pill = seg.querySelector('.seg__pill');
+    const on = seg.querySelector('b.on');
+    if(!pill) return;
+    if(!on){ pill.style.opacity = 0; return; }
+    pill.style.opacity = 1;
+    if(instant){ pill.style.transition = 'none'; }
+    pill.style.setProperty('--sx', on.offsetLeft + 'px');
+    pill.style.setProperty('--sw', on.offsetWidth + 'px');
+    if(instant){ void pill.offsetWidth; pill.style.transition = ''; }
+  });
+}
+
 function renderPanel(g){
   $('#sPanel').innerHTML = SETTINGS[g].map(it=>`
     <div class="srow focusable" data-opt="${it.label}">
@@ -1027,9 +1078,10 @@ function renderPanel(g){
         <div class="srow__desc">${it.desc}</div>
       </div>
       ${ it.type==='seg'
-        ? `<div class="seg">${it.opts.map(o=>`<b class="${o===it.value?'on':''}">${o}</b>`).join('')}</div>`
+        ? `<div class="seg"><i class="seg__pill"></i>${it.opts.map(o=>`<b class="${o===it.value?'on':''}">${o}</b>`).join('')}</div>`
         : `<div class="sw ${it.value?'on':''}"></div>` }
     </div>`).join('') + `<div class="note">这一屏只影响本机。关注与台号跟账号走，换电视后扫码即可恢复。</div>`;
+  syncSegPills(true);   // 新面板刚渲染，药丸直接到位，不从上一组滑过来
 }
 renderPanel(GROUPS[0]);
 
@@ -1093,18 +1145,30 @@ function moveFocus(dir){
   if(!list.length) return;
   if(!focusEl || !list.includes(focusEl)){ setFocus(list[0]); return; }
   const c = centerOf(focusEl);
+  const horiz = (dir==='left' || dir==='right');
   let best = null, bestScore = Infinity;
 
   for(const el of list){
     if(el===focusEl) continue;
     const o = centerOf(el);
-    let primary, secondary, ok = false;
-    if(dir==='up'){    primary = c.y-o.y; secondary = Math.abs(o.x-c.x); ok = primary>4; }
-    if(dir==='down'){  primary = o.y-c.y; secondary = Math.abs(o.x-c.x); ok = primary>4; }
-    if(dir==='left'){  primary = c.x-o.x; secondary = Math.abs(o.y-c.y); ok = primary>4; }
-    if(dir==='right'){ primary = o.x-c.x; secondary = Math.abs(o.y-c.y); ok = primary>4; }
-    if(!ok) continue;
-    const score = primary + secondary*2.4;
+
+    // 方向半平面用「中心差」，只用间隙判会把正下方那张卡也排除掉：
+    // 首页从"进入直播间"按右，301 卡片左边缘比按钮左边缘还靠左，
+    // 间隙是负的，可它明明是这一行最该去的地方。
+    const mainCenter = horiz ? (o.x - c.x) * (dir==='right' ? 1 : -1)
+                             : (o.y - c.y) * (dir==='down' ? 1 : -1);
+    if(mainCenter <= 4) continue;
+
+    // 排序用「边缘间隙」：真实分开就按分开多远算，有重叠记 0。
+    // 副轴间隙乘 3 —— 顶栏那种又窄又长的元素水平中心很近、垂直隔了 300px，
+    // 权重不够它就会把焦点从右侧设置行抢走。
+    const mainGap = horiz ? (o.r.left - c.r.right) * (dir==='right' ? 1 : -1)
+                          : (o.r.top - c.r.bottom) * (dir==='down' ? 1 : -1);
+    const crossGap = horiz ? (c.r.top - o.r.bottom) : (c.r.left - o.r.right);
+    const crossGap2 = horiz ? (o.r.top - c.r.bottom) : (o.r.left - c.r.right);
+    const cross = Math.max(crossGap, crossGap2, 0);   // 副轴上重叠时为 0，分开多少算多少
+
+    const score = Math.max(mainGap, 0) + cross * 3 + mainCenter * 0.01;
     if(score < bestScore){ bestScore = score; best = el; }
   }
   if(best) setFocus(best);
@@ -1119,7 +1183,9 @@ const DEFAULT_FOCUS = {
   follow: () => $('#followList .card'),
   search: () => $('#kbGrid .key'),
   player: () => $$('[data-screen="player"] .pbtn')[0],
-  settings: () => $('#sgroups .sgroup'),
+  // 进设置页是想改设置，不是改分类，所以默认焦点落在第一项设置上；
+  // 左栏仍用 is-current 标明当前分组，两者不冲突。
+  settings: () => $('#sPanel .srow') || $('#sgroups .sgroup'),
 };
 
 const screenFocusMemory = {};
@@ -1312,7 +1378,7 @@ function activate(el){
   if(el.dataset.opt){ 
     const sw = el.querySelector('.sw'); if(sw) sw.classList.toggle('on');
     const seg = el.querySelectorAll('.seg b');
-    if(seg.length){ const i=[...seg].findIndex(b=>b.classList.contains('on')); seg.forEach(b=>b.classList.remove('on')); seg[(i+1)%seg.length].classList.add('on'); }
+    if(seg.length){ const i=[...seg].findIndex(b=>b.classList.contains('on')); seg.forEach(b=>b.classList.remove('on')); seg[(i+1)%seg.length].classList.add('on'); syncSegPills(false); }
     return;
   }
   if(el.dataset.key){
