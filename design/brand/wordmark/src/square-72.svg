@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 72 72" shape-rendering="geometricPrecision">
+  <rect x="0" y="0" width="72" height="72" rx="11.16" ry="11.16" fill="#231C16"/>
+  <g transform="translate(13.68 49.047) scale(0.01751248)">
+    <g fill="#FFFDFA">
+      <path transform="translate(0 0)" d="M123.521 0.000V-1490.000H388.478V-229.117H1079.119V0.000Z"/>
+    </g>
+    <g fill="#FF453A">
+      <path transform="translate(1085.04 0)" d="M123.521 0.000V-1490.000H388.478V-875.399H1075.202V-1490.000H1340.158V0.000H1075.202V-646.281H388.478V0.000Z"/>
+    </g>
+  </g>
+</svg>

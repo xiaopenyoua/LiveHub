@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+ SplashScreen 会在 windowBackground 上画 launcher icon。
+     取 #231C16（= 图标底）而不是 #1A140F，否则系统帧会先闪一块略亮的圆角方块。
+     不与 ic_launcher_colors.xml / colors.xml 合并，单文件单键。 -->
+<resources>
+    <color name="splash_window_background">#231C16</color>
+</resources>

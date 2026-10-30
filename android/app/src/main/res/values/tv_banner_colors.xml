@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 单独文件名：不要覆盖宿主已有的 values/colors.xml（v1 守过一次，照做） -->
+<resources>
+    <color name="tv_banner_background">#231C16</color>
+</resources>

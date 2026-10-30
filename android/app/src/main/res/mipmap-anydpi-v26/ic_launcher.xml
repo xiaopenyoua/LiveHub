@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  API 26+ 自适应图标。背景是**纯色**，不是那张 512 的圆角方图：
+  圆角由 launcher 的 mask 决定，我们把圆角画进背景层就等于把 mask 钉死成
+  squircle，换个 launcher 就会被裁出双重圆角。
+  （所以这里没有 roundIcon，也不要加。）
+-->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background" />
+    <foreground android:drawable="@drawable/ic_launcher_foreground" />
+</adaptive-icon>

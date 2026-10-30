@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LiveHub · 应用图标</title>
+<style>
+:root{
+  --icon:#231C16; --app:#1A140F; --live:#FFFDFA; --hub:#FF453A;
+  --hair:rgba(255,253,250,.10);   /* 只用于版面上的细分隔线，不参与任何资产 */
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{background:var(--app);color:var(--live)}
+body{font:400 15px/1.6 -apple-system,system-ui,"PingFang SC",sans-serif;padding:56px 64px 120px;max-width:1480px;margin:0 auto}
+h1{font-size:26px;font-weight:600;letter-spacing:-.01em;margin-bottom:6px}
+h2{font-size:17px;font-weight:600;margin:52px 0 4px;padding-top:18px;border-top:1px solid var(--hair)}
+p.note{font-size:13px;line-height:1.7;color:var(--live);opacity:.72;margin:6px 0 20px;max-width:96ch}
+p.note b{opacity:1}
+table{border-collapse:collapse;font-size:13px;margin:10px 0 4px;width:100%;max-width:1180px}
+th,td{text-align:right;padding:6px 10px;border-bottom:1px solid var(--hair);font-variant-numeric:tabular-nums}
+th:first-child,td:first-child{text-align:left}
+th{font-weight:600;opacity:.8}
+figure{display:inline-block;vertical-align:top;margin:0 26px 22px 0}
+figcaption{font-size:12px;opacity:.7;line-height:1.55;margin-top:8px;max-width:210px}
+img{display:block;border-radius:2px}
+.zoom img{image-rendering:pixelated}
+code{font:500 12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;background:rgba(255,253,250,.06);padding:1px 5px;border-radius:3px}
+.hero{display:flex;gap:44px;align-items:flex-start;margin:26px 0 8px}
+.hero .stage{flex:0 0 288px}
+.hero h3{font-size:20px;font-weight:600;margin-bottom:10px}
+.hero p{font-size:14px;line-height:1.75;opacity:.8;max-width:62ch;margin-bottom:12px}
+.kv{font-size:13px;border-collapse:collapse;margin-top:2px}
+.kv td{border:none;padding:3px 0;text-align:left}
+.kv td:first-child{width:132px;opacity:.55}
+.strip{display:flex;align-items:flex-end;gap:22px;margin:16px 0 6px;padding:18px 20px;border:1px solid var(--hair)}
+.strip figure{margin:0}
+.strip figcaption{text-align:center;margin-top:6px}
+.panels{display:flex;gap:26px;flex-wrap:wrap;margin:8px 0 4px}
+.panels figure{margin:0}
+.masks{display:flex;gap:22px;flex-wrap:wrap;margin:10px 0 6px}
+.masks figure{margin:0}
+.masks figcaption{max-width:186px}
+.mapcard{flex:1;min-width:296px;align-self:flex-start;padding:2px 0 0 24px;border-left:1px solid var(--hair)}
+.mapcard .kvline{display:flex;gap:10px;font-size:13px;line-height:2;align-items:baseline}
+.mapcard .kvline span{flex:0 0 76px;opacity:.55}
+.mapcard .kvline code{font-size:11.5px;white-space:nowrap}
+.mapcard .mkcap{font-size:12.5px;font-weight:600;opacity:.9;margin-bottom:6px}
+.mapcard p{font-size:12.5px;line-height:1.7;opacity:.7}
+.band{display:flex;margin:10px 0 6px;border:1px solid var(--hair)}
+.band div{flex:1;height:96px;display:flex;align-items:flex-end;padding:8px 10px;font-size:12px}
+.tv{position:relative;width:960px;height:540px;background:var(--app);border:1px solid var(--hair);border-radius:6px;overflow:hidden;margin:8px 0 14px}
+.tv .tile{position:absolute;left:60px;top:120px;width:320px;height:180px;border-radius:27.9px;overflow:hidden}
+.tv .lbl{position:absolute;left:60px;top:312px;font-size:15px;opacity:.86}
+.tv .ghost{position:absolute;border-radius:12px;background:var(--icon);opacity:.62}
+/* 三张 16:9 帧一排三栏：容器宽就三等分，窄了按 min-width 折行 —— 不写死 480，
+   否则 1152 宽的正文永远只放得下两张，图注里的「左/中/右」就成了假话。 */
+.frames{display:flex;gap:18px;flex-wrap:wrap}
+.frame{flex:1 1 0;min-width:260px;overflow:hidden;border-radius:10px;
+  /* 第二张的底就是版面底 #1A140F，没有这圈 hairline 它会和页面糊在一起。
+     这是版面分隔线（--hair 的定义域），不画进任何资产。 */
+  outline:1px solid var(--hair);outline-offset:-1px}
+.frame img{display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover}
+</style></head><body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><g id="wm"><g fill="#FFFDFA">
+      <path transform="translate(0 0)" d="M123.521 0.000V-1490.000H388.478V-229.117H1079.119V0.000Z"/>
+      <path transform="translate(1085.04 0)" d="M111.601 0.000V-1056.000H364.397V0.000ZM237.639 -1213.042Q173.080 -1213.042 129.900 -1254.379Q86.720 -1295.715 86.720 -1356.682Q86.720 -1417.720 129.900 -1458.740Q173.080 -1499.760 237.173 -1499.760Q302.095 -1499.760 345.326 -1458.779Q388.557 -1417.797 388.557 -1356.216Q388.557 -1295.441 345.263 -1254.242Q301.968 -1213.042 237.639 -1213.042Z"/>
+      <path transform="translate(1520.08 0)" d="M414.961 0.000 17.760 -1056.000H285.277L477.639 -505.598Q507.359 -418.078 534.258 -330.559Q561.158 -243.039 587.238 -155.520H526.799Q553.159 -243.039 579.379 -330.559Q605.599 -418.078 634.319 -505.598L823.681 -1056.000H1087.837L690.637 0.000Z"/>
+      <path transform="translate(2585.12 0)" d="M578.199 24.000Q419.959 24.000 304.160 -46.820Q188.360 -117.640 125.500 -242.320Q62.640 -367.000 62.640 -526.720Q62.640 -688.080 127.240 -812.900Q191.840 -937.720 305.780 -1008.860Q419.720 -1080.000 567.639 -1080.000Q681.959 -1080.000 774.959 -1040.180Q867.959 -1000.360 934.919 -926.900Q1001.878 -853.440 1037.898 -752.840Q1073.918 -652.240 1073.918 -530.680V-462.081H162.720V-636.160H947.599L834.641 -589.479Q834.641 -678.760 802.441 -743.861Q770.241 -808.961 711.400 -844.362Q652.560 -879.762 571.599 -879.762Q491.639 -879.762 432.938 -844.362Q374.238 -808.961 342.037 -743.861Q309.837 -678.760 309.837 -589.479V-479.681Q309.837 -389.040 341.937 -320.160Q374.038 -251.279 435.418 -212.959Q496.798 -174.638 583.959 -174.638Q647.440 -174.638 696.340 -193.638Q745.240 -212.639 777.880 -246.899Q810.521 -281.159 824.721 -326.440H1060.958Q1041.318 -222.920 973.638 -144.080Q905.958 -65.240 803.899 -20.620Q701.839 24.000 578.199 24.000Z"/>
+    </g><g fill="#FF453A">
+      <path transform="translate(3677.16 0)" d="M123.521 0.000V-1490.000H388.478V-875.399H1075.202V-1490.000H1340.158V0.000H1075.202V-646.281H388.478V0.000Z"/>
+      <path transform="translate(5100.2 0)" d="M488.081 21.440Q378.121 21.440 292.861 -26.500Q207.601 -74.440 159.601 -167.760Q111.601 -261.080 111.601 -396.400V-1056.000H364.397V-436.479Q364.397 -320.358 420.498 -260.218Q476.598 -200.077 577.319 -200.077Q643.519 -200.077 695.720 -227.118Q747.920 -254.158 778.040 -311.618Q808.161 -369.078 808.161 -458.879V-1056.000H1060.957V0.000H812.521V-268.599H861.961Q811.041 -128.039 718.541 -53.300Q626.041 21.440 488.081 21.440Z"/>
+      <path transform="translate(6232.24 0)" d="M681.998 21.440Q613.278 21.440 552.718 1.400Q492.158 -18.640 443.578 -59.360Q394.997 -100.080 362.037 -161.440H360.397V0.000H111.601V-1490.000H364.397V-906.480H366.037Q400.037 -964.400 447.797 -1002.140Q495.557 -1039.880 555.498 -1058.660Q615.438 -1077.440 683.438 -1077.440Q819.638 -1077.440 922.098 -1008.080Q1024.558 -938.720 1081.918 -815.040Q1139.278 -691.360 1139.278 -528.720Q1139.278 -364.560 1082.458 -240.700Q1025.638 -116.840 922.998 -47.700Q820.358 21.440 681.998 21.440ZM622.519 -189.518Q701.200 -189.518 759.680 -228.938Q818.161 -268.358 850.961 -344.119Q883.761 -419.879 883.761 -528.720Q883.761 -638.201 850.961 -713.601Q818.161 -789.002 759.680 -828.422Q701.200 -867.842 622.519 -867.842Q540.359 -867.842 478.978 -825.862Q417.598 -783.882 383.997 -707.841Q350.397 -631.801 350.397 -528.720Q350.397 -426.279 383.997 -349.879Q417.598 -273.478 478.978 -231.498Q540.359 -189.518 622.519 -189.518Z"/>
+    </g></g><g id="wmMono"><g fill="#FFFFFF">
+      <path transform="translate(0 0)" d="M123.521 0.000V-1490.000H388.478V-229.117H1079.119V0.000Z"/>
+      <path transform="translate(1085.04 0)" d="M111.601 0.000V-1056.000H364.397V0.000ZM237.639 -1213.042Q173.080 -1213.042 129.900 -1254.379Q86.720 -1295.715 86.720 -1356.682Q86.720 -1417.720 129.900 -1458.740Q173.080 -1499.760 237.173 -1499.760Q302.095 -1499.760 345.326 -1458.779Q388.557 -1417.797 388.557 -1356.216Q388.557 -1295.441 345.263 -1254.242Q301.968 -1213.042 237.639 -1213.042Z"/>
+      <path transform="translate(1520.08 0)" d="M414.961 0.000 17.760 -1056.000H285.277L477.639 -505.598Q507.359 -418.078 534.258 -330.559Q561.158 -243.039 587.238 -155.520H526.799Q553.159 -243.039 579.379 -330.559Q605.599 -418.078 634.319 -505.598L823.681 -1056.000H1087.837L690.637 0.000Z"/>
+      <path transform="translate(2585.12 0)" d="M578.199 24.000Q419.959 24.000 304.160 -46.820Q188.360 -117.640 125.500 -242.320Q62.640 -367.000 62.640 -526.720Q62.640 -688.080 127.240 -812.900Q191.840 -937.720 305.780 -1008.860Q419.720 -1080.000 567.639 -1080.000Q681.959 -1080.000 774.959 -1040.180Q867.959 -1000.360 934.919 -926.900Q1001.878 -853.440 1037.898 -752.840Q1073.918 -652.240 1073.918 -530.680V-462.081H162.720V-636.160H947.599L834.641 -589.479Q834.641 -678.760 802.441 -743.861Q770.241 -808.961 711.400 -844.362Q652.560 -879.762 571.599 -879.762Q491.639 -879.762 432.938 -844.362Q374.238 -808.961 342.037 -743.861Q309.837 -678.760 309.837 -589.479V-479.681Q309.837 -389.040 341.937 -320.160Q374.038 -251.279 435.418 -212.959Q496.798 -174.638 583.959 -174.638Q647.440 -174.638 696.340 -193.638Q745.240 -212.639 777.880 -246.899Q810.521 -281.159 824.721 -326.440H1060.958Q1041.318 -222.920 973.638 -144.080Q905.958 -65.240 803.899 -20.620Q701.839 24.000 578.199 24.000Z"/>
+    
+      <path transform="translate(3677.16 0)" d="M123.521 0.000V-1490.000H388.478V-875.399H1075.202V-1490.000H1340.158V0.000H1075.202V-646.281H388.478V0.000Z"/>
+      <path transform="translate(5100.2 0)" d="M488.081 21.440Q378.121 21.440 292.861 -26.500Q207.601 -74.440 159.601 -167.760Q111.601 -261.080 111.601 -396.400V-1056.000H364.397V-436.479Q364.397 -320.358 420.498 -260.218Q476.598 -200.077 577.319 -200.077Q643.519 -200.077 695.720 -227.118Q747.920 -254.158 778.040 -311.618Q808.161 -369.078 808.161 -458.879V-1056.000H1060.957V0.000H812.521V-268.599H861.961Q811.041 -128.039 718.541 -53.300Q626.041 21.440 488.081 21.440Z"/>
+      <path transform="translate(6232.24 0)" d="M681.998 21.440Q613.278 21.440 552.718 1.400Q492.158 -18.640 443.578 -59.360Q394.997 -100.080 362.037 -161.440H360.397V0.000H111.601V-1490.000H364.397V-906.480H366.037Q400.037 -964.400 447.797 -1002.140Q495.557 -1039.880 555.498 -1058.660Q615.438 -1077.440 683.438 -1077.440Q819.638 -1077.440 922.098 -1008.080Q1024.558 -938.720 1081.918 -815.040Q1139.278 -691.360 1139.278 -528.720Q1139.278 -364.560 1082.458 -240.700Q1025.638 -116.840 922.998 -47.700Q820.358 21.440 681.998 21.440ZM622.519 -189.518Q701.200 -189.518 759.680 -228.938Q818.161 -268.358 850.961 -344.119Q883.761 -419.879 883.761 -528.720Q883.761 -638.201 850.961 -713.601Q818.161 -789.002 759.680 -828.422Q701.200 -867.842 622.519 -867.842Q540.359 -867.842 478.978 -825.862Q417.598 -783.882 383.997 -707.841Q350.397 -631.801 350.397 -528.720Q350.397 -426.279 383.997 -349.879Q417.598 -273.478 478.978 -231.498Q540.359 -189.518 622.519 -189.518Z"/>
+    </g></g></defs></svg>
+
+<h1>LiveHub · 应用图标</h1>
+<p class="note">这一页画的就是打包成 APK 装到设备上、系统拿去当桌面图标的那个东西：清单里 <code>android:icon="@mipmap/ic_launcher"</code> 指向的资源。图形沿用 v2 字标板（Live 白 / Hub 红，底 <code>#231C16</code>），矢量唯一源 <code>brand/wordmark/src/square.svg</code>（512 画布，7 条 path，轮廓取自 Inter wght=600·opsz=32）。本页只出现四色：<code>#231C16</code> <code>#1A140F</code> <code>#FFFDFA</code> <code>#FF453A</code>。</p>
+
+<h2>① 桌面上看到的那个</h2>
+<div class="hero">
+  <div class="stage">
+    <svg viewBox="0 0 108 108" width="288" height="288" role="img" aria-label="LiveHub 应用图标">
+      <defs><clipPath id="maskHero"><rect x="0" y="0" width="108" height="108" rx="30" ry="30"/></clipPath></defs>
+      <g clip-path="url(#maskHero)">
+        <rect x="0" y="0" width="108" height="108" fill="#231C16"/>
+        <g transform="translate(25.704 59.671) scale(0.00761234)"><use href="#wm"/></g>
+      </g>
+    </svg>
+  </div>
+  <div>
+    <h3>一块底，一行字，没有图形符号</h3>
+    <p>图标不画播放三角、不画遥控器、不画信号格 —— 它只放 <code>LiveHub</code> 这七个字母。<b>能被认出来的理由不是符号，是配色</b>：深褐底上「Live」白、「Hub」红，红是全项目唯一的那一次使用。所以同一份图形既能当 512 的圆角方图，也能整块塞进自适应图标的 72 安全区，不需要再设计第二版。</p>
+    <p>下面这两个数是一切的起点：<b>108</b> 是交给系统的整层，<b>72</b> 是它保证露出来的部分。差的那 18 dp 每边是留给系统动画的 bleed，不是画布外扩。</p>
+    <table class="kv">
+      <tr><td>矢量源画布</td><td>512 × 512，圆角 r 79.36（15.5%）</td></tr>
+      <tr><td>字标常数</td><td>cap 0.727539em · advance 3.63em · 墨宽 3.539061em</td></tr>
+      <tr><td>画布占比</td><td>advance = 0.786 × 画布宽（唯一口径：advance 框居中）</td></tr>
+      <tr><td>交付档位</td><td>mipmap 五档 48 / 72 / 96 / 144 / 192</td></tr>
+    </table>
+  </div>
+</div>
+
+<div class="strip">
+  <figure><img src="../brand/wordmark/export/square-192.png" width="192" height="192" alt="192"><figcaption>192</figcaption></figure>
+  <figure><img src="../brand/wordmark/export/square-144.png" width="144" height="144" alt="144"><figcaption>144</figcaption></figure>
+  <figure><img src="../brand/wordmark/export/square-96.png" width="96" height="96" alt="96"><figcaption>96</figcaption></figure>
+  <figure><img src="../brand/wordmark/export/square-72.png" width="72" height="72" alt="72"><figcaption>72</figcaption></figure>
+  <figure><img src="../brand/wordmark/export/square-48-B.png" width="48" height="48" alt="48"><figcaption>48</figcaption></figure>
+  <div style="flex:1;min-width:300px;font-size:13px;line-height:1.7;opacity:.72;align-self:center">
+    五档 1:1 并排，不缩放。注意 48 与 72 上写的是 <code>LH</code>、96 起才是完整 <code>LiveHub</code> —— 这不是疏漏，是下一节之后要算的阈值。
+  </div>
+</div>
+
+<h2>② 自适应图标的三层（API 26+，现代 launcher 实际走的就是这条）</h2>
+<p class="note">系统只认三样东西：一块<b>纯色底</b>、一层<b>前景</b>、一张<b>单色剪影</b>。前景和剪影都是 108 viewport，字标被整体映射进中间 72×72 —— 因为 launcher 会拿任意 mask 去裁，只有这块区域是「不管哪种 mask 都还在」。</p>
+
+<div class="panels">
+  <figure>
+    <svg viewBox="0 0 108 108" width="216" height="216" role="img" aria-label="背景层">
+      <rect x="0" y="0" width="108" height="108" fill="#231C16"/>
+      <path d="M0 18H108M0 90H108M18 0V108M90 0V108" stroke="#FFFDFA" stroke-opacity=".16" stroke-width=".3"/>
+      <rect x="0.18" y="0.18" width="107.64" height="107.64" fill="none" stroke="#FFFDFA" stroke-opacity=".5" stroke-width=".36"/>
+      <rect x="18" y="18" width="72" height="72" fill="none" stroke="#FFFDFA" stroke-opacity=".5" stroke-width=".4" stroke-dasharray="2 1.6"/>
+      <text x="4" y="13" font-size="4.2" fill="#FFFDFA" fill-opacity=".5" font-family="ui-monospace,monospace">18</text>
+      <text x="46" y="13" font-size="4.2" fill="#FFFDFA" fill-opacity=".5" font-family="ui-monospace,monospace">72</text>
+      <text x="94" y="13" font-size="4.2" fill="#FFFDFA" fill-opacity=".5" font-family="ui-monospace,monospace">18</text>
+    </svg>
+    <figcaption><b>background</b><br><code>@color/ic_launcher_background</code> = <code>#231C16</code><br>纯色铺满 108。不画圆角 —— 圆角由 mask 决定，画进背景层等于把 mask 钉死成 squircle。</figcaption>
+  </figure>
+
+  <figure>
+    <svg viewBox="0 0 108 108" width="216" height="216" role="img" aria-label="前景层">
+      <rect x="0.18" y="0.18" width="107.64" height="107.64" fill="none" stroke="#FFFDFA" stroke-opacity=".45" stroke-width=".36" stroke-dasharray="2.4 2"/>
+      <rect x="18" y="18" width="72" height="72" fill="none" stroke="#FFFDFA" stroke-opacity=".34" stroke-width=".35" stroke-dasharray="2 1.6"/>
+      <circle cx="54" cy="54" r="36" fill="none" stroke="#FFFDFA" stroke-opacity=".22" stroke-width=".3"/>
+      <circle cx="54" cy="54" r="33" fill="none" stroke="#FFFDFA" stroke-opacity=".14" stroke-width=".3" stroke-dasharray=".8 1.2"/>
+      <g transform="translate(25.704 59.671) scale(0.00761234)"><use href="#wm"/></g>
+      <rect x="26.41" y="48.33" width="55.18" height="11.34" fill="none" stroke="#FF453A" stroke-opacity=".7" stroke-width=".3" stroke-dasharray="1.2 1"/>
+    </svg>
+    <figcaption><b>foreground</b><br><code>drawable/ic_launcher_foreground.xml</code><br>7 条 path 的 d 与 <code>square.svg</code> 逐字节相同，只换外层变换：<code>translate(25.704 59.671) scale(0.00761234)</code>。红虚线是墨迹框 55.18 × 11.34，最外点 r 28.16。</figcaption>
+  </figure>
+
+  <figure>
+    <svg viewBox="0 0 108 108" width="216" height="216" role="img" aria-label="合成">
+      <defs><clipPath id="maskPanC"><rect x="0" y="0" width="108" height="108" rx="30" ry="30"/></clipPath></defs>
+      <g clip-path="url(#maskPanC)">
+        <rect x="0" y="0" width="108" height="108" fill="#231C16"/>
+        <g transform="translate(25.704 59.671) scale(0.00761234)"><use href="#wm"/></g>
+      </g>
+    </svg>
+    <figcaption><b>合成 · 被 mask 裁过之后</b><br>launcher 把 108 层整块交给自己的 mask 裁：屏幕上看不到那 18 的 bleed，也看不到任何方框。</figcaption>
+  </figure>
+
+  <div class="mapcard">
+    <div class="kvline"><span>比例 k</span><code>72 / 512 = 0.140625</code></div>
+    <div class="kvline"><span>偏移</span><code>18 dp（每边）</code></div>
+    <div class="kvline"><span>translate</span><code>25.704 59.671</code></div>
+    <div class="kvline"><span>scale</span><code>0.00761234</code></div>
+    <div class="kvline"><span>字标 @108</span><code>advance 56.59 · cap 11.34</code></div>
+    <div class="kvline"><span>墨迹框</span><code>(26.41, 48.33) – (81.59, 59.67)</code></div>
+    <div class="kvline"><span>baseline</span><code>59.67</code></div>
+    <p style="margin-top:10px">映射只有这一步。没有重新设计、没有重排字距、没有为小尺寸调过 cap 差 —— 前景就是 <code>square.svg</code> 原样缩进 72。</p>
+  </div>
+</div>
+
+<table>
+<tr><th>层</th><th style="text-align:left">文件</th><th style="text-align:left">viewport</th><th style="text-align:left">内容</th></tr>
+<tr><td>background</td><td style="text-align:left"><code>values/ic_launcher_colors.xml</code></td><td style="text-align:left">—</td><td style="text-align:left">单文件单键，只有一个颜色，没有第二处可改</td></tr>
+<tr><td>foreground</td><td style="text-align:left"><code>drawable/ic_launcher_foreground.xml</code></td><td style="text-align:left">108 × 108 dp</td><td style="text-align:left">7 条 path，白 4 红 3</td></tr>
+<tr><td>monochrome</td><td style="text-align:left"><code>drawable/ic_launcher_monochrome.xml</code></td><td style="text-align:left">108 × 108 dp</td><td style="text-align:left">同一套 path，两个 fill 都 <code>#FFFFFF</code></td></tr>
+</table>
+
+
+<h2>③ 四把 mask · 同一份前景，裁四次</h2>
+<p class="note">不同 launcher、不同 OEM 用不同 mask。判据只有一条：<b>字标最外那个点离中心多远</b>。实测 r<sub>max</sub> = √(27.59² + 5.67²) = <b>28.16</b>；72 方框的内切圆半径 36，余 <b>7.84</b>；更保守的 66 圆（r 33）也还余 <b>4.84</b>。所以四种裁法下字标一个像素都不会被切。</p>
+
+<div class="masks">
+  <figure>
+    <svg viewBox="0 0 108 108" width="192" height="192" role="img" aria-label="圆形 mask">
+      <defs><clipPath id="mkCircle"><circle cx="54" cy="54" r="54"/></clipPath></defs>
+      <g clip-path="url(#mkCircle)"><rect width="108" height="108" fill="#231C16"/><g transform="translate(25.704 59.671) scale(0.00761234)"><use href="#wm"/></g></g>
+      <circle cx="54" cy="54" r="54" fill="none" stroke="#FFFDFA" stroke-opacity=".14" stroke-width=".4"/>
+    </svg>
+    <figcaption>圆 · circle<br>r 54，最外点 28.16，余 25.84</figcaption>
+  </figure>
+
+  <figure>
+    <svg viewBox="0 0 108 108" width="192" height="192" role="img" aria-label="方 mask">
+      <rect width="108" height="108" fill="#231C16"/>
+      <g transform="translate(25.704 59.671) scale(0.00761234)"><use href="#wm"/></g>
+    </svg>
+    <figcaption>方 · square（不裁）<br>最坏情况也就是这张：字标全在 72 里，四周是 18 的 bleed</figcaption>
+  </figure>
+
+  <figure>
+    <svg viewBox="0 0 108 108" width="192" height="192" role="img" aria-label="圆角方 mask">
+      <defs><clipPath id="mkRSq"><rect width="108" height="108" rx="16" ry="16"/></clipPath></defs>
+      <g clip-path="url(#mkRSq)"><rect width="108" height="108" fill="#231C16"/><g transform="translate(25.704 59.671) scale(0.00761234)"><use href="#wm"/></g></g>
+    </svg>
+    <figcaption>圆角方 · rounded square<br>rx 16（≈15%），切的是角，不是字</figcaption>
+  </figure>
+
+  <figure>
+    <svg viewBox="0 0 108 108" width="192" height="192" role="img" aria-label="squircle mask">
+      <defs><clipPath id="mkSq"><path d="M108.00 54.00 L107.99 62.74 L107.96 66.35 L107.92 69.13 L107.85 71.46 L107.77 73.51 L107.67 75.36 L107.55 77.05 L107.41 78.62 L107.25 80.09 L107.07 81.47 L106.88 82.78 L106.66 84.02 L106.43 85.20 L106.18 86.33 L105.90 87.41 L105.61 88.44 L105.30 89.43 L104.97 90.38 L104.62 91.30 L104.25 92.18 L103.86 93.03 L103.45 93.85 L103.02 94.64 L102.57 95.40 L102.10 96.13 L101.60 96.84 L101.09 97.52 L100.55 98.17 L99.99 98.80 L99.41 99.41 L98.80 99.99 L98.17 100.55 L97.52 101.09 L96.84 101.60 L96.13 102.10 L95.40 102.57 L94.64 103.02 L93.85 103.45 L93.03 103.86 L92.18 104.25 L91.30 104.62 L90.38 104.97 L89.43 105.30 L88.44 105.61 L87.41 105.90 L86.33 106.18 L85.20 106.43 L84.02 106.66 L82.78 106.88 L81.47 107.07 L80.09 107.25 L78.62 107.41 L77.05 107.55 L75.36 107.67 L73.51 107.77 L71.46 107.85 L69.13 107.92 L66.35 107.96 L62.74 107.99 L54.00 108.00 L45.26 107.99 L41.65 107.96 L38.87 107.92 L36.54 107.85 L34.49 107.77 L32.64 107.67 L30.95 107.55 L29.38 107.41 L27.91 107.25 L26.53 107.07 L25.22 106.88 L23.98 106.66 L22.80 106.43 L21.67 106.18 L20.59 105.90 L19.56 105.61 L18.57 105.30 L17.62 104.97 L16.70 104.62 L15.82 104.25 L14.97 103.86 L14.15 103.45 L13.36 103.02 L12.60 102.57 L11.87 102.10 L11.16 101.60 L10.48 101.09 L9.83 100.55 L9.20 99.99 L8.59 99.41 L8.01 98.80 L7.45 98.17 L6.91 97.52 L6.40 96.84 L5.90 96.13 L5.43 95.40 L4.98 94.64 L4.55 93.85 L4.14 93.03 L3.75 92.18 L3.38 91.30 L3.03 90.38 L2.70 89.43 L2.39 88.44 L2.10 87.41 L1.82 86.33 L1.57 85.20 L1.34 84.02 L1.12 82.78 L0.93 81.47 L0.75 80.09 L0.59 78.62 L0.45 77.05 L0.33 75.36 L0.23 73.51 L0.15 71.46 L0.08 69.13 L0.04 66.35 L0.01 62.74 L0.00 54.00 L0.01 45.26 L0.04 41.65 L0.08 38.87 L0.15 36.54 L0.23 34.49 L0.33 32.64 L0.45 30.95 L0.59 29.38 L0.75 27.91 L0.93 26.53 L1.12 25.22 L1.34 23.98 L1.57 22.80 L1.82 21.67 L2.10 20.59 L2.39 19.56 L2.70 18.57 L3.03 17.62 L3.38 16.70 L3.75 15.82 L4.14 14.97 L4.55 14.15 L4.98 13.36 L5.43 12.60 L5.90 11.87 L6.40 11.16 L6.91 10.48 L7.45 9.83 L8.01 9.20 L8.59 8.59 L9.20 8.01 L9.83 7.45 L10.48 6.91 L11.16 6.40 L11.87 5.90 L12.60 5.43 L13.36 4.98 L14.15 4.55 L14.97 4.14 L15.82 3.75 L16.70 3.38 L17.62 3.03 L18.57 2.70 L19.56 2.39 L20.59 2.10 L21.67 1.82 L22.80 1.57 L23.98 1.34 L25.22 1.12 L26.53 0.93 L27.91 0.75 L29.38 0.59 L30.95 0.45 L32.64 0.33 L34.49 0.23 L36.54 0.15 L38.87 0.08 L41.65 0.04 L45.26 0.01 L54.00 0.00 L62.74 0.01 L66.35 0.04 L69.13 0.08 L71.46 0.15 L73.51 0.23 L75.36 0.33 L77.05 0.45 L78.62 0.59 L80.09 0.75 L81.47 0.93 L82.78 1.12 L84.02 1.34 L85.20 1.57 L86.33 1.82 L87.41 2.10 L88.44 2.39 L89.43 2.70 L90.38 3.03 L91.30 3.38 L92.18 3.75 L93.03 4.14 L93.85 4.55 L94.64 4.98 L95.40 5.43 L96.13 5.90 L96.84 6.40 L97.52 6.91 L98.17 7.45 L98.80 8.01 L99.41 8.59 L99.99 9.20 L100.55 9.83 L101.09 10.48 L101.60 11.16 L102.10 11.87 L102.57 12.60 L103.02 13.36 L103.45 14.15 L103.86 14.97 L104.25 15.82 L104.62 16.70 L104.97 17.62 L105.30 18.57 L105.61 19.56 L105.90 20.59 L106.18 21.67 L106.43 22.80 L106.66 23.98 L106.88 25.22 L107.07 26.53 L107.25 27.91 L107.41 29.38 L107.55 30.95 L107.67 32.64 L107.77 34.49 L107.85 36.54 L107.92 38.87 L107.96 41.65 L107.99 45.26 Z"/></clipPath></defs>
+      <g clip-path="url(#mkSq)"><rect width="108" height="108" fill="#231C16"/><g transform="translate(25.704 59.671) scale(0.00761234)"><use href="#wm"/></g></g>
+    </svg>
+    <figcaption>squircle · 超椭圆 n=4<br>曲线内收最狠的一把，仍然离字标 8 以上</figcaption>
+  </figure>
+
+  <div class="mapcard">
+    <p class="mkcap">第五把：水滴 · teardrop</p>
+    <p>它的切口落在某一个角上，而不是四条边的中段。而字标的四个角都在 <code>x ∈ [26.41, 81.59]</code>、<code>y ∈ [48.33, 59.67]</code> 这条横带里，离 108 的任何一个角都在 40 dp 以上 —— 切口够不到字。结论与上面四把一致，不另画。</p>
+    <p style="margin-top:10px">反过来也能说：<b>只要字标留在 72 方框内，换什么 mask 都不用再验一遍</b>。这就是 18 dp bleed 的全部意义。</p>
+  </div>
+</div>
+
+<h2>④ APK 里到底装了什么</h2>
+<p class="note">图标基准 48 dp，五档就是 1× / 1.5× / 2× / 3× / 4×。下表的 md5 是逐个 <code>md5 -q</code> 出来的，用来证明 <code>res/</code> 里的文件确实等于 <code>design/brand/wordmark/export/</code> 里的那一张 —— 文件名不算证据，字节才算。</p>
+
+<table>
+<tr><th>档位</th><th>像素</th><th>launcher 尺寸</th><th style="text-align:left">构成</th><th style="text-align:left">md5</th><th style="text-align:left">源</th></tr>
+<tr><td>mipmap-mdpi</td><td>48</td><td>48 dp @1×</td><td style="text-align:left"><code>LH</code></td><td style="text-align:left"><code>39444811…f45e</code></td><td style="text-align:left"><code>square-48-B.png</code></td></tr>
+<tr><td>mipmap-hdpi</td><td>72</td><td>48 dp @1.5×</td><td style="text-align:left"><code>LH</code></td><td style="text-align:left"><code>b12264b9…6ba99</code></td><td style="text-align:left"><code>square-72.png</code></td></tr>
+<tr><td>mipmap-xhdpi</td><td>96</td><td>48 dp @2×</td><td style="text-align:left">完整 <code>LiveHub</code></td><td style="text-align:left"><code>fbd35b58…6c6f27</code></td><td style="text-align:left"><code>square-96.png</code></td></tr>
+<tr><td>mipmap-xxhdpi</td><td>144</td><td>48 dp @3×</td><td style="text-align:left">完整 <code>LiveHub</code></td><td style="text-align:left"><code>f1e0175b…d57282</code></td><td style="text-align:left"><code>square-144.png</code></td></tr>
+<tr><td>mipmap-xxxhdpi</td><td>192</td><td>48 dp @4×</td><td style="text-align:left">完整 <code>LiveHub</code></td><td style="text-align:left"><code>9f5d88f8…24b7</code></td><td style="text-align:left"><code>square-192.png</code></td></tr>
+</table>
+
+<div style="display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap;margin-top:14px">
+  <figure class="zoom"><img src="../brand/wordmark/export/square-48-B.png" width="288" height="288" alt="48px 8×"><figcaption>48 档 · 最近邻 6×（一个方块 = 一个像素）· <code>LH</code> · 竖干 3.1px</figcaption></figure>
+  <figure class="zoom"><img src="../brand/wordmark/export/square-48-A.png" width="288" height="288" alt="48px 甲版 8×"><figcaption>48 甲 · 完整字标 · <b>不采用 / 留痕</b> · 竖干 1.34px、白墨中位覆盖率 51%</figcaption></figure>
+  <div style="flex:1;min-width:320px;font-size:13px;line-height:1.75;opacity:.78">
+    <p style="margin-bottom:10px"><b>48 这一档只有一条出路：换字。</b>完整字标在 48 画布上字号 10.39、cap 7.56、竖干 1.28 px —— 光栅化之后笔画只有 1.34 px 且半透明，在电视的桌面栅格里就是一坨灰。所以 48 与 72 交付的是 <code>LH</code>：字号 23.91、竖干 2.95 px，实心笔画 3.1 px，覆盖率 100%。</p>
+    <p>切换不是按档位清单拍的，是按竖干阈值：完整字标要竖干 ≥ 2 px 需画布 <b>≥ 75.1</b>；<code>LH</code> 只需 <b>≥ 31.1</b>。所以阈值落在 72 与 96 之间 —— <b>相邻两档是两种构成，是规则的结果，不是 bug</b>。</p>
+  </div>
+</div>
+
+<p class="note"><b>已知分歧，记在这里不改资产</b>：这张表是 PNG 路径（API &lt; 26 的 launcher、或不吃自适应图标的主机）。走 ② 那条矢量路径时，前景只有一份、恒为完整字标 —— 在 48 dp 的图标里它落到 advance <b>37.7 px</b>、竖干 <b>1.28 px</b>，也就是低于上面那条阈值。两条路径在小尺寸上的观感不同是既成事实；真要统一，得给 foreground 也做一套 <code>-v26</code> 的 <code>LH</code> 版本，那是资产改动，不在 v1.0.0 的冻结范围内。</p>
+
+<p class="note"><b>产物在哪</b>：这六张就在 <code>android/app/src/main/res/</code>（清单里 <code>android:icon="@mipmap/ic_launcher"</code> 直接取用），② 那三个 XML 同在 <code>res/</code> 下。<b>怎么重建</b>：<code>node design/brand/build-icons.mjs --check</code> 在内存里按设计矢量光栅化、逐档比 md5，<b>不写任何文件</b>；去掉 <code>--check</code> 就跑同一套光栅化并写进 <code>design/brand/wordmark/export/</code>；再由 <code>node android/tools/sync-icons.mjs --write</code> 同步进 <code>res/</code>（只管 5 档 mipmap，banner 例外，见 <code>design/brand/README.md</code>）。最近一次核对用的是 PIL 逐像素比对、不是 md5：48 / 72 / 96 三档与现有交付<b>完全相同</b>（三通道最大差 0），144 差一条 144×9 的带、最大 24/255，192 最大 1/255，都落在曲线边缘、肉眼不可见，所以这一版 res 没有被覆盖；banner 不参与这个比对 —— <code>export/banner-320.png</code> 是带 alpha 的圆角交付档，<code>res/tv_banner.png</code> 是满版 bleed、圆角由 TV launcher 裁，两者不是同一张图。</p>
+
+<h2>⑤ 主题化图标 · monochrome</h2>
+<div style="display:flex;gap:36px;align-items:flex-start;flex-wrap:wrap">
+  <figure style="margin:0">
+    <svg viewBox="0 0 108 108" width="192" height="192" role="img" aria-label="monochrome 剪影">
+      <rect width="108" height="108" fill="#231C16"/>
+      <g transform="translate(25.704 59.671) scale(0.00761234)"><use href="#wmMono"/></g>
+    </svg>
+    <figcaption>剪影原样（全部 #FFFFFF），系统只取 alpha 再上色</figcaption>
+  </figure>
+  <div style="flex:1;min-width:340px;font-size:13px;line-height:1.75;opacity:.8">
+    <p style="margin-bottom:12px">API 33 起，<code>mipmap-anydpi-v33/ic_launcher.xml</code> 比 v26 多一行 <code>&lt;monochrome&gt;</code>。系统开「主题化图标」时不用彩色前景，而是拿这张剪影染成壁纸的色系。没有这一段，v33 目录与 v26 内容完全相同 —— 那个目录就没有存在理由，所以这一段必须真存在。</p>
+    <p>文件里两个 fill 都写成 <code>#FFFFFF</code> 而不是留空：颜色本来会被系统丢弃，写死一个不透明白，是为了让「这里只有一个颜色」这件事在文件里也是真的。形状与前景逐字节相同，只改了两个 <code>fill</code>。</p>
+  </div>
+</div>
+
+<h2>⑥ 图标 → 系统开屏 → 应用开屏：底色只落一档</h2>
+<p class="note">图标底 <code>#231C16</code> 同时是系统开屏的 <code>windowBackground</code>，所以点开图标那一瞬<b>没有跳变</b>，图标板像是从桌面里化开；随后整屏落到应用底 <code>#1A140F</code>，只落一次。</p>
+<div class="band">
+  <div style="background:var(--icon)">图标底 / 系统开屏 windowBackground<br><code>#231C16</code> · L* 10.89</div>
+  <div style="background:var(--app)">应用底（开屏整屏）<br><code>#1A140F</code> · L* 6.81</div>
+</div>
+<p class="note">ΔL* = 4.076，全链只此一次。同一帧里不再出现第二条这样的边 —— 所以开屏没有卡片。</p>
+<div class="frames">
+  <div class="frame"><img src="shots/splash-sys.png" alt="系统帧 · 底 = 图标底 #231C16"></div>
+  <div class="frame"><img src="shots/splash-still-1920.png" alt="应用开屏定稿帧 · 底 #1A140F"></div>
+  <div class="frame"><img src="shots/splash-crossfade-1920.png" alt="交叉淡化中途"></div>
+</div>
+<p class="note">左：<b>系统帧</b>（<code>?sys=1</code>）—— 底就是图标底 <code>#231C16</code>，所以那块圆角板<b>看不见边</b>，屏上只剩字；中：<b>应用开屏定稿帧</b>（<code>?still=1</code>）—— 底换成 <code>#1A140F</code>，ΔL* 4.076 在这一跳里落完；右：<code>?state=ready&amp;t=1060</code>，字标压在首页层上交叉淡化，整屏底色<b>一次没变</b>。三张同出 <code>design/v1.0.0/splash.html</code>，1920×1080 原生光栅化，不是缩图。</p>
+
+<h2>⑦ 顺带说清：TV 桌面网格里那张其实是 banner</h2>
+<p class="note">清单里同时写着 <code>android:banner="@drawable/tv_banner"</code>。Leanback 桌面的栅格优先用 16:9 的 banner（图标只出现在应用列表、系统设置、手机/盒子的普通桌面）。所以两个资产各管一段，不重叠、不互相替代。</p>
+<div class="tv">
+  <div class="ghost" style="left:420px;top:120px;width:200px;height:112px"></div>
+  <div class="ghost" style="left:640px;top:120px;width:200px;height:112px"></div>
+  <div class="ghost" style="left:60px;top:340px;width:200px;height:112px"></div>
+  <div class="ghost" style="left:280px;top:340px;width:200px;height:112px"></div>
+  <div class="tile"><img src="../brand/wordmark/export/banner-320.png" width="320" height="180" alt="LiveHub banner"></div>
+  <div class="lbl">LiveHub</div>
+</div>
+<div style="display:flex;gap:20px;align-items:flex-end;flex-wrap:wrap;margin-top:6px">
+  <figure style="margin:0"><img src="../brand/wordmark/export/banner-320.png" width="320" height="180" alt="320×180"><figcaption>320×180 原生（交付档）</figcaption></figure>
+  <figure style="margin:0"><img src="../brand/wordmark/export/banner-160.png" width="160" height="90" alt="160×90"><figcaption>160×90</figcaption></figure>
+  <figure style="margin:0"><img src="../brand/wordmark/export/banner-240.png" width="240" height="135" alt="240×135"><figcaption>240×135</figcaption></figure>
+</div>
+<p class="note">每档都在自己的坐标系里重新光栅化（同一份矢量，<code>viewBox</code> 恒 320×180，只改 <code>width/height</code>），小档不是大档的降采样。圆角 r = 0.155H = 27.9。</p>
+
+<h2>几何表</h2>
+<table>
+<tr><th>档</th><th>画布</th><th>r</th><th>字号</th><th>cap</th><th>baseline</th><th>advance</th><th>墨宽</th><th>左右留白</th></tr>
+<tr><td>square（源）</td><td>512</td><td>79.36</td><td>110.863</td><td>80.66</td><td>296.33</td><td>402.43</td><td>392.35</td><td>54.78</td></tr>
+<tr><td>sq192</td><td>192</td><td>29.76</td><td>41.574</td><td>30.25</td><td>111.12</td><td>150.91</td><td>147.13</td><td>20.54</td></tr>
+<tr><td>sq144</td><td>144</td><td>22.32</td><td>31.18</td><td>22.68</td><td>83.34</td><td>113.18</td><td>110.35</td><td>15.41</td></tr>
+<tr><td>sq96</td><td>96</td><td>14.88</td><td>20.787</td><td>15.12</td><td>55.56</td><td>75.46</td><td>73.57</td><td>10.27</td></tr>
+<tr><td>sq72</td><td>72</td><td>11.16</td><td>35.866</td><td>26.09</td><td>49.05</td><td>44.64</td><td>40.31</td><td>13.68</td></tr>
+<tr><td>sq48 B（交付）</td><td>48</td><td>7.44</td><td>23.91</td><td>17.4</td><td>32.7</td><td>29.76</td><td>26.87</td><td>9.12</td></tr>
+<tr><td>sq48 A（留痕）</td><td>48</td><td>7.44</td><td>10.393</td><td>7.56</td><td>27.78</td><td>37.73</td><td>36.78</td><td>5.14</td></tr>
+<tr><td>foreground @108 dp</td><td>72 安全区</td><td>—</td><td>15.59</td><td>11.34</td><td>59.67</td><td>56.59</td><td>55.17</td><td>8.41</td></tr>
+</table>
+<p class="note">字标常数：cap 0.727539em ｜ advance 3.63em ｜ 墨宽 3.539061em ｜ 墨宽÷cap 4.8644。居中口径 = advance 框居中（唯一口径）。</p>
+
+<table>
+<tr><th>令牌</th><th style="text-align:left">值</th><th style="text-align:left">用在哪</th></tr>
+<tr><td>图标底</td><td style="text-align:left"><code>#231C16</code></td><td style="text-align:left">background 层 / square PNG / banner / 系统开屏 windowBackground</td></tr>
+<tr><td>应用底</td><td style="text-align:left"><code>#1A140F</code></td><td style="text-align:left">开屏整屏、应用内底</td></tr>
+<tr><td>Live</td><td style="text-align:left"><code>#FFFDFA</code></td><td style="text-align:left">字标前半（白）</td></tr>
+<tr><td>Hub</td><td style="text-align:left"><code>#FF453A</code></td><td style="text-align:left">字标后半（红，全项目唯一）</td></tr>
+</table>
+
+</body></html>

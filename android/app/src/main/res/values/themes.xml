@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.LiveHub" parent="@android:style/Theme.Material.NoActionBar.Fullscreen">
+        <!-- 系统开屏那一帧的底色 = 图标底 #231C16，不是黑。
+             Android 12+ 的 SplashScreen 会在 windowBackground 上居中画 launcher icon；
+             底取 @android:color/black 会在图标四周留一圈黑，与图标板形成第二道边（08 §4 条件② 禁）。
+             #1A140F 是**应用内**底色（开屏层 / Theme.kt），比这里暗 ΔL* 4.08，只该作为
+             「系统帧 → 应用帧」的帧间落差出现一次；写成这里就是同一帧里出现两次。
+             值只有一处来源：values/splash_colors.xml。 -->
+        <item name="android:windowBackground">@color/splash_window_background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowActionBar">false</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentTransitions">false</item>
+    </style>
+</resources>

@@ -1,2 +1,17 @@
 .DS_Store
 示例参考软件.apk
+# Android
+android/.gradle/
+android/.kotlin/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+android/captures/
+*.iml
+android/tools/*/build/
+
+.workbuddy/audit/*
+.workbuddy/test/*
+.workbuddy/memory/*
+.taste-skill/*

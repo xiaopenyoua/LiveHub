@@ -1,0 +1,44 @@
+只作用于 build/gen 副本（run.sh 每次从 app/src 重新生成），仓库里的 app 源码零改动。
+三个覆盖点都是「把外部世界换成本地可控输入」，不设属性时行为与仓库版本完全一致：
+  douyu.ws / huya.ws  —— WS 端点
+  huya.room           —— 房间信息（跳过 mp.huya.com 的真实 HTTP）
+
+--- a/com/livehub/tv/core/danmaku/DouyuDanmaku.kt
++++ b/com/livehub/tv/core/danmaku/DouyuDanmaku.kt
+@@ -242,7 +242,9 @@
+ 
+     private companion object {
+         const val TAG = "DouyuDanmaku"
+-        const val WS_URL = "wss://danmuproxy.douyu.com:8506"
++        // ★★ 夹具覆盖点 1/2（douyu.ws）：把 WS 端点指向本地夹具服务端。
++        //     不设该属性时值与仓库版本完全相同。仓库里 app 源码零改动，本补丁只作用于 build/gen 副本。
++        val WS_URL: String get() = System.getProperty("douyu.ws") ?: "wss://danmuproxy.douyu.com:8506"
+ 
+         /** 与 HuyaDanmaku / BilibiliDanmaku 保持一致的重连参数 */
+         const val MAX_RETRY = 5
+--- a/com/livehub/tv/core/danmaku/HuyaDanmaku.kt
++++ b/com/livehub/tv/core/danmaku/HuyaDanmaku.kt
+@@ -143,6 +143,12 @@
+     // ---- 房间信息
+ 
+     private suspend fun resolve(roomId: String): Room? {
++        // ★★ 夹具覆盖点 2/2（huya.room）：给了就直接返回，跳过 HTTP。
++        //     虎牙每次重连前都要真调一次 mp.huya.com 换 topSid，不替换的话这组用例会变成
++        //     「网络测试」而不是「重连测试」，还会依赖某个主播是否在播。不设该属性时行为不变。
++        System.getProperty("huya.room")?.toLongOrNull()?.let {
++            return Room(topSid = it, subSid = it, living = true, presenterUid = 1L)
++        }
+         val rid = roomId.trim().takeWhile { it.isDigit() }.ifEmpty { return null }
+         val json = Net.getJson(
+             "https://mp.huya.com/cache.php?m=Live&do=profileRoom&roomid=$rid&showSecret=1",
+@@ -370,7 +376,9 @@
+ 
+     private companion object {
+         const val TAG = "HuyaDanmaku"
+-        const val WS_URL = "wss://wsapi.huya.com"
++        // ★★ 夹具覆盖点 1/2（huya.ws）：把 WS 端点指向本地夹具服务端。
++        //     不设该属性时值与仓库版本完全相同。
++        val WS_URL: String get() = System.getProperty("huya.ws") ?: "wss://wsapi.huya.com"
+ 
+         const val CMD_REGISTER_GROUP = 16L
+         const val CMD_HEARTBEAT = 20L
