@@ -1,5 +1,7 @@
 package com.livehub.tv.ui.screens
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -10,8 +12,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -21,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import com.livehub.tv.core.model.Room
 import com.livehub.tv.core.site.Sites
@@ -131,8 +136,20 @@ fun HomeScreen(nav: AppNav, modifier: Modifier = Modifier, onSettled: () -> Unit
                         didFocus = true
                     }
                 }
+                val listState = rememberLazyListState()
+                val scrolled by remember {
+                    derivedStateOf {
+                        listState.firstVisibleItemIndex > 0 ||
+                            listState.firstVisibleItemScrollOffset > 0
+                    }
+                }
+                val topFade by animateFloatAsState(
+                    targetValue = if (scrolled) 1f else 0f,
+                    animationSpec = tween(180),
+                    label = "homeTopFade"
+                )
                 Box(modifier.fillMaxSize()) {
-                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
                         item {
                             HeroBlock(
                                 room = rooms.first(),
@@ -176,21 +193,24 @@ fun HomeScreen(nav: AppNav, modifier: Modifier = Modifier, onSettled: () -> Unit
                         }
                         item { Spacer(Modifier.height(80.dp)) }
                     }
-                    // 内容滚到顶栏下沿时不能硬切：真实截图里主图副标题被顶栏齐齐切断，
-                    // 像被贴纸压住。这里是**首页独有**的一道渐隐——其它四屏的页标题
-                    // 就在 y=48dp，整屏加遮罩会把标题一起压暗，那是另一个错误。
-                    Box(
-                        Modifier
-                            .fillMaxWidth()
-                            .height(96.dp)
-                            .background(
-                                Brush.verticalGradient(
-                                    0f to Tokens.Ground,
-                                    0.55f to Tokens.Ground.copy(alpha = 0.86f),
-                                    1f to Color.Transparent
+                    // 只在**滚动后**才盖这道渐隐：静止时主图必须完整可见（用户反馈过
+                    // 顶部一大片遮罩把海报压暗）。滚动时它仍然承担原来的职责——避免
+                    // 主图/卡片被顶栏下沿齐齐切断。
+                    if (topFade > 0.01f) {
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .height(96.dp)
+                                .graphicsLayer { alpha = topFade }
+                                .background(
+                                    Brush.verticalGradient(
+                                        0f to Tokens.Ground,
+                                        0.55f to Tokens.Ground.copy(alpha = 0.86f),
+                                        1f to Color.Transparent
+                                    )
                                 )
-                            )
-                    )
+                        )
+                    }
                 }
             }
         }

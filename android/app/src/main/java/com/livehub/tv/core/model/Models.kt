@@ -73,7 +73,15 @@ data class PlayUrl(
     val quality: String,
     val format: StreamFormat,
     val headers: Map<String, String> = emptyMap(),
-    val qn: Int = 0
+    val qn: Int = 0,
+    /**
+     * 本地重签：返回同一线路的新 URL（新的 seqid/token）。
+     *
+     * 虎牙的签名串只对第一次请求有效，EOF 后若重新拉整套 playUrls，要多花一次
+     * profile 往返（~300ms 黑屏）；能本地重签的线路用它原地续上。平台逻辑留在
+     * 各自的 site 里，播放器只调用，不认识虎牙。
+     */
+    val refresh: (() -> String)? = null
 ) {
     val isHls: Boolean get() = format == StreamFormat.HLS || url.contains(".m3u8")
 }

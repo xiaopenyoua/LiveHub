@@ -4,6 +4,7 @@ import android.os.SystemClock
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,10 +13,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -32,7 +36,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.foundation.focusable
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -56,6 +59,7 @@ import com.livehub.tv.core.model.Platform
 import com.livehub.tv.core.model.Room
 import com.livehub.tv.core.model.SiteException
 import com.livehub.tv.core.model.SiteError
+import com.livehub.tv.core.model.StreamFormat
 import com.livehub.tv.core.model.toSiteException
 import com.livehub.tv.core.site.Sites
 import com.livehub.tv.core.store.Prefs
@@ -67,7 +71,9 @@ import com.livehub.tv.ui.PlayerControls
 import com.livehub.tv.ui.components.CircleGlassButton
 import com.livehub.tv.ui.components.Ease
 import com.livehub.tv.ui.components.PillButton
+import com.livehub.tv.ui.components.RailRow
 import com.livehub.tv.ui.components.RoomCover
+import com.livehub.tv.ui.components.TvFocus
 import com.livehub.tv.ui.components.clockText
 import com.livehub.tv.ui.components.keyHint
 import com.livehub.tv.ui.components.qualityLabel
@@ -83,7 +89,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 
 /** 同一条线路 EOF 后先原地重连几次，再判定「这条线不能连续播」。 */
-private const val MAX_EOF_RETRIES = 4
+private const val MAX_SAME_LINE_RECONNECTS = 4
 
 /**
  * 播放页：画面永远是屏幕里最亮的东西。
@@ -144,36 +150,17 @@ fun PlayerScreen(nav: AppNav, modifier: Modifier = Modifier) {
     /** 画质被服务端压档时的那一句。静默失败是最糟的失败，所以必须说出来。 */
     var capNotice by remember(room.identity) { mutableStateOf<String?>(null) }
 
-    /** 已经结束过的线路。用来避免「1→2→3→1」无限换线。 */
-    var endedLines by remember(room.identity) { mutableStateOf(emptySet<Int>()) }
-
-    /** 本会话里已经证明坏掉的线路（例如 HLS 被劫持/解析失败），自动选线时跳过。 */
-    var badLines by remember(room.identity) { mutableStateOf(emptySet<Int>()) }
-
-    /** 所有线路都结束了（或用户关了自动降级）：停在终态，不再假装在播。 */
-    var endedTerminal by remember(room.identity) { mutableStateOf(false) }
-
-    /** 播起来之后「停住」触发的自动换线次数，防止反复切。 */
-    var stallSwitches by remember(room.identity) { mutableStateOf(0) }
-
-    /** 同一条线路被对端结束后的重连次数；连续短命才换线，避免一条短线就丢掉能播的 CDN。 */
-    var eofRetries by remember(room.identity) { mutableStateOf(0) }
-
-    /** 播放层错误触发的自动换线次数。 */
-    var errorSwitches by remember(room.identity) { mutableStateOf(0) }
-
-    /** 只有一条线路的平台（斗鱼）在地址过期时自动重新取流；这是它的「换线」等价物。 */
-    var singleLineRetries by remember(room.identity) { mutableStateOf(0) }
-
     /**
-     * 多线路平台（哔哩）的 CDN 地址过期重取次数。
-     *
-     * 同一次 `playUrls` 返回的所有线路共享同一个 `expires`，所以 60 分钟后
-     * **换哪条线都还是 403**；正确动作是先重新取地址，再回到同一条线。
-     * 这和单线路平台的 `singleLineRetries` 是两件事：这里线路数 > 1，
-     * 不能靠「换下一条」绕过 token 过期。
+     * 同一条线路的自动重连次数。**只重连当前线路，绝不自动换到别的线路**。
+     * 连续失败达到上限后置 [recoveryExhausted]，把选择权交还给用户（线路列表）。
      */
-    var expiryReloads by remember(room.identity) { mutableStateOf(0) }
+    var sameLineReconnects by remember(room.identity) { mutableStateOf(0) }
+
+    /** 自动重连已用完：停在失败态，不再后台重试，也不再自动换线。 */
+    var recoveryExhausted by remember(room.identity) { mutableStateOf(false) }
+
+    /** 换台 OSD 的预览游标（nav.playerPool 下标）；打开时定位到当前房间。 */
+    var osdCursor by remember(room.identity) { mutableStateOf(-1) }
 
     /** 本次 reload 是否由「用户切清晰度」触发；是的话不要清零「本场观看」。 */
     var qualityReload by remember(room.identity) { mutableStateOf(false) }
@@ -197,11 +184,44 @@ fun PlayerScreen(nav: AppNav, modifier: Modifier = Modifier) {
         runCatching { rootFocus.requestFocus() }
     }
 
-    /** 选下一条自动线路：跳过当前、已结束、本会话已证明坏掉的。 */
-    fun nextAutoLine(current: Int, count: Int, banned: Set<Int>): Int? =
-        (0 until count).firstOrNull {
-            it != current && it !in endedLines && it !in banned
+    /**
+     * 回到**同一条线路**：能本地重签就本地重签（虎牙），否则重新取 playUrls
+     * 再回到同一线路。这是自动恢复唯一允许的动作——绝不自动换到别的线路。
+     */
+    fun reconnectSameLine() {
+        val current = ui.urls.getOrNull(ui.lineIndex)
+        // 第一次优先本地重签（虎牙）；第二次信号说明 antiCode 本身也可能过期了，
+        // 改走重新取 playUrls，拿整套新的 wsTime/seqid。
+        if (current?.refresh != null && sameLineReconnects <= 1) {
+            player.play(ui.urls, ui.lineIndex, resetWatch = false, refreshUrls = true)
+        } else {
+            resumeLine = ui.lineIndex
+            reconnectReload = true
+            reloadTick++
         }
+    }
+
+    /**
+     * 用户从线路列表选了一条线。**这是唯一能切换线路的入口**。
+     * 选中当前线路视为「重试这条线」；失败态下不需要先退出列表再按重试。
+     */
+    fun chooseLine(next: Int) {
+        nav.playerControls = PlayerControls.Controls
+        sameLineReconnects = 0
+        recoveryExhausted = false
+        if (next == ui.lineIndex && ui.error == null && !ui.ended && !ui.stalled) return
+        val target = ui.urls.getOrNull(next)
+        if (target?.refresh != null) {
+            player.play(ui.urls, next, resetWatch = false, refreshUrls = true)
+        } else if (room.platform == Platform.HUYA) {
+            resumeLine = next
+            reconnectReload = true
+            reloadTick++
+        } else {
+            player.switchLine(next)
+        }
+        cornerNotice = "已切换到线路 ${next + 1}"
+    }
 
     /**
      * 失败原因只有一个槽位，但**取用顺序决定了用户看到的是不是真原因**：
@@ -212,11 +232,11 @@ fun PlayerScreen(nav: AppNav, modifier: Modifier = Modifier) {
         ?: loadError
         ?: when {
             ui.stalled -> if (ui.firstFrameRendered) {
-                "画面停住了（超过 8 秒没有新帧），按「重试」或换线路"
+                "画面停住了（超过 8 秒没有新帧），按「重试」或打开线路列表"
             } else {
-                "所有线路在 12 秒内都没有出画面，按「重试」或换线路"
+                "当前线路 12 秒内没有出画面，按「重试」或打开线路列表"
             }
-            endedTerminal -> "所有线路都被平台中断了，主播可能已下播"
+            recoveryExhausted -> "当前线路反复中断，按「重试」或打开线路列表"
             else -> null
         }
     val hasError = err != null
@@ -230,10 +250,11 @@ fun PlayerScreen(nav: AppNav, modifier: Modifier = Modifier) {
         ui.error == null && !ui.ended && !ui.stalled
     val onAirText = when {
         onAir -> "直播中"
-        ui.ended || endedTerminal -> "已结束"
+        // 失败原因优先于「已结束」：recoveryExhausted 是错误态，不是主播下播。
+        err != null -> "已中断"
+        ui.ended || recoveryExhausted -> "已结束"
         // 房间不存在/已下播/ID 解析失败是「未在播」，不是「播着播着断了」
         loadErrorKind?.retryable == false -> "未在播"
-        err != null -> "已中断"
         ui.buffering -> "缓冲中"
         else -> "未在播"
     }
@@ -298,140 +319,54 @@ fun PlayerScreen(nav: AppNav, modifier: Modifier = Modifier) {
     }
 
     /**
-     * EOF 处理（DEF-10）：对端干净地结束直播流时，ExoPlayer 不报 error。
-     * 先逐条换线路；全部结束才停在终态，并且**明确说出来**。
-     * `endedLines` 保证不会 1→2→3→1 无限闪「正在换线路…」。
+     * 统一自愈：**只重连当前线路，绝不自动换到别的线路**。
+     *
+     * 三个失败信号（播放层错误 / EOF / 看门狗停住）合并成一个入口，优先级
+     * error > ended > stalled。每条线路最多 [MAX_SAME_LINE_RECONNECTS] 次；
+     * 稳定播满后清零。用完置 [recoveryExhausted]，停在失败态，把选择权交还给
+     * 用户（重试 / 线路列表）。用户投诉的「自动换台」正是旧实现里四套
+     * 各自以 `switchLine(next)` 结尾的阶梯造成的。
      */
-    LaunchedEffect(ui.ended, room.identity) {
-        if (!ui.ended || endedTerminal || loadError != null) return@LaunchedEffect
-        // 虎牙 FLV：每条连接只给 1–2 MB 就被对端关掉，而签名串里的 seqid 只对**第一次**
-        // 请求有效——同一个 URL 隔几秒再连会 403（2026-11-02 实测）。所以 EOF 后的正确
-        // 动作是**重新取地址**（新的 seqid），再回到同一条线；不能快重连同一个 URL。
-        // 连续短命（不到 5s 又 EOF）才计入 eofRetries，最终换线；稳定播满 5s 会清零。
-        if (room.platform == Platform.HUYA && eofRetries < MAX_EOF_RETRIES) {
-            eofRetries++
-            resumeLine = ui.lineIndex
-            reconnectReload = true
-            delay(150)
-            reloadTick++
+    LaunchedEffect(ui.error, ui.ended, ui.stalled, room.identity) {
+        if (!Prefs.autoReconnect || loadError != null || recoveryExhausted) return@LaunchedEffect
+        val signal = when {
+            ui.error != null -> "error"
+            ui.ended -> "ended"
+            ui.stalled -> "stalled"
+            else -> return@LaunchedEffect
+        }
+        // 解码器/解析失败换地址也不会好：别再重试，直接停在失败态。
+        if (signal == "error" && !ui.errorRetryable) {
+            recoveryExhausted = true
             return@LaunchedEffect
         }
-        // 其它平台 / 虎牙连续短命：重新取地址（新的 wsTime/seqid/token），再回到同一条线。
-        if (eofRetries < MAX_EOF_RETRIES) {
-            eofRetries++
-            resumeLine = ui.lineIndex
-            reconnectReload = true
-            cornerNotice = "直播流中断 · 正在重连…"
-            delay(400)
-            reloadTick++
-            return@LaunchedEffect
-        }
-        val current = ui.lineIndex
-        val next = nextAutoLine(current, ui.lineCount, badLines)
-        if (Prefs.autoDowngrade && next != null) {
-            endedLines = endedLines + current
-            eofRetries = 0
-            Prefs.noteDowngrade()
-            cornerNotice = "这条线路结束了 · 正在换线路…"
-            player.switchLine(next)
-        } else {
-            endedTerminal = true
+        if (sameLineReconnects >= MAX_SAME_LINE_RECONNECTS) {
+            recoveryExhausted = true
             cornerNotice = null
+            return@LaunchedEffect
         }
+        sameLineReconnects++
+        cornerNotice = when (signal) {
+            "ended" -> "直播流中断 · 正在重连当前线路…"
+            else -> "正在重连当前线路…"
+        }
+        // EOF 是健康的播放结束，给对端 150ms 释放连接；错误/停住稍长一点。
+        delay(if (signal == "ended") 150 else 800)
+        reconnectSameLine()
     }
 
-    /** 稳定播满一小段时间就把「短命重连」计数清零：之后的偶发 EOF 仍然先重连同一条线。 */
+    /** 稳定播满一小段时间就把自动重连计数清零，并把恢复能力还回来。 */
     LaunchedEffect(ui.firstFrameRendered) {
         if (!ui.firstFrameRendered) return@LaunchedEffect
         Prefs.noteFirstFrame(ui.stats.firstFrameMs)
         // 虎牙 FLV 的连接本来就短（常见 5–9s），稳定阈值必须低于连接寿命，
-        // 否则每次都被记成「短命」，播到第 5 次就被换线。
-        delay(if (room.platform == Platform.HUYA) 5_000 else 15_000)
+        // 否则每次都被记成「短命」，播到上限就误判成失败。
+        delay(if (room.platform == Platform.HUYA) 2_500 else 15_000)
         val st = player.state.value
         if (st.firstFrameRendered && !st.ended && st.error == null) {
-            eofRetries = 0
-            stallSwitches = 0
-            errorSwitches = 0
-            singleLineRetries = 0
-            expiryReloads = 0
+            sameLineReconnects = 0
+            recoveryExhausted = false
         }
-    }
-
-    /**
-     * 播放层错误（403/解码失败等）也自动换线——不能只让用户按。
-     * 每条线路最多轮到一次；全部失败后保留错误和重试按钮，不无限切。
-     */
-    LaunchedEffect(ui.error, room.identity) {
-        val error = ui.error
-        // **error 变 null 不能清零 errorSwitches**：自动换线会清掉 error，
-        // 清零后下一条线再错就又能无限换。只在稳定播放 15s / 换房 / 手动重试时清零。
-        if (error == null) return@LaunchedEffect
-        if (!Prefs.autoDowngrade) return@LaunchedEffect
-        // 多线路平台也会过期：同一次 playUrls 的所有线路共享同一个 expires，
-        // 换线解决不了 403。先重新取地址（最多 2 次），仍失败才逐条换线。
-        val expired = error.contains("CDN 拒绝") || error.contains("过期")
-        // 哔哩的多线路共享同一个 expires；虎牙 FLV 的 seqid 只对第一次请求有效。
-        // 这两家的 403 换线都绕不过去，先重新取地址（最多 2 次），仍失败才逐条换线。
-        // 抖音的 403 是单条 CDN/防盗链问题，直接换线更快。
-        val canRenew = room.platform == Platform.BILIBILI || room.platform == Platform.HUYA
-        if (canRenew && ui.lineCount > 1 && expired && expiryReloads < 2) {
-            expiryReloads++
-            resumeLine = ui.lineIndex
-            reconnectReload = true
-            cornerNotice = "地址过期了 · 正在重新取流…"
-            delay(800)
-            reloadTick++
-            return@LaunchedEffect
-        }
-        if (ui.lineCount <= 1) {
-            // 斗鱼只有一条预览线路，地址带短 TTL。过期时没有「下一条线」可换，
-            // 正确动作是**重新取地址**（新的 txSecret），而不是把错误甩给用户。
-            if (singleLineRetries >= MAX_EOF_RETRIES) return@LaunchedEffect
-            singleLineRetries++
-            resumeLine = ui.lineIndex
-            reconnectReload = true
-            cornerNotice = "地址过期了 · 正在重新取流…"
-            delay(1_200)
-            reloadTick++
-            return@LaunchedEffect
-        }
-        if (errorSwitches >= ui.lineCount - 1) return@LaunchedEffect
-        delay(1_500)
-        // HLS manifest 解析失败通常意味着这条线路在本网络不可用（劫持/坏边缘）；
-        // 记进 badLines，后续自动选线不再反复撞它。换房间/手动重试会清空。
-        val manifest = error.contains("MANIFEST") || error.contains("流格式异常")
-        val banned = if (manifest) badLines + ui.lineIndex else badLines
-        if (manifest) badLines = banned
-        val next = nextAutoLine(ui.lineIndex, ui.lineCount, banned) ?: return@LaunchedEffect
-        errorSwitches++
-        Prefs.noteDowngrade()
-        cornerNotice = "这条线路播不了 · 正在换线路…"
-        player.switchLine(next)
-    }
-
-    /**
-     * 播起来又断（不是 ERROR、也不一定立刻 ENDED）：看门狗在 LivePlayer 里置 `ui.stalled`。
-     * 自动换线最多 `lineCount - 1` 次；换完还停住就留在失败态，交给重试按钮。
-     */
-    LaunchedEffect(ui.stalled, room.identity) {
-        if (!ui.stalled || !Prefs.autoDowngrade) return@LaunchedEffect
-        if (ui.lineCount <= 1) {
-            // 单线路平台（斗鱼）停住时没有「下一条线」可换：重新取地址是唯一正确的动作。
-            if (singleLineRetries >= MAX_EOF_RETRIES) return@LaunchedEffect
-            singleLineRetries++
-            resumeLine = ui.lineIndex
-            reconnectReload = true
-            cornerNotice = "画面停住了 · 正在重新取流…"
-            delay(800)
-            reloadTick++
-            return@LaunchedEffect
-        }
-        if (stallSwitches >= ui.lineCount - 1) return@LaunchedEffect
-        val next = nextAutoLine(ui.lineIndex, ui.lineCount, badLines) ?: return@LaunchedEffect
-        stallSwitches++
-        Prefs.noteDowngrade()
-        cornerNotice = "画面停住了 · 正在换线路…"
-        player.switchLine(next)
     }
 
     // 压档提示自己淡出，不和首帧提示抢那一个位置
@@ -451,24 +386,26 @@ fun PlayerScreen(nav: AppNav, modifier: Modifier = Modifier) {
         }
     }
 
+    // 换线/重连提示自己走掉，不长期占着角落
+    LaunchedEffect(cornerNotice) {
+        if (cornerNotice != null) {
+            delay(3_000)
+            cornerNotice = null
+        }
+    }
+
     /**
-     * 起播时间线：3s 提示 / 4s 起逐条换线路 / 12s 放弃。
+     * 起播时间线：只提示，不换线。
      *
-     * 判据是 **`firstFrameRendered`（真的渲染出首帧）**，不是 `playing`（播放器自认为在播）。
-     * 旧实现用 `playing`，只要 ExoPlayer 进了 `STATE_READY`，三层兜底一次都不执行——
-     * 于是「有地址、没画面」的线路会被当成成功（DEF-10 的同族问题）。
+     * 判据仍是 `firstFrameRendered`（真的渲染出首帧）。3s 还没画面就提示
+     * 「正在连接」，12s 交给 LivePlayer 的 no-first-frame 看门狗（stalled）；
+     * 之后的动作由统一自愈 effect 执行——**同线路重连，不自动换线**。
      *
-     * 条数不是只切一次：每条线路都给它一次机会，最多 `lineCount - 1` 次；
-     * 每 3.5s 一次，12s 封顶。
-     *
-     * 循环用 `delay(200)` 而不是 `withFrameNanos`：故障态的帧时钟本身可能就是停的，
-     * 拿帧当计时器等于让看门狗和故障一起停摆。
+     * 循环用 `delay(200)` 而不是 `withFrameNanos`：故障态的帧时钟本身可能就是停的。
      */
     LaunchedEffect(room.identity, reloadTick) {
         cornerNotice = null
         val started = SystemClock.elapsedRealtime()
-        var switches = 0
-        var lastSwitchAt = 0L
         while (true) {
             delay(200)
             val st = player.state.value
@@ -477,23 +414,8 @@ fun PlayerScreen(nav: AppNav, modifier: Modifier = Modifier) {
                 return@LaunchedEffect
             }
             val elapsed = SystemClock.elapsedRealtime() - started
-            if (switches == 0 && elapsed >= 3_000 && cornerNotice == null) {
-                cornerNotice = "正在换线路…"
-            }
-            if (Prefs.autoDowngrade && st.lineCount > 1 &&
-                switches < st.lineCount - 1 && elapsed >= 4_000 &&
-                elapsed - lastSwitchAt >= 3_500
-            ) {
-                val next = nextAutoLine(st.lineIndex, st.lineCount, badLines)
-                if (next == null) {
-                    cornerNotice = null
-                    return@LaunchedEffect
-                }
-                switches++
-                lastSwitchAt = elapsed
-                Prefs.noteDowngrade()
-                player.switchLine(next)
-                cornerNotice = "已切到备用线路 · ${displayQuality(st.quality)}（${switches + 1}/${st.lineCount}）"
+            if (elapsed >= 3_000) {
+                cornerNotice = "正在连接…"
             }
             if (elapsed >= 12_000) {
                 // 交给 LivePlayer 的 no-first-frame 看门狗置 ui.stalled
@@ -517,18 +439,21 @@ fun PlayerScreen(nav: AppNav, modifier: Modifier = Modifier) {
     // 控制条是随 chromeAlpha 渐入才挂载的，所以在节点真正存在之前 requestFocus 会抛异常——
     // 逐帧重试几次，而不是「等一帧就假定它在」。
     LaunchedEffect(nav.playerControls, hasError) {
-        if (nav.playerControls == PlayerControls.Controls) {
-            val requester = if (hasError) retryFocus.requester else firstPill.requester
-            var tries = 0
-            while (tries < 10) {
-                withFrameNanos { }
-                if (runCatching { requester.requestFocus() }.isSuccess) break
-                tries++
+        when (nav.playerControls) {
+            PlayerControls.Controls -> {
+                val requester = if (hasError) retryFocus.requester else firstPill.requester
+                var tries = 0
+                while (tries < 10) {
+                    withFrameNanos { }
+                    if (runCatching { requester.requestFocus() }.isSuccess) break
+                    tries++
+                }
+                // 胶囊没挂上（例如控制条还在渐入）就退回根节点，不能把焦点留在背后的屏幕
+                if (tries >= 10) runCatching { rootFocus.requestFocus() }
             }
-            // 胶囊没挂上（例如控制条还在渐入）就退回根节点，不能把焦点留在背后的屏幕
-            if (tries >= 10) runCatching { rootFocus.requestFocus() }
-        } else {
-            runCatching { rootFocus.requestFocus() }
+            // 线路列表自己请求行焦点；这里是兜底，防止焦点留在底下的节点上。
+            PlayerControls.Lines -> runCatching { rootFocus.requestFocus() }
+            PlayerControls.Osd, PlayerControls.Idle -> runCatching { rootFocus.requestFocus() }
         }
     }
 
@@ -538,38 +463,66 @@ fun PlayerScreen(nav: AppNav, modifier: Modifier = Modifier) {
     var interactionTick by remember { mutableStateOf(0) }
 
     LaunchedEffect(nav.playerControls, interactionTick, hasError) {
-        if (nav.playerControls == PlayerControls.Idle) return@LaunchedEffect
+        // 只有底部控制条参与 4 秒自动收起；线路列表/换台 OSD 是用户主动打开的
+        // 二级界面，不会因为「停手」被收走。
+        if (nav.playerControls != PlayerControls.Controls) return@LaunchedEffect
         delay(4_000)
-        if (nav.playerControls != PlayerControls.Idle) {
+        if (nav.playerControls == PlayerControls.Controls) {
             nav.playerControls = PlayerControls.Idle
         }
     }
 
-    fun surf(delta: Int) {
+    /** 换台候选池：同平台优先，否则全平台。 */
+    fun osdPool(): List<Room> {
         val pool = nav.playerPool
-        if (pool.isEmpty()) return
-        val samePlatform = pool.filter { it.platform == room.platform }
-        val list = if (samePlatform.size >= 2) samePlatform else pool
-        val index = list.indexOfFirst { it.identity == room.identity }
-        val size = list.size
-        val next = if (index < 0) list.first()
-        else list[((index + delta) % size + size) % size]
-        if (next.identity != room.identity) nav.playerRoom = next
+        val same = pool.filter { it.platform == room.platform }
+        return if (same.size >= 2) same else pool
     }
 
-    fun surfPlatform(direction: Int) {
+    /** 打开换台 OSD：只把游标放到当前房间，**不切换**。 */
+    fun openOsd() {
+        val pool = nav.playerPool
+        osdCursor = pool.indexOfFirst { it.identity == room.identity }.let { if (it < 0) 0 else it }
+        nav.playerControls = PlayerControls.Osd
+    }
+
+    /** 在 OSD 里移动候选（同平台内），不改变正在播放的房间。 */
+    fun moveOsd(delta: Int) {
         val pool = nav.playerPool
         if (pool.isEmpty()) return
+        val current = pool.getOrNull(osdCursor) ?: room
+        val same = pool.filter { it.platform == current.platform }
+        val list = if (same.size >= 2) same else pool
+        val ci = list.indexOfFirst { it.identity == current.identity }.coerceAtLeast(0)
+        val next = list[((ci + delta) % list.size + list.size) % list.size]
+        val idx = pool.indexOfFirst { it.identity == next.identity }
+        if (idx >= 0) osdCursor = idx
+    }
+
+    /** 在 OSD 里换平台候选（全平台池），不改变正在播放的房间。 */
+    fun moveOsdPlatform(direction: Int) {
+        val pool = nav.playerPool
+        if (pool.isEmpty()) return
+        val current = pool.getOrNull(osdCursor) ?: room
         val order = Platform.entries
-        val current = order.indexOf(room.platform)
+        val start = order.indexOf(current.platform)
         for (step in 1..order.size) {
-            val target = order[((current + direction * step) % order.size + order.size) % order.size]
-            if (target == room.platform) continue
-            val candidate = pool.firstOrNull { it.platform == target }
-            if (candidate != null) {
-                nav.playerRoom = candidate
+            val target = order[((start + direction * step) % order.size + order.size) % order.size]
+            if (target == current.platform) continue
+            val idx = pool.indexOfFirst { it.platform == target }
+            if (idx >= 0) {
+                osdCursor = idx
                 return
             }
+        }
+    }
+
+    /** OK：只在这里提交换台。 */
+    fun commitOsd() {
+        val candidate = nav.playerPool.getOrNull(osdCursor)
+        nav.playerControls = PlayerControls.Controls
+        if (candidate != null && candidate.identity != room.identity) {
+            nav.playerRoom = candidate
         }
     }
 
@@ -578,8 +531,9 @@ fun PlayerScreen(nav: AppNav, modifier: Modifier = Modifier) {
      * 其它平台按当前取回的地址列表**真实切换**（抖音会给多档），只有一档时明确说只有一档——
      * 不给一个按了没反应的按钮。
      *
-     * 为什么不弹菜单：一条 1920×1080 的控制条上再叠一层列表，焦点层级和返回键都要重做；
-     * 逐档循环同样能到达每一档，且不增加新的焦点陷阱。明确写在这里，免得下一个人以为漏了。
+     * 线路已经列表化（线路胶囊打开线路列表）；清晰度本轮仍逐档循环：四家的档位语义
+     * 不统一（哔哩读请求 qn、抖音按偏好排序、虎牙/斗鱼忽略偏好），强行做统一列表会把
+     * 「设置没生效」暴露成一个新问题。
      */
     fun cycleQuality() {
         if (room.platform == Platform.BILIBILI) {
@@ -588,13 +542,8 @@ fun PlayerScreen(nav: AppNav, modifier: Modifier = Modifier) {
             val index = order.indexOf(current).let { if (it < 0) 0 else it }
             val next = order[(index + 1) % order.size]
             Prefs.preferredQuality = next
-            endedTerminal = false
-            eofRetries = 0
-            errorSwitches = 0
-            singleLineRetries = 0
-            expiryReloads = 0
-            badLines = emptySet()
-            endedLines = emptySet()
+            sameLineReconnects = 0
+            recoveryExhausted = false
             // 保留当前线路：切清晰度不该把正在用的 CDN 丢掉
             resumeLine = ui.lineIndex
             qualityReload = true
@@ -626,29 +575,39 @@ fun PlayerScreen(nav: AppNav, modifier: Modifier = Modifier) {
                 interactionTick++
                 val controls = nav.playerControls
                 when (event.key) {
-                    Key.DirectionUp, Key.DirectionDown -> {
-                        // 控制条展开时 ↑↓ 不换台：换台是「换台」按钮打开 OSD 后的事。
-                        // 否则错误态自动弹出的控制条下，用户想动按钮却直接换了房间（用户实测）。
-                        // 吃掉按键而不是返回 false：false 会把焦点交给背后的顶栏/卡片。
-                        if (controls == PlayerControls.Controls) return@onPreviewKeyEvent true
-                        // 长按的重复事件不再换台：一次按键一步，避免一路滑过去。
-                        if (event.nativeKeyEvent.repeatCount > 0) return@onPreviewKeyEvent true
-                        if (controls != PlayerControls.Osd) nav.playerControls = PlayerControls.Osd
-                        surf(if (event.key == Key.DirectionUp) -1 else 1)
-                        true
-                    }
-
-                    Key.DirectionLeft, Key.DirectionRight -> {
-                        // 控制条上左右是「在按钮之间移动」，其余状态是「换平台」
-                        if (controls == PlayerControls.Controls) {
-                            false
-                        } else {
-                            // 长按只走一步，不连续换平台
-                            if (event.nativeKeyEvent.repeatCount > 0) return@onPreviewKeyEvent true
-                            if (controls != PlayerControls.Osd) nav.playerControls = PlayerControls.Osd
-                            surfPlatform(if (event.key == Key.DirectionLeft) -1 else 1)
+                    Key.DirectionUp, Key.DirectionDown -> when (controls) {
+                        // Idle：方向键只叫出控制条，绝不换台（用户反馈的误触换台）。
+                        PlayerControls.Idle -> {
+                            nav.playerControls = PlayerControls.Controls
                             true
                         }
+                        // Controls：吞掉，别让焦点逃到背后的顶栏/卡片。
+                        PlayerControls.Controls -> true
+                        // OSD：只移动预览游标，不提交。
+                        PlayerControls.Osd -> {
+                            if (event.nativeKeyEvent.repeatCount == 0) {
+                                moveOsd(if (event.key == Key.DirectionUp) -1 else 1)
+                            }
+                            true
+                        }
+                        // Lines：交给线路列表容器处理。
+                        PlayerControls.Lines -> false
+                    }
+
+                    Key.DirectionLeft, Key.DirectionRight -> when (controls) {
+                        PlayerControls.Idle -> {
+                            nav.playerControls = PlayerControls.Controls
+                            true
+                        }
+                        // Controls：在胶囊之间移动焦点
+                        PlayerControls.Controls -> false
+                        PlayerControls.Osd -> {
+                            if (event.nativeKeyEvent.repeatCount == 0) {
+                                moveOsdPlatform(if (event.key == Key.DirectionLeft) -1 else 1)
+                            }
+                            true
+                        }
+                        PlayerControls.Lines -> false
                     }
 
                     Key.DirectionCenter, Key.Enter -> when (controls) {
@@ -656,14 +615,13 @@ fun PlayerScreen(nav: AppNav, modifier: Modifier = Modifier) {
                             nav.playerControls = PlayerControls.Controls
                             true
                         }
-
+                        // OSD：只有 OK 才真正换台。
                         PlayerControls.Osd -> {
-                            nav.playerControls = PlayerControls.Controls
+                            commitOsd()
                             true
                         }
-
-                        // 交给当前聚焦的按钮
-                        PlayerControls.Controls -> false
+                        // 交给当前聚焦的胶囊 / 线路行
+                        PlayerControls.Controls, PlayerControls.Lines -> false
                     }
 
                     else -> false
@@ -850,6 +808,11 @@ fun PlayerScreen(nav: AppNav, modifier: Modifier = Modifier) {
                         translationY = osdShift
                     }
             ) {
+                // 预览游标：只移动候选，不改变正在播放的房间；OK 才提交。
+                val pool = nav.playerPool
+                val candidate = pool.getOrNull(osdCursor) ?: room
+                val osdPos = pool.indexOfFirst { it.identity == candidate.identity }
+                    .let { if (it < 0) 1 else it + 1 }
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -859,7 +822,7 @@ fun PlayerScreen(nav: AppNav, modifier: Modifier = Modifier) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = room.hostLabel,
+                        text = candidate.hostLabel,
                         style = LiveHubType.hero.copy(lineHeight = 80.sp),
                         color = Tokens.Text,
                         maxLines = 1,
@@ -869,13 +832,13 @@ fun PlayerScreen(nav: AppNav, modifier: Modifier = Modifier) {
                     Spacer(Modifier.width(44.dp))
                     Column(Modifier.weight(1f)) {
                         Text(
-                            text = "${room.platform.shortName} · ${room.ridLabel} ${room.roomId}",
+                            text = "${candidate.platform.shortName} · ${candidate.ridLabel} ${candidate.roomId}",
                             style = LiveHubType.meta,
                             color = Tokens.Muted
                         )
                         Spacer(Modifier.height(12.dp))
                         Text(
-                            text = room.title.ifBlank { room.hostLabel },
+                            text = candidate.title.ifBlank { candidate.hostLabel },
                             style = LiveHubType.title.copy(fontSize = 30.sp, fontWeight = FontWeight.SemiBold),
                             color = Tokens.Text,
                             maxLines = 1,
@@ -883,7 +846,7 @@ fun PlayerScreen(nav: AppNav, modifier: Modifier = Modifier) {
                         )
                         Spacer(Modifier.height(10.dp))
                         Text(
-                            text = "${viewerText(room.viewers)} 人在看",
+                            text = "${viewerText(candidate.viewers)} 人在看　·　$osdPos/${pool.size}",
                             style = LiveHubType.meta,
                             color = Tokens.Faint
                         )
@@ -895,7 +858,7 @@ fun PlayerScreen(nav: AppNav, modifier: Modifier = Modifier) {
                             .clip(RoundedCornerShape(16.dp))
                             .background(Tokens.Panel)
                     ) {
-                        OsdThumb(room = room)
+                        OsdThumb(room = candidate)
                     }
                 }
                 Spacer(Modifier.height(16.dp))
@@ -903,12 +866,21 @@ fun PlayerScreen(nav: AppNav, modifier: Modifier = Modifier) {
                     modifier = Modifier.padding(start = 0.dp),
                     horizontalArrangement = Arrangement.spacedBy(30.dp)
                 ) {
-                    Text(text = keyHint("↑↓" to true, " 换台" to false), style = LiveHubType.meta, color = Tokens.Muted)
+                    Text(text = keyHint("↑↓" to true, " 选台" to false), style = LiveHubType.meta, color = Tokens.Muted)
                     Text(text = keyHint("←→" to true, " 换平台" to false), style = LiveHubType.meta, color = Tokens.Muted)
-                    Text(text = keyHint("OK" to true, " 确定" to false), style = LiveHubType.meta, color = Tokens.Muted)
+                    Text(text = keyHint("OK" to true, " 换到这台" to false), style = LiveHubType.meta, color = Tokens.Muted)
                     Text(text = keyHint("返回" to true, " 关闭" to false), style = LiveHubType.meta, color = Tokens.Muted)
                 }
             }
+        }
+
+        // ---------- 线路列表（用户主动打开；OK 才切，返回取消） ----------
+        if (nav.playerControls == PlayerControls.Lines) {
+            LineSheet(
+                urls = ui.urls,
+                current = ui.lineIndex,
+                onChoose = { chooseLine(it) }
+            )
         }
 
         // ---------- 底部控制条 ----------
@@ -968,7 +940,7 @@ fun PlayerScreen(nav: AppNav, modifier: Modifier = Modifier) {
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    val enabled = nav.playerControls != PlayerControls.Idle
+                    val enabled = nav.playerControls == PlayerControls.Controls
                     if (hasError) {
                         val nonRetryable = loadErrorKind?.retryable == false
                         PillButton(
@@ -980,12 +952,8 @@ fun PlayerScreen(nav: AppNav, modifier: Modifier = Modifier) {
                                 }
                                 // 重新取地址，而不是 prepare 一个可能已经死掉的旧 URL。
                                 // 取流层错误同样适用：重试按钮必须对两种失败都能用。
-                                endedTerminal = false
-                                eofRetries = 0
-                                errorSwitches = 0
-                                singleLineRetries = 0
-                                expiryReloads = 0
-                                badLines = emptySet()
+                                sameLineReconnects = 0
+                                recoveryExhausted = false
                                 resumeLine = ui.lineIndex
                                 reconnectReload = true
                                 reloadTick++
@@ -1026,9 +994,7 @@ fun PlayerScreen(nav: AppNav, modifier: Modifier = Modifier) {
                     PillButton(
                         text = "线路",
                         valueText = if (ui.lineCount <= 1) "主" else "${ui.lineIndex + 1}/${ui.lineCount}",
-                        onClick = {
-                            if (ui.lineCount > 1) player.switchLine((ui.lineIndex + 1) % ui.lineCount)
-                        },
+                        onClick = { nav.playerControls = PlayerControls.Lines },
                         height = 68.dp,
                         horizontalPadding = 30.dp,
                         fontSize = 24.sp,
@@ -1037,7 +1003,7 @@ fun PlayerScreen(nav: AppNav, modifier: Modifier = Modifier) {
                     )
                     PillButton(
                         text = "换台",
-                        onClick = { nav.playerControls = PlayerControls.Osd },
+                        onClick = { openOsd() },
                         height = 68.dp,
                         horizontalPadding = 30.dp,
                         fontSize = 24.sp,
@@ -1136,4 +1102,121 @@ private fun Scrim(visible: Boolean) {
 @Composable
 private fun OsdThumb(room: Room) {
     RoomCover(room = room, modifier = Modifier.fillMaxSize())
+}
+
+/**
+ * 线路列表：用户主动打开的二级界面。**OK 提交，返回取消**。
+ *
+ * 这是播放页唯一能切换线路的入口。旧实现把「线路」胶囊直接做成
+ * `switchLine(next)` 循环——按一下就走，用户没有看见/确认的机会。
+ *
+ * 焦点策略：容器自己是一个可聚焦的兜底节点，行各自有 requester；
+ * 打开时先把焦点落到当前行，失败再落到容器。方向键由容器在捕获阶段
+ * 处理（root → leaf），所以列表里不会因为几何搜索跑到背后的胶囊上。
+ */
+@Composable
+private fun LineSheet(
+    urls: List<PlayUrl>,
+    current: Int,
+    onChoose: (Int) -> Unit
+) {
+    // 线路数最多 8（抖音 4 FLV + 4 HLS）；固定 16 个槽位，避免 urls 变化时
+    // remember 调用数量变化导致焦点槽错位。
+    val focuses = List(16) { rememberTvFocus() }
+    val sheetFocus = remember { FocusRequester() }
+    var cursor by remember(urls) {
+        mutableStateOf(current.coerceIn(0, (urls.size - 1).coerceAtLeast(0)))
+    }
+
+    LaunchedEffect(urls, current) {
+        var tries = 0
+        while (tries < 10) {
+            withFrameNanos { }
+            val requester = focuses.getOrNull(cursor)?.requester
+            if (requester != null && runCatching { requester.requestFocus() }.isSuccess) {
+                return@LaunchedEffect
+            }
+            tries++
+        }
+        runCatching { sheetFocus.requestFocus() }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.62f))
+            .focusRequester(sheetFocus)
+            .focusable()
+            .onPreviewKeyEvent { event ->
+                if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                when (event.key) {
+                    Key.DirectionUp -> {
+                        cursor = (cursor - 1).coerceAtLeast(0)
+                        runCatching { focuses[cursor].requester.requestFocus() }
+                        true
+                    }
+                    Key.DirectionDown -> {
+                        cursor = (cursor + 1).coerceAtMost((urls.size - 1).coerceAtLeast(0))
+                        runCatching { focuses[cursor].requester.requestFocus() }
+                        true
+                    }
+                    // 左右没有二级动作：吃掉，避免焦点逃出列表。
+                    Key.DirectionLeft, Key.DirectionRight -> true
+                    Key.DirectionCenter, Key.Enter -> {
+                        if (urls.isNotEmpty()) onChoose(cursor)
+                        true
+                    }
+                    else -> false
+                }
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            modifier = Modifier
+                .width(900.dp)
+                .clip(RoundedCornerShape(24.dp))
+                .background(Tokens.Panel)
+                .padding(32.dp)
+        ) {
+            Text(text = "线路", style = LiveHubType.h2, color = Tokens.Text)
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = "当前线路 ${current + 1}/${urls.size}　·　OK 切换　·　返回取消",
+                style = LiveHubType.small,
+                color = Tokens.Muted
+            )
+            Spacer(Modifier.height(20.dp))
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 560.dp)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 6.dp)
+            ) {
+                urls.forEachIndexed { index, url ->
+                    val format = when {
+                        url.isHls -> "HLS"
+                        url.format == StreamFormat.FLV -> "FLV"
+                        else -> url.format.name
+                    }
+                    RailRow(
+                        label = "线路 ${index + 1} · ${url.quality}",
+                        trailing = if (index == current) "$format · 当前" else format,
+                        current = index == current,
+                        onClick = { onChoose(index) },
+                        tv = focuses[index],
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                }
+            }
+            if (urls.size <= 1) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = "当前只有一条可用线路；断流时会自动重连同一条线路，不会自动换线。",
+                    style = LiveHubType.small,
+                    color = Tokens.Faint
+                )
+            }
+        }
+    }
 }

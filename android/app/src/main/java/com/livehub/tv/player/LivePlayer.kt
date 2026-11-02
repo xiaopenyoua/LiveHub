@@ -412,8 +412,16 @@ class LivePlayer(context: Context) {
      *
      * [resetWatch] = true 用于换房间（本场观看从头算）；换线路时传 false，
      * 不能因为换了一条 CDN 就把「看了多久」清零。
+     *
+     * [refreshUrls] = true：播放前让每条线路用 [PlayUrl.refresh] 本地重签一次
+     * （虎牙的 seqid 只对第一次请求有效）。不为 null 的线路换新 URL，其余原样。
      */
-    fun play(urls: List<PlayUrl>, index: Int = 0, resetWatch: Boolean = true) {
+    fun play(
+        urls: List<PlayUrl>,
+        index: Int = 0,
+        resetWatch: Boolean = true,
+        refreshUrls: Boolean = false
+    ) {
         if (urls.isEmpty()) {
             _state.value = _state.value.copy(
                 error = "没有拿到可用的播放地址",
@@ -422,16 +430,21 @@ class LivePlayer(context: Context) {
             )
             return
         }
-        this.urls = urls
-        val i = index.coerceIn(0, urls.lastIndex)
-        urls.forEachIndexed { idx, u ->
+        val actual = if (refreshUrls) {
+            urls.map { u -> u.refresh?.let { sign -> u.copy(url = sign()) } ?: u }
+        } else {
+            urls
+        }
+        this.urls = actual
+        val i = index.coerceIn(0, actual.lastIndex)
+        actual.forEachIndexed { idx, u ->
             // 只打 scheme+host+path；query 里有 wsSecret/token，别把凭据写进日志。
             // 首条额外打全串：排查 manifest/403 时没有 query 就复现不了（仅 debug 包）。
-            Log.i(TAG, "line ${idx + 1}/${urls.size} ${u.format} quality=${u.quality} " +
+            Log.i(TAG, "line ${idx + 1}/${actual.size} ${u.format} quality=${u.quality} " +
                 (if (idx == 0) u.url else u.url.substringBefore('?')))
         }
-        val target = urls[i]
-        Log.i(TAG, "playing line ${i + 1}/${urls.size} ${target.format} quality=${target.quality}")
+        val target = actual[i]
+        Log.i(TAG, "playing line ${i + 1}/${actual.size} ${target.format} quality=${target.quality}")
         val now = SystemClock.elapsedRealtime()
         val keepMs = if (resetWatch) 0L else _state.value.positionMs
         if (resetWatch) watchAnchorMs = now else watchAnchorMs = now - keepMs
@@ -451,8 +464,8 @@ class LivePlayer(context: Context) {
         _state.value = _state.value.copy(
             quality = target.quality,
             lineIndex = i,
-            lineCount = urls.size,
-            urls = urls,
+            lineCount = actual.size,
+            urls = actual,
             error = null,
             buffering = true,
             ended = false,

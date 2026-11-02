@@ -16,3 +16,4 @@ android/tools/*/build/
 .workbuddy/memory/*
 .workbuddy/research/*
 .taste-skill/*
+.playwright-mcp/*

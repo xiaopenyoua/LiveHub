@@ -100,8 +100,8 @@ enum class Screen(val label: String) {
     Settings("设置")
 }
 
-/** 播放页控制层的三态。idle 时遮罩一起淡出，把整块屏幕还给内容。 */
-enum class PlayerControls { Idle, Controls, Osd }
+/** 播放页控制层的四态。Idle 时遮罩一起淡出，把整块屏幕还给内容。 */
+enum class PlayerControls { Idle, Controls, Osd, Lines }
 
 /** 最近搜索存的是「你打过的那串字」，不是四条直播间。只在本机内存里，不落盘。 */
 data class RecentQuery(val text: String, val at: Long = System.currentTimeMillis())
@@ -263,11 +263,13 @@ fun AppRoot(debugRoom: String? = null, debugScreen: String? = null) {
         when {
             nav.showExit -> nav.showExit = false
             nav.playerRoom != null -> {
-                // 播放页：先收起控制条，再按才离开
-                if (nav.playerControls != PlayerControls.Idle) {
-                    nav.playerControls = PlayerControls.Idle
-                } else {
-                    nav.playerRoom = null
+                // 播放页：按层收起。线路列表/换台预览先回控制条，控制条再回 Idle，
+                // Idle 再按才离开播放页。一次 BACK 不会连跳两级。
+                when (nav.playerControls) {
+                    PlayerControls.Lines, PlayerControls.Osd ->
+                        nav.playerControls = PlayerControls.Controls
+                    PlayerControls.Controls -> nav.playerControls = PlayerControls.Idle
+                    PlayerControls.Idle -> nav.playerRoom = null
                 }
             }
             nav.screen != Screen.Home -> nav.screen = Screen.Home

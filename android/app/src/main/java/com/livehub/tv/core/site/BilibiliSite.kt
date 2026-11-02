@@ -155,6 +155,9 @@ class BilibiliSite : LiveSite {
     }
 
     override suspend fun search(keyword: String, page: Int): List<Room> {
+        // 搜索接口没有 buvid3 会直接 412（返回一页 HTML，不是 JSON）。
+        // 取流那条路已经在用 ensureBuvid()，搜索复用同一个：不额外发明第二套 cookie 逻辑。
+        ensureBuvid()
         val url = "$WEB_API/x/web-interface/search/type?search_type=live" +
             "&keyword=${encode(keyword)}&page=$page"
         val json = Net.getJson(url, apiHeaders, "https://search.bilibili.com/")

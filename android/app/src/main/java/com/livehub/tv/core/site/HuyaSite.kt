@@ -190,8 +190,13 @@ class HuyaSite : LiveSite {
         val flv = ArrayList<PlayUrl>()
         // 本环境实测每条 FLV 连接给的数据量：HS ≈2.2 MB、AL ≈0.5 MB、TX ≈0.14 MB。
         // 所以按 HS → AL → TX 排；只影响同一清晰度内的候选顺序，用户仍可手动换线。
+        // 同一间房会给两套 streamName：第一套（AL/TX/HS）是主线的三张 CDN，
+        // 第二套（AL13/TX15/HS24）在本环境实测恒 403——不是 CDN 不同，是流名已失效。
+        // 只保留 API 第一条所在的流名家族，别把必死的线路塞给播放器。
+        val primaryStream = cdns.optJSONObject(0)?.optString("sStreamName").orEmpty()
         val orderedCdns = (0 until cdns.length())
             .mapNotNull { cdns.optJSONObject(it) }
+            .filter { primaryStream.isBlank() || it.optString("sStreamName") == primaryStream }
             .sortedBy { cdnRank(it.optString("sCdnType")) }
         for (cdn in orderedCdns) {
             val streamName = cdn.optString("sStreamName")
@@ -203,15 +208,21 @@ class HuyaSite : LiveSite {
             if (flvQuery != null) {
                 val flvUrl = cdn.optString("sFlvUrl").ifBlank { "http://al.flv.huya.com/src" }
                 val flvSuffix = cdn.optString("sFlvUrlSuffix").ifBlank { "flv" }
+                // 本地重签：fm/wsTime/uid/streamName 不变，只换 seqid/wsSecret。
+                val sign = {
+                    "$flvUrl/$streamName.$flvSuffix?" +
+                        (antiQuery(flvAnti, uid, streamName) ?: flvQuery)
+                }
                 flv.add(
                     // 命名传参：url 与 quality 都是 String 且相邻，互换能编过（见 BilibiliSite 同处注释）
                     // **保持 http**：FLV 的 https 边缘对本环境恒 403（2026-11-02 实测），
                     // http 才是 200 video/x-flv；清单已放行明文，只用于媒体拉流。
                     PlayUrl(
-                        url = "$flvUrl/$streamName.$flvSuffix?$flvQuery",
+                        url = sign(),
                         quality = quality,
                         format = StreamFormat.FLV,
-                        headers = headers
+                        headers = headers,
+                        refresh = sign
                     )
                 )
             }
