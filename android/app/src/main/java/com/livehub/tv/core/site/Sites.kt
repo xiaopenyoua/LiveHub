@@ -136,9 +136,9 @@ object Sites {
     private fun failureOf(platform: Platform, t: Throwable) = SiteFailure.of(platform, t)
 
     /** 首页信息流（带失败归因）：能出内容的几家并发取，谁慢谁被裁掉，不让一个平台拖住整屏。 */
-    suspend fun homeFeedDetailed(perSiteTimeoutMs: Long = 6_000): FeedResult = coroutineScope {
+    suspend fun homeFeedDetailed(page: Int = 1, perSiteTimeoutMs: Long = 6_000): FeedResult = coroutineScope {
         val jobs = recommendable().map { site ->
-            async { site to siteResult(perSiteTimeoutMs) { site.recommend(1) } }
+            async { site to siteResult(perSiteTimeoutMs) { site.recommend(page) } }
         }
         val collected = jobs.map { it.await() }
         FeedResult(
@@ -151,7 +151,7 @@ object Sites {
 
     /** 只要数据、不在乎谁失败的调用方用这个 */
     suspend fun homeFeed(perSiteTimeoutMs: Long = 6_000): List<Room> =
-        homeFeedDetailed(perSiteTimeoutMs).rooms
+        homeFeedDetailed(perSiteTimeoutMs = perSiteTimeoutMs).rooms
 
     /**
      * 全平台搜索（带失败归因）。**只发给 `search = true` 的几家**：

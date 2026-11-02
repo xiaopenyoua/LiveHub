@@ -24,9 +24,9 @@ import org.json.JSONObject
  *      解出首段 prefix 后 wsSecret = md5(prefix_uid_streamName_seqid_wsTime)，必须自己算。
  * 已知风险：
  * 1. live.cdn.huya.com/liveconfig/game/bussLive 不带 bussType=1 时返回空数组，不是接口挂了。
- * 2. HLS 线路只有 HS 系 CDN（hs.hls / HS24.hls 等）真的出 m3u8，AL / TX（含 AL13、TX15）
- *    的 .m3u8 恒 403，所以按 sCdnType 前缀过滤，只把 HS 的 HLS 交给播放器；
- *    FLV 保留全部 CDN（302/403 会由播放器回落吃掉）。
+ * 2. **只交付 FLV**。虎牙的 m3u8 是几秒一签的切片清单，签名串只对第一次请求有效，
+ *    ExoPlayer 按 target duration 重拉同一清单必然 403（2026-11-02 实测），不能当直播源。
+ *    FLV 必须走 HTTP，且 Referer 要指向**这一间房**，根域 Referer 一律 403。
  * 3. 搜索接口的 docs 结构是 JSONP 时代的 key=1 字典，且分页参数是 rows/page。
  */
 class HuyaSite : LiveSite {
@@ -45,9 +45,20 @@ class HuyaSite : LiveSite {
         "Origin" to "https://www.huya.com"
     )
 
-    private val streamHeaders = mapOf(
-        "User-Agent" to Net.UA_PC,
-        "Referer" to REFERER,
+    /**
+     * 播放请求的头。**Referer 必须是这一间房的页面**，不能是根域。
+     *
+     * 2026-11-02 实测（房间 660000，同一串 antiCode）：
+     * `Referer: https://www.huya.com/` → HTTP 403；`Referer: https://www.huya.com/660000`
+     * → 200 `video/x-flv` 并持续出流。根域 Referer 会让**所有 FLV 线路**在首帧前就 403，
+     * 播放页只能逐条换线，用户看到的就是「CDN 拒绝了这个地址」。
+     */
+    private fun streamHeaders(roomId: String) = mapOf(
+        // **不要用 UA_PC**：本机（模拟器/部分运营商网络）对 PC Chrome UA 的 HTTP 请求
+        // 直接 302 到 get360.rails.cn，ExoPlayer 拿到一段 HTML 就报「流格式异常」。
+        // 同一个 URL 换 TV/手机 UA 是 200 video/x-flv（2026-11-02 三种 UA 对照实测）。
+        "User-Agent" to Net.UA_TV,
+        "Referer" to "$WEB/$roomId",
         "Origin" to "https://www.huya.com"
     )
 
@@ -175,8 +186,8 @@ class HuyaSite : LiveSite {
             ?: throw SiteException(SiteError.PARSE_BROKEN, null, "虎牙：取流响应缺少 baseSteamInfoList")
 
         val quality = qualityName(stream)
+        val headers = streamHeaders(roomId)
         val flv = ArrayList<PlayUrl>()
-        val hls = ArrayList<PlayUrl>()
         // 本环境实测每条 FLV 连接给的数据量：HS ≈2.2 MB、AL ≈0.5 MB、TX ≈0.14 MB。
         // 所以按 HS → AL → TX 排；只影响同一清晰度内的候选顺序，用户仍可手动换线。
         val orderedCdns = (0 until cdns.length())
@@ -185,10 +196,8 @@ class HuyaSite : LiveSite {
         for (cdn in orderedCdns) {
             val streamName = cdn.optString("sStreamName")
             val uid = cdn.optString("lPresenterUid")
-            // FLV 与 HLS 各用各的 antiCode（实测两者内容一致，但字段是分开给的）
             val flvAnti = cdn.optString("sFlvAntiCode").ifBlank { cdn.optString("sHlsAntiCode") }
             if (streamName.isBlank()) continue
-            val cdnType = cdn.optString("sCdnType")
 
             val flvQuery = antiQuery(flvAnti, uid, streamName)
             if (flvQuery != null) {
@@ -196,45 +205,27 @@ class HuyaSite : LiveSite {
                 val flvSuffix = cdn.optString("sFlvUrlSuffix").ifBlank { "flv" }
                 flv.add(
                     // 命名传参：url 与 quality 都是 String 且相邻，互换能编过（见 BilibiliSite 同处注释）
+                    // **保持 http**：FLV 的 https 边缘对本环境恒 403（2026-11-02 实测），
+                    // http 才是 200 video/x-flv；清单已放行明文，只用于媒体拉流。
                     PlayUrl(
-                        url = upgrade("$flvUrl/$streamName.$flvSuffix?$flvQuery"),
+                        url = "$flvUrl/$streamName.$flvSuffix?$flvQuery",
                         quality = quality,
                         format = StreamFormat.FLV,
-                        headers = streamHeaders
-                    )
-                )
-            }
-
-            // HLS 只信 HS 系 CDN：实测 AL / TX（含 AL13、TX15）的 .m3u8 恒 403，
-            // 只有 hs.hls 出真 m3u8。别把必死的线路塞给播放器，回落要花掉一次首帧超时。
-            val hlsAnti = cdn.optString("sHlsAntiCode").ifBlank { flvAnti }
-            val hlsQuery = if (cdnType.startsWith("HS")) antiQuery(hlsAnti, uid, streamName) else null
-            if (hlsQuery != null && cdn.optString("sHlsUrl").isNotBlank()) {
-                val hlsUrl = cdn.optString("sHlsUrl")
-                val hlsSuffix = cdn.optString("sHlsUrlSuffix").ifBlank { "m3u8" }
-                hls.add(
-                    PlayUrl(
-                        // **不要 upgrade 成 https**：2026-10-30 实测 HS 系 HLS 的 https 恒 403，
-                        // http 才是 200 application/x-mpegurl（同一串 antiCode、只改 scheme）。
-                        // 这不是「明文更稳」的口味问题，是该边缘节点根本不提供 TLS。
-                        url = "$hlsUrl/$streamName.$hlsSuffix?$hlsQuery",
-                        quality = quality,
-                        format = StreamFormat.HLS,
-                        headers = streamHeaders
+                        headers = headers
                     )
                 )
             }
         }
-        val out = ArrayList<PlayUrl>(flv.size + hls.size)
-        // HLS 优先：HS 的 m3u8 是连续播放列表，能跨分片一直播下去；FLV 实测每条连接
-        // 只给约 1–2 MB 就被对端关闭（0.5–9s），会不断触发 STATE_ENDED。
-        // 把稳定线路排第一，FLV 留作 HLS 不可用时的回落。
-        out.addAll(hls)
-        out.addAll(flv)
-        if (out.isEmpty()) {
+        // **不再给 HLS**：虎牙的 m3u8 是「几秒一签」的切片清单（实测一次只给 1–3 个分片，
+        // 有时直接带 ENDLIST），而清单 URL 的 wsSecret/seqid 只对**第一次请求**有效
+        // （同一 URL 3s 后 403，X-Err-Info: BypassAuth…not_allowed）。ExoPlayer 会按
+        // target duration 重新拉同一个清单，必然 403 —— 这正是「看十几秒就黑屏说地址过期」
+        // 的来源。播放器不会替我们重签 URL，所以 HLS 不能作为直播线路。
+        // 稳定路径只有 FLV（HTTP + 直播间 Referer）；每条连接结束由 PlayerScreen 重新取流。
+        if (flv.isEmpty()) {
             throw SiteException(SiteError.PARSE_BROKEN, null, "虎牙：房间 $roomId 没有可用播放线路")
         }
-        return out
+        return flv
     }
 
     private suspend fun profile(roomId: String): JSONObject {

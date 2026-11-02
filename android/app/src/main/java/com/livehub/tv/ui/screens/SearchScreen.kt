@@ -8,6 +8,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,6 +16,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -22,19 +26,27 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import com.livehub.tv.core.model.Room
 import com.livehub.tv.core.model.RoomDetail
 import com.livehub.tv.core.model.SiteError
@@ -52,6 +64,7 @@ import com.livehub.tv.ui.components.ErrorBar
 import com.livehub.tv.ui.components.GlassBox
 import com.livehub.tv.ui.components.LoadingState
 import com.livehub.tv.ui.components.PageHead
+import com.livehub.tv.ui.components.PillButton
 import com.livehub.tv.ui.components.RecentRow
 import com.livehub.tv.ui.components.RoomGrid
 import com.livehub.tv.ui.components.Tier
@@ -106,6 +119,13 @@ fun SearchScreen(nav: AppNav, modifier: Modifier = Modifier) {
     val query = nav.searchQuery
     val firstKey = rememberTvFocus()
     val searchTab = nav.tabRequests[Screen.Search.ordinal]
+
+    // 中文输入：让系统 IME 接管。电视遥控器没有中文键，系统输入法（Gboard 拼音/语音）
+    // 才能输入中文；「中」键打开这个输入框，用户仍然可以用 D-pad 在系统键盘上选候选。
+    var imeOpen by remember { mutableStateOf(false) }
+    var imeText by remember { mutableStateOf(query) }
+    val imeFocus = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
 
     // ---- 能力表：这两行是本页唯一的「平台判断」来源，没有任何平台名 ----
     val keywordSites = remember { Sites.all.filter { it.capabilities.search } }
@@ -214,11 +234,24 @@ fun SearchScreen(nav: AppNav, modifier: Modifier = Modifier) {
             subtitle = searchSubtitle(keywordSites, linkSites)
         )
 
-        Row(
+        BoxWithConstraints(
             modifier = Modifier
-                .fillMaxSize()
+                .weight(1f)
+                .fillMaxWidth()
                 .padding(top = 32.dp)
         ) {
+            // 键盘高度按**实际可用高度**算，不写死 92dp。
+            // 设计画布不总是 1920×1080：主题把 density 减半后，1080p 电视是 1920×1080，
+            // 而横屏手机（2400×1080 @420dpi）只有 ~1829×823。5 行固定 92dp 会多出 ~122dp，
+            // 把「删除/清空/符号/中/搜索」整行顶出屏幕（实测截图）。1080p 下仍取 92dp，
+            // 设计稿逐像素不变；矮画布上自动压到最小 56dp。
+            val keyGap = 14.dp
+            val inputHeight = 96.dp
+            val keyHeight = (
+                (maxHeight - inputHeight - 28.dp - keyGap * 4) / 5f
+            ).coerceIn(56.dp, 92.dp)
+
+            Row(Modifier.fillMaxSize()) {
             // ---------- 左：输入框 + 键盘 ----------
             Column(
                 modifier = Modifier
@@ -232,7 +265,7 @@ fun SearchScreen(nav: AppNav, modifier: Modifier = Modifier) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(96.dp)
+                        .height(inputHeight)
                         .clip(RoundedCornerShape(Tokens.CardRadius))
                         .background(Tokens.Raised)
                         .padding(horizontal = 32.dp),
@@ -276,25 +309,12 @@ fun SearchScreen(nav: AppNav, modifier: Modifier = Modifier) {
                                 .upTo(searchTab),
                             fontSize = 34.sp,
                             fontWeight = FontWeight.SemiBold,
+                            height = keyHeight,
                             tv = if (ch == '1') firstKey else rememberTvFocus()
                         )
                     }
                 }
-                Spacer(Modifier.height(14.dp))
-
-                // 符号行：让「链接输入」从 UI 可达。键盘上没有 `/` `.` `:` 时，
-                // 界面再写「粘贴链接」也是假的；这一行只补链接真正需要的几个符号。
-                KeyRow {
-                    KB_SYMBOLS.forEach { ch ->
-                        KeyCap(
-                            label = ch,
-                            onClick = { type(ch) },
-                            modifier = Modifier.weight(2f),
-                            tv = rememberTvFocus()
-                        )
-                    }
-                }
-                Spacer(Modifier.height(14.dp))
+                Spacer(Modifier.height(keyGap))
 
                 // 三行 QWERTY，短行错位：第二行缩半键、第三行缩一键半
                 KB_LETTERS.forEachIndexed { rowIndex, row ->
@@ -306,34 +326,62 @@ fun SearchScreen(nav: AppNav, modifier: Modifier = Modifier) {
                                 label = ch.toString(),
                                 onClick = { type(ch.toString()) },
                                 modifier = Modifier.weight(1f),
+                                height = keyHeight,
                                 tv = rememberTvFocus()
                             )
                         }
                     }
-                    Spacer(Modifier.height(14.dp))
+                    Spacer(Modifier.height(keyGap))
                 }
 
-                // 工具行：3 + 3 + 4 凑满十列，搜索键最宽——它是这一屏唯一的下一步
+                // 工具行：删除 / 清空 / . / / / : / 搜索。
+                // 符号不单独占一行——5 行键 + 一行符号 + 工具行会把搜索键顶出 1080 屏幕
+                // （实测底部整行被裁掉）；放进工具行既保留链接输入，又不增加高度。
                 KeyRow {
                     KeyCap(
                         label = "删除",
                         onClick = { nav.searchQuery = nav.searchQuery.dropLast(1) },
-                        modifier = Modifier.weight(3f),
+                        modifier = Modifier.weight(1.5f),
                         util = true,
+                        height = keyHeight,
                         tv = rememberTvFocus()
                     )
                     KeyCap(
                         label = "清空",
                         onClick = { nav.searchQuery = "" },
-                        modifier = Modifier.weight(3f),
+                        modifier = Modifier.weight(1.5f),
                         util = true,
+                        height = keyHeight,
+                        tv = rememberTvFocus()
+                    )
+                    KB_SYMBOLS.forEach { ch ->
+                        KeyCap(
+                            label = ch,
+                            onClick = { type(ch) },
+                            modifier = Modifier.weight(1f),
+                            fontSize = 28.sp,
+                            height = keyHeight,
+                            tv = rememberTvFocus()
+                        )
+                    }
+                    KeyCap(
+                        label = "中",
+                        onClick = {
+                            imeText = query
+                            imeOpen = true
+                        },
+                        modifier = Modifier.weight(1.5f),
+                        util = true,
+                        fontSize = 26.sp,
+                        height = keyHeight,
                         tv = rememberTvFocus()
                     )
                     KeyCap(
                         label = "搜索",
                         onClick = { submit() },
-                        modifier = Modifier.weight(4f),
+                        modifier = Modifier.weight(2.5f),
                         util = true,
+                        height = keyHeight,
                         tv = rememberTvFocus()
                     )
                 }
@@ -496,6 +544,92 @@ fun SearchScreen(nav: AppNav, modifier: Modifier = Modifier) {
                 }
                 item { Spacer(Modifier.height(80.dp)) }
             }
+            } // Row
+        } // BoxWithConstraints：键盘高度要先知道可用高度
+    }
+
+    if (imeOpen) {
+        Dialog(
+            onDismissRequest = {
+                imeOpen = false
+                keyboard?.hide()
+            }
+        ) {
+            Column(
+                modifier = Modifier
+                    .width(920.dp)
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(Tokens.Panel)
+                    .padding(32.dp)
+            ) {
+                Text(text = "中文搜索", style = LiveHubType.h2, color = Tokens.Text)
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    text = "用系统输入法输入中文；结果会实时更新，完成后回到搜索页按「搜索」。",
+                    style = LiveHubType.small,
+                    color = Tokens.Muted
+                )
+                Spacer(Modifier.height(22.dp))
+                BasicTextField(
+                    value = imeText,
+                    onValueChange = {
+                        imeText = it
+                        nav.searchQuery = it
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(imeFocus)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Color.White.copy(alpha = 0.08f))
+                        .padding(horizontal = 20.dp, vertical = 18.dp),
+                    singleLine = true,
+                    textStyle = LiveHubType.h2.copy(color = Tokens.Text),
+                    cursorBrush = SolidColor(Tokens.Live),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(
+                        onSearch = {
+                            imeOpen = false
+                            keyboard?.hide()
+                        }
+                    ),
+                    decorationBox = { inner ->
+                        Box {
+                            if (imeText.isBlank()) {
+                                Text(
+                                    text = "输入中文主播名或标题关键词…",
+                                    style = LiveHubType.h2,
+                                    color = Tokens.Faint
+                                )
+                            }
+                            inner()
+                        }
+                    }
+                )
+                Spacer(Modifier.height(26.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+                    PillButton(
+                        text = "完成",
+                        onClick = {
+                            imeOpen = false
+                            keyboard?.hide()
+                        },
+                        solid = true,
+                        height = 64.dp,
+                        horizontalPadding = 30.dp,
+                        fontSize = 24.sp
+                    )
+                }
+            }
+        }
+    }
+
+    LaunchedEffect(imeOpen) {
+        if (imeOpen) {
+            withFrameNanos { }
+            runCatching { imeFocus.requestFocus() }
+            keyboard?.show()
+        } else {
+            keyboard?.hide()
         }
     }
 

@@ -18,7 +18,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.background
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -29,9 +34,11 @@ import androidx.compose.ui.unit.sp
 import com.livehub.tv.core.model.LiveCategory
 import com.livehub.tv.core.model.Platform
 import com.livehub.tv.core.model.Room
+import com.livehub.tv.core.model.SiteError
 import com.livehub.tv.core.site.FeedResult
 import com.livehub.tv.core.site.IdInput
 import com.livehub.tv.core.site.Sites
+import com.livehub.tv.core.site.toSiteError
 import com.livehub.tv.ui.AppNav
 import com.livehub.tv.ui.Screen
 import com.livehub.tv.ui.components.Async
@@ -45,28 +52,29 @@ import com.livehub.tv.ui.components.RailRow
 import com.livehub.tv.ui.components.RoomGrid
 import com.livehub.tv.ui.components.rememberAsync
 import com.livehub.tv.ui.components.upTo
-import com.livehub.tv.ui.components.rememberTvFocus
 import com.livehub.tv.ui.theme.LiveHubType
 import com.livehub.tv.ui.theme.Tokens
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
- * 分类页：左栏钉死（平台 + 在播数量），只有右栏滚。
+ * 分类页：左栏钉死（平台），只有右栏滚。
  *
  * 左栏是「我在哪」的坐标系，跟着内容滚走用户就不知道站在哪了；所以整屏不是
  * 一个滚动容器，只有右侧分类标签 + 网格滚。
  *
- * 本页对平台的所有判断都走 `capabilities`：**能取列表的平台才发请求、才显示数量**。
+ * 本页对平台的所有判断都走 `capabilities`：**能取列表的平台才发请求**。
  * 抖音本版 `recommend/categories` 都是 false，于是它在这里不会出现「0 个」
  * 和「这个平台现在没有在播的直播间」——那两句话都是在把「取不到」说成「没人播」。
+ *
+ * 不显示房间总数：计数需要额外并发拉四家首页，既慢又会把「取不到」显示成 0；
+ * 网格改为焦点驱动的无限加载，用户走到最后一行附近就自动追加下一页。
  */
 @Composable
 fun BrowseScreen(nav: AppNav, modifier: Modifier = Modifier) {
     val platform = nav.browsePlatform
     val caps = platform?.let { Sites.of(it).capabilities }
-    val counts = rememberAsync("browse-counts") { loadPlatformCounts() }
     val feed = rememberAsync("browse-feed", platform?.key) {
         when {
             // 「全部平台」也要把四家的失败归因带上来，不能只给一句「没人播」
@@ -107,8 +115,66 @@ fun BrowseScreen(nav: AppNav, modifier: Modifier = Modifier) {
     }
 
     val activeData = (activeState as? Async.Ready)?.data
-    val rooms: List<Room> = activeData?.rooms.orEmpty()
+    val baseRooms: List<Room> = activeData?.rooms.orEmpty()
     val feedFailures = activeData?.failures.orEmpty()
+
+    // 焦点驱动的无限加载：首屏仍由 rememberAsync 负责（Loading/Failed/Ready 三态），
+    // 第 2 页起追加到这里。key 一变（平台/分区/chip）就整体丢弃，避免把上一栏的
+    // 房间拼到新栏里。
+    val pagingScope = rememberCoroutineScope()
+    var moreRooms by remember(platform?.key, nav.browseCategory, selectedCategoryId, usingCategoryFeed) {
+        mutableStateOf(emptyList<Room>())
+    }
+    var nextPage by remember(platform?.key, nav.browseCategory, selectedCategoryId, usingCategoryFeed) {
+        mutableIntStateOf(2)
+    }
+    var loadingMore by remember(platform?.key, nav.browseCategory, selectedCategoryId, usingCategoryFeed) {
+        mutableStateOf(false)
+    }
+    var moreEnded by remember(platform?.key, nav.browseCategory, selectedCategoryId, usingCategoryFeed) {
+        mutableStateOf(false)
+    }
+    var moreFailure by remember(platform?.key, nav.browseCategory, selectedCategoryId, usingCategoryFeed) {
+        mutableStateOf<SiteError?>(null)
+    }
+
+    fun loadMore() {
+        if (loadingMore || moreEnded) return
+        if (activeState !is Async.Ready) return
+        val pageToLoad = nextPage
+        val p = platform
+        val catId = selectedCategoryId
+        if (usingCategoryFeed && (p == null || catId == null)) return
+        loadingMore = true
+        moreFailure = null
+        pagingScope.launch {
+            try {
+                val fresh = when {
+                    usingCategoryFeed -> Sites.of(p!!).categoryRooms(catId!!, pageToLoad)
+                    p != null -> Sites.of(p).recommend(pageToLoad)
+                    else -> Sites.homeFeedDetailed(pageToLoad).rooms
+                }
+                val existing = (baseRooms + moreRooms).map { it.identity }.toSet()
+                val added = fresh.filter { it.identity !in existing }
+                if (fresh.isEmpty() || added.isEmpty()) {
+                    moreEnded = true
+                } else {
+                    moreRooms = moreRooms + added
+                    nextPage = pageToLoad + 1
+                }
+            } catch (c: CancellationException) {
+                throw c
+            } catch (e: Throwable) {
+                moreFailure = e.toSiteError()
+            } finally {
+                loadingMore = false
+            }
+        }
+    }
+
+    val rooms: List<Room> = remember(baseRooms, moreRooms) {
+        (baseRooms + moreRooms).distinctBy { it.identity }
+    }
     // 标签只来自真数据（接口给的分区 + 内容里出现过的分区），没有再编一套兜底标签：
     // 点进去必然为空的标签不是入口，是骗人。
     val categoryNames: List<String> = remember(categories.state, rooms) {
@@ -132,7 +198,7 @@ fun BrowseScreen(nav: AppNav, modifier: Modifier = Modifier) {
             .fillMaxSize()
             .padding(top = 44.dp)
     ) {
-        // ---------- 左栏：平台 + 在播数量 ----------
+        // ---------- 左栏：平台 ----------
         Column(
             modifier = Modifier
                 .width(320.dp)
@@ -148,7 +214,6 @@ fun BrowseScreen(nav: AppNav, modifier: Modifier = Modifier) {
             Spacer(Modifier.height(26.dp))
             RailRow(
                 label = "全部平台",
-                trailing = countLabel(counts.state, null),
                 current = platform == null,
                 onClick = {
                     nav.browsePlatform = null
@@ -164,7 +229,6 @@ fun BrowseScreen(nav: AppNav, modifier: Modifier = Modifier) {
             Platform.entries.forEach { p ->
                 RailRow(
                     label = p.label,
-                    trailing = countLabel(counts.state, p),
                     current = platform == p,
                     onClick = {
                         nav.browsePlatform = p
@@ -311,8 +375,23 @@ fun BrowseScreen(nav: AppNav, modifier: Modifier = Modifier) {
                                 autoFocusBlocked = nav.inNav,
                                 // 第 1 行往上先回分类标签行（chip），再往上才回「分类」页签：
                                 // 标签行是网格的父级选择器，跳过它会让 chip 在几何上不可达。
-                                upFromFirstRow = chipRequesters.firstOrNull() ?: browseTab
+                                upFromFirstRow = chipRequesters.firstOrNull() ?: browseTab,
+                                // TV 没有鼠标滚轮：焦点走到最后一行附近就是「滚到底」，
+                                // 在这里追加下一页；用户继续按 RIGHT/DOWN 就能看到新卡。
+                                onCardFocused = { room ->
+                                    val index = shown.indexOfFirst { it.identity == room.identity }
+                                    if (index >= shown.size - 5) loadMore()
+                                }
                             )
+                        }
+                        if (loadingMore) {
+                            item { LoadingState(text = "正在加载更多…") }
+                        } else {
+                            moreFailure?.let { failure ->
+                                item {
+                                    ErrorBar(error = failure, onRetry = { loadMore() })
+                                }
+                            }
                         }
                     }
                 }
@@ -323,39 +402,7 @@ fun BrowseScreen(nav: AppNav, modifier: Modifier = Modifier) {
     }
 }
 
-/** 在播数量。取数失败、或这家本版没有列表接口时写「—」，不编一个 0 出来。 */
-private fun countLabel(
-    counts: Async<Map<Platform, Int>>,
-    platform: Platform?
-): String {
-    if (platform != null && !Sites.of(platform).capabilities.recommend) return "—"
-    val data = (counts as? Async.Ready)?.data ?: return "—"
-    return if (platform == null) {
-        // 只把「能取列表」的平台加在一起：把取不到的那家算成 0，
-        // 总数就会悄悄少一截，而用户以为那就是全部。
-        val sum = data.filterKeys { Sites.of(it).capabilities.recommend }.values.sum()
-        "$sum 个"
-    } else {
-        "${data[platform] ?: 0} 个"
-    }
-}
-
-/** 四家并发取「首页推荐」的第一页，只为拿各平台的在播数量。 */
-private suspend fun loadPlatformCounts(): Map<Platform, Int> = coroutineScope {
-    Sites.all
-        .filter { it.capabilities.recommend }
-        .map { site ->
-            async {
-                val list = withTimeoutOrNull(6_000) {
-                    runCatching { site.recommend(1) }.getOrDefault(emptyList())
-                } ?: emptyList()
-                site.platform to list.size
-            }
-        }
-        .map { it.await() }
-        .toMap()
-}
-
+/** 分类标签来自真实分区接口；失败就只显示「全部」，不编造分类。 */
 private suspend fun loadCategories(platform: Platform): List<LiveCategory> =
     withTimeoutOrNull(6_000) {
         runCatching { Sites.of(platform).categories() }.getOrDefault(emptyList())

@@ -93,7 +93,7 @@ private const val MAX_EOF_RETRIES = 4
  *
  * 键位（与设计稿一致）：
  *  - 控制条收起：↑↓ 换台（打开换台条）、←→ 换平台、OK 显示控制条
- *  - 控制条显示：←→ 在按钮之间移动、↑↓ 换台、OK 执行、BACK 收起控制条
+ *  - 控制条显示：←→ 在按钮之间移动、↑↓ 不换台（换台走「换台」按钮）、OK 执行、BACK 收起控制条
  *  - 换台条打开：↑↓ 换台、←→ 换平台、OK/ BACK 关闭
  */
 @Composable
@@ -158,9 +158,6 @@ fun PlayerScreen(nav: AppNav, modifier: Modifier = Modifier) {
 
     /** 同一条线路被对端结束后的重连次数；连续短命才换线，避免一条短线就丢掉能播的 CDN。 */
     var eofRetries by remember(room.identity) { mutableStateOf(0) }
-
-    /** 虎牙 FLV 的抗盗链串可用几小时，EOF 后先用同一 URL 快重连，省掉一次取流往返。 */
-    var fastReconnects by remember(room.identity) { mutableStateOf(0) }
 
     /** 播放层错误触发的自动换线次数。 */
     var errorSwitches by remember(room.identity) { mutableStateOf(0) }
@@ -261,7 +258,6 @@ fun PlayerScreen(nav: AppNav, modifier: Modifier = Modifier) {
         qualityReload = false
         reconnectReload = false
         resumeLine = 0
-        fastReconnects = 0
         val wanted = Prefs.preferredQuality
         val urls: List<PlayUrl> = try {
             Sites.of(room.platform).playUrls(room.roomId, wanted.ifBlank { null })
@@ -308,16 +304,19 @@ fun PlayerScreen(nav: AppNav, modifier: Modifier = Modifier) {
      */
     LaunchedEffect(ui.ended, room.identity) {
         if (!ui.ended || endedTerminal || loadError != null) return@LaunchedEffect
-        // 虎牙 FLV 的抗盗链串寿命以小时计，EOF 只是这条连接被对端关掉。
-        // 先用**同一个 URL** 快重连（省掉一次 playUrls 往返，实测首帧 ~150ms），
-        // 连续 3 次仍短命才重新取地址。
-        if (room.platform == Platform.HUYA && ui.urls.isNotEmpty() && fastReconnects < 3) {
-            fastReconnects++
-            cornerNotice = "直播流中断 · 正在重连…"
-            player.play(ui.urls, ui.lineIndex, resetWatch = false)
+        // 虎牙 FLV：每条连接只给 1–2 MB 就被对端关掉，而签名串里的 seqid 只对**第一次**
+        // 请求有效——同一个 URL 隔几秒再连会 403（2026-11-02 实测）。所以 EOF 后的正确
+        // 动作是**重新取地址**（新的 seqid），再回到同一条线；不能快重连同一个 URL。
+        // 连续短命（不到 5s 又 EOF）才计入 eofRetries，最终换线；稳定播满 5s 会清零。
+        if (room.platform == Platform.HUYA && eofRetries < MAX_EOF_RETRIES) {
+            eofRetries++
+            resumeLine = ui.lineIndex
+            reconnectReload = true
+            delay(150)
+            reloadTick++
             return@LaunchedEffect
         }
-        // 其它平台 / 快重连用完：重新取地址（新的 wsTime/seqid/token），再回到同一条线。
+        // 其它平台 / 虎牙连续短命：重新取地址（新的 wsTime/seqid/token），再回到同一条线。
         if (eofRetries < MAX_EOF_RETRIES) {
             eofRetries++
             resumeLine = ui.lineIndex
@@ -332,7 +331,6 @@ fun PlayerScreen(nav: AppNav, modifier: Modifier = Modifier) {
         if (Prefs.autoDowngrade && next != null) {
             endedLines = endedLines + current
             eofRetries = 0
-            fastReconnects = 0
             Prefs.noteDowngrade()
             cornerNotice = "这条线路结束了 · 正在换线路…"
             player.switchLine(next)
@@ -342,15 +340,16 @@ fun PlayerScreen(nav: AppNav, modifier: Modifier = Modifier) {
         }
     }
 
-    /** 稳定播满 15s 就把「短命重连」计数清零：之后的偶发 EOF 仍然先重连同一条线。 */
+    /** 稳定播满一小段时间就把「短命重连」计数清零：之后的偶发 EOF 仍然先重连同一条线。 */
     LaunchedEffect(ui.firstFrameRendered) {
         if (!ui.firstFrameRendered) return@LaunchedEffect
         Prefs.noteFirstFrame(ui.stats.firstFrameMs)
-        delay(15_000)
+        // 虎牙 FLV 的连接本来就短（常见 5–9s），稳定阈值必须低于连接寿命，
+        // 否则每次都被记成「短命」，播到第 5 次就被换线。
+        delay(if (room.platform == Platform.HUYA) 5_000 else 15_000)
         val st = player.state.value
         if (st.firstFrameRendered && !st.ended && st.error == null) {
             eofRetries = 0
-            fastReconnects = 0
             stallSwitches = 0
             errorSwitches = 0
             singleLineRetries = 0
@@ -371,7 +370,11 @@ fun PlayerScreen(nav: AppNav, modifier: Modifier = Modifier) {
         // 多线路平台也会过期：同一次 playUrls 的所有线路共享同一个 expires，
         // 换线解决不了 403。先重新取地址（最多 2 次），仍失败才逐条换线。
         val expired = error.contains("CDN 拒绝") || error.contains("过期")
-        if (ui.lineCount > 1 && expired && expiryReloads < 2) {
+        // 哔哩的多线路共享同一个 expires；虎牙 FLV 的 seqid 只对第一次请求有效。
+        // 这两家的 403 换线都绕不过去，先重新取地址（最多 2 次），仍失败才逐条换线。
+        // 抖音的 403 是单条 CDN/防盗链问题，直接换线更快。
+        val canRenew = room.platform == Platform.BILIBILI || room.platform == Platform.HUYA
+        if (canRenew && ui.lineCount > 1 && expired && expiryReloads < 2) {
             expiryReloads++
             resumeLine = ui.lineIndex
             reconnectReload = true
@@ -529,6 +532,19 @@ fun PlayerScreen(nav: AppNav, modifier: Modifier = Modifier) {
         }
     }
 
+    // 4 秒无操作自动收起控制条/进度条。任何按键都算操作，包括方向键和 OK。
+    // 错误态也收起：错误原因在控制层之外（门外那条），收起后仍然可见；
+    // 底部按钮由「按 OK」重新叫出，不会被计时器永久钉在屏幕上。
+    var interactionTick by remember { mutableStateOf(0) }
+
+    LaunchedEffect(nav.playerControls, interactionTick, hasError) {
+        if (nav.playerControls == PlayerControls.Idle) return@LaunchedEffect
+        delay(4_000)
+        if (nav.playerControls != PlayerControls.Idle) {
+            nav.playerControls = PlayerControls.Idle
+        }
+    }
+
     fun surf(delta: Int) {
         val pool = nav.playerPool
         if (pool.isEmpty()) return
@@ -607,9 +623,16 @@ fun PlayerScreen(nav: AppNav, modifier: Modifier = Modifier) {
             .focusable()
             .onPreviewKeyEvent { event ->
                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                interactionTick++
                 val controls = nav.playerControls
                 when (event.key) {
                     Key.DirectionUp, Key.DirectionDown -> {
+                        // 控制条展开时 ↑↓ 不换台：换台是「换台」按钮打开 OSD 后的事。
+                        // 否则错误态自动弹出的控制条下，用户想动按钮却直接换了房间（用户实测）。
+                        // 吃掉按键而不是返回 false：false 会把焦点交给背后的顶栏/卡片。
+                        if (controls == PlayerControls.Controls) return@onPreviewKeyEvent true
+                        // 长按的重复事件不再换台：一次按键一步，避免一路滑过去。
+                        if (event.nativeKeyEvent.repeatCount > 0) return@onPreviewKeyEvent true
                         if (controls != PlayerControls.Osd) nav.playerControls = PlayerControls.Osd
                         surf(if (event.key == Key.DirectionUp) -1 else 1)
                         true
@@ -620,6 +643,8 @@ fun PlayerScreen(nav: AppNav, modifier: Modifier = Modifier) {
                         if (controls == PlayerControls.Controls) {
                             false
                         } else {
+                            // 长按只走一步，不连续换平台
+                            if (event.nativeKeyEvent.repeatCount > 0) return@onPreviewKeyEvent true
                             if (controls != PlayerControls.Osd) nav.playerControls = PlayerControls.Osd
                             surfPlatform(if (event.key == Key.DirectionLeft) -1 else 1)
                             true
@@ -714,7 +739,12 @@ fun PlayerScreen(nav: AppNav, modifier: Modifier = Modifier) {
                 )
                 Spacer(Modifier.width(18.dp))
                 Text(
-                    text = if (loadErrorKind?.retryable == false) "按返回键回首页" else "按 OK 重试",
+                    // 控制条收起后 OK 只是把它叫回来，不会直接重试——提示必须说真话。
+                    text = when {
+                        loadErrorKind?.retryable == false -> "按返回键回首页"
+                        nav.playerControls == PlayerControls.Idle -> "按 OK 显示控制条"
+                        else -> "按 OK 重试"
+                    },
                     style = LiveHubType.small,
                     color = Tokens.Muted
                 )
@@ -1028,7 +1058,7 @@ fun PlayerScreen(nav: AppNav, modifier: Modifier = Modifier) {
                     )
                     Spacer(Modifier.weight(1f))
                     Text(
-                        text = "按 ↑ 换台　·　返回键收起控制条，再按回首页",
+                        text = "按「换台」换台　·　返回键收起控制条，再按回首页",
                         style = LiveHubType.meta,
                         color = Tokens.Muted
                     )

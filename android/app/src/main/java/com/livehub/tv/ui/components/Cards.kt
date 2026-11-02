@@ -637,7 +637,9 @@ fun RoomGrid(
      * 第一行往上落到哪。传顶栏页签的 requester，遥控器从任意一张卡往上走
      * 都能确定地回到顶栏；不传就交回几何搜索（它在这个布局里会算歪）。
      */
-    upFromFirstRow: FocusRequester? = null
+    upFromFirstRow: FocusRequester? = null,
+    /** 任何一张卡获得焦点时回调；分类页用它做「走到最后一行附近就加载下一页」。 */
+    onCardFocused: ((Room) -> Unit)? = null
 ) {
     val tvMap = remember { mutableMapOf<String, TvFocus>() }
     var didAutoFocus by remember { mutableStateOf(false) }
@@ -712,6 +714,7 @@ fun RoomGrid(
                             tv = tv,
                             onFocused = {
                                 if (memoKey != null && memo != null) memo[memoKey] = room.identity
+                                onCardFocused?.invoke(room)
                             }
                         )
                     }
