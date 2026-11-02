@@ -179,7 +179,7 @@ fun SettingsScreen(nav: AppNav, modifier: Modifier = Modifier) {
                     )
                     Spacer(Modifier.height(18.dp))
                     Text(
-                        text = "LiveHub v0.1.0",
+                        text = "LiveHub v1.0.0",
                         style = LiveHubType.small.copy(fontSize = 18.sp),
                         color = Color(0xFF5A5A5E)
                     )
@@ -626,7 +626,7 @@ private fun specsOf(group: Int): List<SettingSpec> = when (group) {
     else -> listOf(
         SettingSpec(
             label = "版本",
-            desc = "界面 v0.1.0 · 调试构建，版本号不对外",
+            desc = "界面 v1.0.0 · 调试构建，版本号不对外",
             read = { 0 },
             write = {},
             disabled = true,

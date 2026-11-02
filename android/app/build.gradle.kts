@@ -13,8 +13,10 @@ android {
         // Android TV 5.0 (API 21) 是最低面，覆盖 2014 年至今的全部 Android TV / Google TV 设备
         minSdk = 21
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1.0"
+        // 应用版本轴：与设计定稿 design/v1.0.0 对齐为 1.0.0。
+        // versionCode 用 major*10000 + minor*100 + patch，后续 1.0.1=10001、1.1.0=10100。
+        versionCode = 10000
+        versionName = "1.0.0"
         multiDexEnabled = true
         resourceConfigurations += listOf("zh", "en")
     }
