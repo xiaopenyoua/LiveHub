@@ -36,6 +36,7 @@ import com.livehub.tv.ui.components.RoomGrid
 import com.livehub.tv.ui.components.SectionHead
 import com.livehub.tv.ui.components.rememberAsync
 import com.livehub.tv.ui.components.rememberTvFocus
+import com.livehub.tv.ui.components.upTo
 import com.livehub.tv.ui.theme.Tokens
 
 /**
@@ -46,11 +47,18 @@ import com.livehub.tv.ui.theme.Tokens
  * 「先看表再按键」。两件事各自有归宿。
  */
 @Composable
-fun HomeScreen(nav: AppNav, modifier: Modifier = Modifier) {
-    val sort = Prefs.homeSort
-    val handle = rememberAsync("home", sort) { Sites.homeFeed() }
+fun HomeScreen(nav: AppNav, modifier: Modifier = Modifier, onSettled: () -> Unit = {}) {
+    var sort by remember { mutableStateOf(Prefs.homeSort) }
+    val handle = rememberAsync("home", sort) { Sites.homeFeedDetailed() }
     val heroTv = rememberTvFocus()
+    val sortTv = rememberTvFocus()
     var didFocus by remember { mutableStateOf(false) }
+
+    // 开屏等的是「第一批数据有结论」，不是「有一个能播的房间」：整屏失败也算结论，
+    // 否则网络断了开屏会一直挂着。
+    LaunchedEffect(handle.state) {
+        if (handle.state !is Async.Loading) onSettled()
+    }
 
     when (val state = handle.state) {
         Async.Loading -> Box(modifier.fillMaxSize()) {
@@ -84,7 +92,8 @@ fun HomeScreen(nav: AppNav, modifier: Modifier = Modifier) {
         }
 
         is Async.Ready -> {
-            val rooms = remember(state.data, sort) { sortRooms(state.data, sort) }
+            val feed = state.data
+            val rooms = remember(feed.rooms, sort) { sortRooms(feed.rooms, sort) }
             // 单平台失败在 UI 上就是「缺席」：那家的卡片不出现，其它家照常。
             // 但只剩 0–1 家时，4 家里至少 3 家失败——这时候不该摆几行内容装作正常，
             // 整屏说「网络异常」并给重试，比让用户以为「今天只有这些直播」诚实。
@@ -96,6 +105,8 @@ fun HomeScreen(nav: AppNav, modifier: Modifier = Modifier) {
                         .padding(start = Tokens.Gutter, end = Tokens.Gutter, top = 96.dp)
                 ) {
                     ErrorBar(
+                        // 四家全挂时把第一家的真实归责码带上：断网/403/改版不能都缩成一句
+                        error = if (rooms.isEmpty()) feed.failures.firstOrNull()?.kind else null,
                         text = if (rooms.isEmpty()) "所有平台都没有返回内容"
                         else "只有 ${rooms.first().platform.label} 一家返回了内容，其它平台都失败了",
                         onRetry = { handle.retry() }
@@ -104,6 +115,7 @@ fun HomeScreen(nav: AppNav, modifier: Modifier = Modifier) {
                     EmptyState(
                         title = "网络异常",
                         body = "四家平台里至少三家没取到。这不是「今天没有直播」，是取数失败了——不显示任何假卡片。",
+                        error = if (rooms.isEmpty()) feed.failures.firstOrNull()?.kind else null,
                         actionText = "重试",
                         onAction = { handle.retry() }
                     )
@@ -111,9 +123,9 @@ fun HomeScreen(nav: AppNav, modifier: Modifier = Modifier) {
             } else {
                 val homeTab = nav.tabRequests[Screen.Home.ordinal]
                 LaunchedEffect(rooms.first().identity) {
-                    // 顶栏拿着焦点时不要抢：否则按 OK 切到本屏的同一瞬间，
-                    // 入口 requestFocus 到主图按钮上，同一次按键的抬起会把直播间点开。
-                    if (!didFocus && !nav.inNav) {
+                    // 顶栏拿着焦点时不要抢；播放页打开时也不要抢——否则底层首页会
+                    // 和播放页抢焦点，用户按键会落到背后的卡片上。
+                    if (!didFocus && !nav.inNav && nav.playerRoom == null) {
                         withFrameNanos { }
                         runCatching { heroTv.requester.requestFocus() }
                         didFocus = true
@@ -140,7 +152,15 @@ fun HomeScreen(nav: AppNav, modifier: Modifier = Modifier) {
                                 SectionHead(
                                     title = "正在直播",
                                     count = "全平台 ${rooms.size} 个",
-                                    trailing = if (sort == "new") "按最新排序" else "按人气排序"
+                                    trailing = if (sort == "new") "按最新排序" else "按人气排序",
+                                    trailingTv = sortTv,
+                                    onTrailingClick = {
+                                        val next = if (sort == "new") "hot" else "new"
+                                        Prefs.homeSort = next
+                                        sort = next
+                                    },
+                                    // 排序钮是网格的上一级：网格首行 UP 先到它，再 UP 才回顶栏
+                                    trailingModifier = Modifier.upTo(homeTab)
                                 )
                                 RoomGrid(
                                     rooms = rooms,
@@ -149,9 +169,8 @@ fun HomeScreen(nav: AppNav, modifier: Modifier = Modifier) {
                                     autoFocus = false,
                                     memoKey = "home",
                                     memo = nav.focusMemo,
-                                    // 第一行往上不落到主图按钮，直接回顶栏：主图按钮在上方偏左，
-                                    // 从第 3、4 列按上去靠几何会「就近」跳到它，观感上是横向窜位。
-                                    upFromFirstRow = homeTab
+                                    // 首行往上先到排序钮，再往上回顶栏；排序钮自己 UP 回页签
+                                    upFromFirstRow = sortTv.requester
                                 )
                             }
                         }

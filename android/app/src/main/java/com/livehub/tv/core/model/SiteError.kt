@@ -73,7 +73,7 @@ enum class SiteError(val retryable: Boolean, val report: Boolean) {
      * 判据必须来自平台给的确定字段，**不许用「解析失败」当前提**：虎牙是
      * **HTTP 200 + `status:422`**；斗鱼是**平台自己写在提示页里的那句话**——正文含
      * `BETARD_ABSENT_MARKERS`（「该房间目前没有开放」/「没有找到该房间」，
-     * 见 `docs/06` §2.4）。判据落在 `DouyuSite.betardShape()` + `betardFailure()`，
+     * 见 `android/docs/接口实测.md` §2.4）。判据落在 `DouyuSite.betardShape()` + `betardFailure()`，
      * **唯一一处**。
      *
      * 为什么不能只写「不是 JSON」：斗鱼改版、维护页、WAF 风控页、运营商劫持页**都不是

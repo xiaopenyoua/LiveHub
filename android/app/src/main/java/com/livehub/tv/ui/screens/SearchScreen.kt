@@ -71,6 +71,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
 
 private val KB_DIGITS = "1234567890"
+private val KB_SYMBOLS = listOf(".", "/", ":", "-", "_")
 private val KB_LETTERS = listOf("QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM")
 
 /** 19 位 room_id + 一整个分享链接都要塞得下，所以上限从 12 提到 64 */
@@ -142,8 +143,12 @@ fun SearchScreen(nav: AppNav, modifier: Modifier = Modifier) {
     val directRoom: Room? = (directState as? Async.Ready)?.data?.room
 
     // 直连命中的那张排最前（-1 档），并按 identity 去重：同一场直播不该出现两次
-    val hits: List<Pair<Room, Int>> = remember(keywordHits, directRoom) {
-        val head = directRoom?.let { listOf(it to DIRECT_RANK) }.orEmpty()
+    val hits: List<Pair<Room, Int>> = remember(keywordHits, directRoom, query) {
+        // 4–10 位纯数字同时是斗鱼/虎牙/哔哩的常见房间号，也可能被当成抖音 web_rid。
+        // 这类输入让各家关键词命中排在抖音直连之前，避免抖音把正确的平台结果挤掉；
+        // 11–12 位 web_rid / 19 位 room_id 才保持 DIRECT_RANK 置顶。
+        val headRank = if (query.length in 4..10) 3 else DIRECT_RANK
+        val head = directRoom?.let { listOf(it to headRank) }.orEmpty()
         (head + keywordHits.filter { it.first.identity != directRoom?.identity })
             .take(24)
     }
@@ -152,8 +157,25 @@ fun SearchScreen(nav: AppNav, modifier: Modifier = Modifier) {
     // 只留中文、不留 message：格式化放在这里一次，下面三处用它的地方不用各自再查表。
     val keywordFailure = (keywordState as? Async.Failed)?.kind
     val directFailure = (directState as? Async.Failed)?.kind
+    // 4–10 位纯数字同时可能是哔哩/斗鱼/虎牙的房间号，抖音只是其中一种解释。
+    // 直连只问「吃链接」的平台（当前是抖音），它配不上页面不能证明整次搜索坏了；
+    // 把「抖音页面没配对」印成「接口可能已改版」会让用户以为平台挂了。
+    // 这类输入以三家关键词结果为准：无结果就诚实说「没有匹配」。
+    val ambiguousNumeric = directInput != null &&
+        directInput.all { it.isDigit() } && directInput.length in 4..10
+    val directFailureShown = if (ambiguousNumeric) null else directFailure
     val settled = keywordState !is Async.Loading &&
         (directInput == null || directState !is Async.Loading)
+
+    // 自动触发（输满 6 位房间号）也要记入最近搜索，但**不记前缀**：
+    // 只在「唯一结果 + 直查命中 + 输入就是完整查询」时记，避免 545/5450/545068 全进列表。
+    LaunchedEffect(settled, query) {
+        if (settled && query.length >= 6 && hits.size == 1 &&
+            directRoom != null && directInput == query
+        ) {
+            nav.noteQuery(query)
+        }
+    }
 
     fun submit() {
         if (query.isBlank()) return
@@ -163,10 +185,12 @@ fun SearchScreen(nav: AppNav, modifier: Modifier = Modifier) {
             nav.open(top.first, hits.map { it.first })
             return
         }
-        // 详情还没回来，但形态是对的：播放页自己会取流，先进去。
-        // roomId 存的是**原样输入**，换内部号是 core 的事。
+        // 只有「详情还在路上、且输入不是 4–10 位纯数字」才先进播放页等：
+        // - 链接 / 11–12 位 web_rid / 19 位 room_id 形态明确，详情回来前进去不会认错平台；
+        // - 4–10 位纯数字可能是哔哩/斗鱼/虎牙的房间号，关键词结果还没回来时抢开播放页，
+        //   会把一个 0 结果的号硬塞进抖音（SEARCH-02）。没结果就留在搜索页。
         val input = directInput
-        if (input != null) {
+        if (input != null && !ambiguousNumeric && directState is Async.Loading) {
             val site = linkSites.first()
             val stub = Room(
                 platform = site.platform,
@@ -258,6 +282,20 @@ fun SearchScreen(nav: AppNav, modifier: Modifier = Modifier) {
                 }
                 Spacer(Modifier.height(14.dp))
 
+                // 符号行：让「链接输入」从 UI 可达。键盘上没有 `/` `.` `:` 时，
+                // 界面再写「粘贴链接」也是假的；这一行只补链接真正需要的几个符号。
+                KeyRow {
+                    KB_SYMBOLS.forEach { ch ->
+                        KeyCap(
+                            label = ch,
+                            onClick = { type(ch) },
+                            modifier = Modifier.weight(2f),
+                            tv = rememberTvFocus()
+                        )
+                    }
+                }
+                Spacer(Modifier.height(14.dp))
+
                 // 三行 QWERTY，短行错位：第二行缩半键、第三行缩一键半
                 KB_LETTERS.forEachIndexed { rowIndex, row ->
                     KeyRow {
@@ -321,7 +359,7 @@ fun SearchScreen(nav: AppNav, modifier: Modifier = Modifier) {
                         // 把 `SiteError` 直接塞进 `when` 会让整条分支被推成
                         // `Comparable<String & SiteError>`，编译不过。
                         keywordFailure != null -> keywordFailure.userText()
-                        directFailure != null -> directFailure.userText()
+                        directFailureShown != null -> directFailureShown.userText()
                         else -> "没有匹配「$query」的直播间"
                     }
 
@@ -329,7 +367,7 @@ fun SearchScreen(nav: AppNav, modifier: Modifier = Modifier) {
                         Text(
                             text = status,
                             style = LiveHubType.meta,
-                            color = if (keywordFailure != null || directFailure != null) Tokens.Live else Tokens.Faint,
+                            color = if (keywordFailure != null || directFailureShown != null) Tokens.Live else Tokens.Faint,
                             modifier = Modifier.padding(bottom = 20.dp)
                         )
                     }
@@ -378,7 +416,7 @@ fun SearchScreen(nav: AppNav, modifier: Modifier = Modifier) {
                         }
                     }
 
-                    val failure = keywordFailure ?: directFailure
+                    val failure = keywordFailure ?: directFailureShown
                     when {
                         loading && hits.isEmpty() -> item {
                             LoadingState(
@@ -461,10 +499,15 @@ fun SearchScreen(nav: AppNav, modifier: Modifier = Modifier) {
         }
     }
 
-    // 默认焦点落在键盘第一枚键上（顶栏拿着焦点时除外：那是切屏的同一次按键）
+    // 默认焦点落在键盘第一枚键上。
+    // 从顶栏页签切进来时，同一次 OK 的抬起不能被新节点吃掉，所以延迟 350ms 再抢；
+    // 这段时间足够按键抬起，也不会让用户觉得「切过来之后还要再按一下 DOWN」（DEF-2）。
     LaunchedEffect(Unit) {
-        if (nav.inNav) return@LaunchedEffect
-        withFrameNanos { }
+        if (nav.inNav) {
+            delay(350)
+        } else {
+            withFrameNanos { }
+        }
         runCatching { firstKey.requester.requestFocus() }
     }
 }
@@ -633,24 +676,24 @@ private fun searchSubtitle(keywordSites: List<LiveSite>, linkSites: List<LiveSit
     val linkNames = linkSites.joinToString("、") { it.platform.label }
     return when {
         keywordSites.isEmpty() && linkSites.isEmpty() -> "本版没有可用的取数接口，只能从首页进入。"
-        keywordSites.isEmpty() -> "$linkNames 请把直播间链接或房间号粘到上面。"
+        keywordSites.isEmpty() -> "$linkNames 请输入抖音号或链接。"
         linkSites.isEmpty() -> "输入房间号或主播名；$keywordNames 支持关键词。"
-        else -> "输入房间号或主播名；$keywordNames 支持关键词，$linkNames 请把直播间链接或房间号粘到上面。"
+        else -> "输入房间号或主播名；$keywordNames 支持关键词，$linkNames 请输入抖音号或链接。"
     }
 }
 
 /**
  * 输入框提示语。
  *
- * 域名取 [com.livehub.tv.core.model.Platform.host]，不在 UI 里写死「live.douyin.com」：
- * 哪天接入下一家「只吃链接」的平台，这句提示自动跟着变。
+ * 电视键盘打不出 `/`，也没有粘贴入口，所以这里**不教用户粘链接**，
+ * 只说键盘上真能输入的三种：房间号、主播名、抖音号。
  */
 private fun placeholder(keywordSites: List<LiveSite>, linkSites: List<LiveSite>): String {
     val link = linkSites.firstOrNull()
     return when {
-        link != null -> "房间号或直播间链接，例：${link.platform.host}/123456"
+        link != null -> "输入房间号、主播名、抖音号或链接"
         keywordSites.isNotEmpty() -> "房间号、主播名或标题关键词"
-        else -> "输入直播间链接"
+        else -> "输入房间号、抖音号或链接"
     }
 }
 
@@ -658,11 +701,11 @@ private fun placeholder(keywordSites: List<LiveSite>, linkSites: List<LiveSite>)
  * 空态下面那句。
  *
  * 本版没有搜索接口的平台，用户在这里看到「没有匹配」会以为是自己打错了；
- * 该说的是「这家搜不了，但你可以直接把链接粘进来」。
+ * 该说的是「这家搜不了，但你可以直接输抖音号进来」。
  */
 private fun searchHint(keywordSites: List<LiveSite>, linkSites: List<LiveSite>): String {
     if (keywordSites.isEmpty()) {
-        return "本版没有可用的搜索接口：把直播间链接或房间号粘到上面，按「搜索」可以直接进。"
+        return "本版没有可用的搜索接口：输入抖音号或链接，按「搜索」可以直接进。"
     }
     val keywordNames = keywordSites.joinToString("、") { it.platform.label }
     val linkOnly = linkSites.filter { !it.capabilities.search }
@@ -671,7 +714,7 @@ private fun searchHint(keywordSites: List<LiveSite>, linkSites: List<LiveSite>):
     }
     val linkNames = linkOnly.joinToString("、") { it.platform.label }
     return "$keywordNames 支持主播名、标题与房间号关键词；" +
-        "$linkNames 本版没有搜索接口，把直播间链接或房间号粘到上面，按「搜索」可以直接进。"
+        "$linkNames 本版没有搜索接口，输入抖音号或链接，按「搜索」可以直接进。"
 }
 
 // ---------------------------------------------------------------- 输入形态

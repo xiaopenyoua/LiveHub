@@ -256,11 +256,21 @@ object Net {
         referer?.let { builder.header("Referer", it) }
         try {
             client.newCall(builder.build()).execute().use { resp ->
-                // 先读 contentType 再读 bytes()：bytes() 会把 body 关掉
+                // 先读 contentType 再读 bytes()：bytes() 会把 body 关掉。
                 val charset = resp.body?.contentType()?.charset(Charsets.UTF_8) ?: Charsets.UTF_8
-                val raw = resp.body?.bytes() ?: ByteArray(0)
+                // **先判状态码，再信任 body 读取结果**。反过来的话，403/404 的错误页一旦读不完
+                // （连接被 reset、响应体截断），读 body 抛的 IOException 会先被 catch 接走，
+                // 状态码就此丢失 → 变成 NET_TIMEOUT「网络可能不太稳」。
+                // 但 httpError() 要靠 body 匹配风控词，所以读失败时用空串继续走它，
+                // 最差退到 SIGN_INVALID（对 403 是可接受的），不会把平台拒绝说成用户的网。
+                val read = runCatching { resp.body?.bytes() ?: ByteArray(0) }
+                val raw = read.getOrElse { ByteArray(0) }
                 val text = String(raw, charset)
                 if (!resp.isSuccessful) throw httpError(url, resp, text)
+                // 200 但 body 读失败：响应体不可用，不能假装拿到了空内容
+                read.exceptionOrNull()?.let { e ->
+                    throw ioError(url, e as? IOException ?: IOException(e))
+                }
                 NetBody(text, raw.size)
             }
         } catch (e: IOException) {
@@ -294,8 +304,13 @@ object Net {
         referer?.let { builder.header("Referer", it) }
         try {
             client.newCall(builder.build()).execute().use { resp ->
-                val text = resp.body?.string().orEmpty()
+                // 同 getBody：先判状态码再信任 body 读取结果。错误页读失败时状态码不能丢。
+                val read = runCatching { resp.body?.string().orEmpty() }
+                val text = read.getOrElse { "" }
                 if (!resp.isSuccessful) throw httpError(url, resp, text)
+                read.exceptionOrNull()?.let { e ->
+                    throw ioError(url, e as? IOException ?: IOException(e))
+                }
                 text
             }
         } catch (e: IOException) {

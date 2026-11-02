@@ -43,6 +43,8 @@ import com.livehub.tv.core.site.toSiteError
 import com.livehub.tv.ui.strings.userText
 import com.livehub.tv.ui.theme.LiveHubType
 import com.livehub.tv.ui.theme.Tokens
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.withFrameNanos
 import kotlinx.coroutines.CancellationException
 
 /**
@@ -129,7 +131,10 @@ fun SectionHead(
     count: String? = null,
     trailing: String? = null,
     modifier: Modifier = Modifier,
-    titleStyle: TextStyle = LiveHubType.h2
+    titleStyle: TextStyle = LiveHubType.h2,
+    trailingTv: TvFocus? = null,
+    onTrailingClick: (() -> Unit)? = null,
+    trailingModifier: Modifier = Modifier
 ) {
     Row(
         modifier = modifier
@@ -153,12 +158,29 @@ fun SectionHead(
         }
         if (!trailing.isNullOrBlank()) {
             Spacer(Modifier.weight(1f))
-            Text(
-                text = trailing,
-                style = LiveHubType.meta,
-                color = Tokens.Muted,
-                modifier = Modifier.alignByBaseline()
-            )
+            val clickable = trailingTv != null && onTrailingClick != null
+            if (clickable) {
+                // 排序是这一屏唯一一个「改列表顺序」的控件，必须是真按钮：
+                // 裸 Text + tvClickable 在 LazyColumn 的 header 里没能成为可靠落点
+                // （首行 UP 会退回几何、跳到顶栏），PillButton 的 Box 焦点节点稳定。
+                PillButton(
+                    text = trailing,
+                    onClick = onTrailingClick!!,
+                    solid = false,
+                    tv = trailingTv,
+                    height = 46.dp,
+                    horizontalPadding = 18.dp,
+                    fontSize = 18.sp,
+                    modifier = trailingModifier
+                )
+            } else {
+                Text(
+                    text = trailing,
+                    style = LiveHubType.meta,
+                    color = Tokens.Muted,
+                    modifier = trailingModifier.alignByBaseline()
+                )
+            }
         }
     }
 }
@@ -207,8 +229,17 @@ fun EmptyState(
     actionText: String? = null,
     onAction: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
-    error: SiteError? = null
+    error: SiteError? = null,
+    /** 空态是这一屏唯一可聚焦内容时，把焦点落到按钮上（关注页用） */
+    autoFocusAction: Boolean = false
 ) {
+    val actionTv = rememberTvFocus()
+    LaunchedEffect(autoFocusAction) {
+        if (autoFocusAction) {
+            withFrameNanos { }
+            runCatching { actionTv.requester.requestFocus() }
+        }
+    }
     val bodyText = error?.userText() ?: body ?: "还没有内容"
     Column(
         modifier = modifier
@@ -219,12 +250,13 @@ fun EmptyState(
         Text(text = title, style = LiveHubType.h2, color = Tokens.Text)
         Spacer(Modifier.height(14.dp))
         Text(text = bodyText, style = LiveHubType.body, color = Tokens.Muted)
-        if (actionText != null && onAction != null) {
+        if (actionText != null && onAction != null && (error == null || error.retryable)) {
             Spacer(Modifier.height(28.dp))
             PillButton(
                 text = actionText,
                 onClick = onAction,
                 solid = false,
+                tv = actionTv,
                 height = 64.dp,
                 horizontalPadding = 32.dp,
                 fontSize = 24.sp

@@ -147,6 +147,23 @@ class AppNav {
     val tabRequests: List<FocusRequester> = List(Screen.entries.size) { FocusRequester() }
 
     /**
+     * 设置页四个分组页签的 requester。
+     *
+     * 顶栏「设置」按 DOWN 优先落到第一个可调项；整组灰置时退回**当前分组页签**。
+     * 不能交给几何：顶栏「设置」在 x≈773，下面四个分组页签里离它最近的是
+     * 「账号与同步」（x≈845），几何会把焦点送错组。
+     * 与 [tabRequests] 同理，落点写成结构关系。
+     */
+    val settingsTabs: List<FocusRequester> = List(4) { FocusRequester() }
+
+    /**
+     * 设置页当前分组里第一个可调项。顶栏「设置」按 DOWN 应直接落到它上面
+     * （设计规范 §8.1：进设置页的落点是「解码方式」，不是分组条）；
+     * 整组都是灰置项时它没 attach，这时退回 [settingsTabs] 的当前分组。
+     */
+    val settingsFirstRow: FocusRequester = FocusRequester()
+
+    /**
      * 焦点是否停在顶栏。
      *
      * 用来拦住「切屏之后新屏立刻抢焦点」：如果不管，按 OK 切到「分类」的同一瞬间，
@@ -178,8 +195,67 @@ class AppNav {
  * 首页再按返回弹「退出 LiveHub？」。**永远不直接退出 App**。
  */
 @Composable
-fun AppRoot() {
-    val nav = remember { AppNav() }
+fun AppRoot(debugRoom: String? = null, debugScreen: String? = null) {
+    val nav = remember {
+        AppNav().apply {
+            // 仅 debug 包传入。格式 `platform:roomId`，例如 `bilibili:545068`。
+            if (debugRoom != null) {
+                val parts = debugRoom.split(':', limit = 2)
+                val platform = parts.getOrNull(0)?.let { Platform.of(it) }
+                val rid = parts.getOrNull(1)
+                if (platform != null && !rid.isNullOrBlank()) {
+                    val room = Room(
+                        platform = platform,
+                        roomId = rid,
+                        title = "调试房间 $rid",
+                        hostName = "",
+                        coverUrl = "",
+                        live = true
+                    )
+                    open(room, listOf(room))
+                }
+            }
+            // 测试直达某屏（仅 debug）：browse / search / settings / follow
+            if (debugScreen != null) {
+                screen = when (debugScreen) {
+                    "browse" -> Screen.Browse
+                    "search" -> Screen.Search
+                    "settings" -> Screen.Settings
+                    "follow" -> Screen.Follow
+                    else -> Screen.Home
+                }
+            }
+        }
+    }
+    // 开屏：等首页第一批数据（最多 3s）再退场；调试直达房间/某屏时跳过。
+    var splashDone by remember { mutableStateOf(debugRoom != null || debugScreen != null) }
+    var contentVisible by remember { mutableStateOf(debugRoom != null || debugScreen != null) }
+    var feedSettled by remember { mutableStateOf(false) }
+    var splashTimedOut by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(3_000)
+        splashTimedOut = true
+    }
+    LaunchedEffect(splashDone) {
+        if (splashDone) {
+            // 设计稿要求：开屏淡墨结束后**空 200ms** 顶栏字标才起，否则两个同形刺激
+            // 会被视觉系统连成「大标志缩小飞进左上角」。这 200ms 是唯一的闸。
+            delay(200)
+            contentVisible = true
+        }
+    }
+
+    // 退出播放页时把焦点还给**当前页签**，而不是让 Compose 自动落到第一个可聚焦项
+    // （那会把「从关注页进房再返回」的焦点送回首页）。冷启动时这一步也把焦点
+    // 稳定地放在首页页签，与既有行为一致。
+    LaunchedEffect(nav.playerRoom) {
+        if (nav.playerRoom == null) {
+            withFrameNanos { }
+            runCatching {
+                nav.tabRequests[nav.screen.ordinal].requestFocus()
+            }
+        }
+    }
     val context = LocalContext.current
     val activity = remember(context) { context.findActivity() }
 
@@ -203,24 +279,48 @@ fun AppRoot() {
 
     CompositionLocalProvider(LocalStageBackdrop provides stage) {
         Stage(backdrop = stage) {
-            Column(Modifier.fillMaxSize()) {
-                NavBar(nav = nav, onSelect = { nav.screen = it })
-                ScreenHost(nav = nav, modifier = Modifier.weight(1f))
+            // 内容层在开屏期间就要组合：首页的取数要在开屏后面跑，否则「等数据再退场」
+            // 会变成「先等 3s 超时、再开始取数」。用 alpha=0 藏起来，开屏是一整块不透明底，
+            // 看不到下面；退场结束后再整体亮起。
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .graphicsLayer { alpha = if (contentVisible) 1f else 0f }
+            ) {
+                Column(Modifier.fillMaxSize()) {
+                    NavBar(nav = nav, onSelect = { nav.screen = it })
+                    ScreenHost(
+                        nav = nav,
+                        onHomeSettled = { feedSettled = true },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                val room = nav.playerRoom
+                if (room != null) {
+                    PlayerScreen(nav = nav, modifier = Modifier.fillMaxSize().zIndex(2f))
+                }
+
+                if (nav.showExit) {
+                    ExitDialog(
+                        onKeepWatching = { nav.showExit = false },
+                        onExit = {
+                            nav.showExit = false
+                            activity?.finish()
+                        },
+                        modifier = Modifier.zIndex(3f)
+                    )
+                }
             }
 
-            val room = nav.playerRoom
-            if (room != null) {
-                PlayerScreen(nav = nav, modifier = Modifier.fillMaxSize().zIndex(2f))
-            }
-
-            if (nav.showExit) {
-                ExitDialog(
-                    onKeepWatching = { nav.showExit = false },
-                    onExit = {
-                        nav.showExit = false
-                        activity?.finish()
-                    },
-                    modifier = Modifier.zIndex(3f)
+            if (!splashDone) {
+                SplashScreen(
+                    settled = feedSettled || splashTimedOut,
+                    // 1500ms 时还没结论就显示这句；3s 超时后开屏退场。
+                    // 旧写法只在 3s 超时时传，而那一刻 settled 已为 true，这句永远不出现。
+                    failText = if (!feedSettled) "网络有点慢，正在继续加载…" else null,
+                    onDone = { splashDone = true },
+                    modifier = Modifier.fillMaxSize().zIndex(4f)
                 )
             }
         }
@@ -235,7 +335,11 @@ fun AppRoot() {
  * 如果只做进入动画（老版本就是这样），退出的那一屏是硬切消失的，切换看起来像「弹了一下」。
  */
 @Composable
-private fun ScreenHost(nav: AppNav, modifier: Modifier = Modifier) {
+private fun ScreenHost(
+    nav: AppNav,
+    onHomeSettled: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     // A 档不做缩放：两块 1920×1080 的图层同时合成，在 1GB 盒子上就是一次掉帧。
     // 只留明度（淡入淡出），节奏仍然分得出来。
     val from = if (Tier.scaleEnabled) 0.985f else 1f
@@ -254,7 +358,7 @@ private fun ScreenHost(nav: AppNav, modifier: Modifier = Modifier) {
         label = "screen"
     ) { screen ->
         when (screen) {
-            Screen.Home -> HomeScreen(nav)
+            Screen.Home -> HomeScreen(nav, onSettled = onHomeSettled)
             Screen.Follow -> FollowScreen(nav)
             Screen.Browse -> BrowseScreen(nav)
             Screen.Search -> SearchScreen(nav)
@@ -383,6 +487,17 @@ private fun NavBar(nav: AppNav, onSelect: (Screen) -> Unit) {
                                     Key.DirectionRight ->
                                         tabTv.getOrNull(index + 1)?.requester?.tryRequestFocus() ?: true
                                     Key.DirectionUp -> true
+                                    Key.DirectionDown -> {
+                                        if (screen == Screen.Settings) {
+                                            val group = nav.settingsGroup
+                                                .coerceIn(0, nav.settingsTabs.lastIndex)
+                                            // 优先落第一个可调项；整组灰置时退回当前分组页签
+                                            nav.settingsFirstRow.tryRequestFocus() ||
+                                                nav.settingsTabs[group].tryRequestFocus()
+                                        } else {
+                                            false
+                                        }
+                                    }
                                     else -> false
                                 }
                             }

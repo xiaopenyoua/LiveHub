@@ -26,7 +26,8 @@ import org.json.JSONObject
  * 1. japi/weblist/apinc/getC2List（分区树）已 404，分区改走 m.douyu.com/api/cate/list。
  * 2. 预览接口只给一路「预览画质」HLS；官网的 vplay1a.douyucdn.cn/live/{key}.flv 已实测失效
  *    （TLS 直接断连），所以不再拼 FLV，避免把死地址交给播放器。
- * 3. 播流地址带 token，有过期时间（约数小时），拿到就用，不要缓存。
+ * 3. 播流地址带 token，**实测约 60s 后 m3u8 分片返回 403**（2026-10-30）。拿到就用，
+ *    不要缓存；`PlayerScreen` 会在连续 403/首帧后停住时重新取流，否则会静默停在最后一帧。
  */
 class DouyuSite : LiveSite {
 
@@ -251,7 +252,7 @@ class DouyuSite : LiveSite {
 
     /**
      * 房间详情。**两种 200 必须分开**：正常是 JSON，房间不可用是一张 HTML 提示页，
-     * 两者都是 HTTP 200（实测见 `docs/06 §2.4`）。
+     * 两者都是 HTTP 200（实测见 `android/docs/接口实测.md` §2.4）。
      *
      * 判据是**平台自己的错误页标记串**，不是「解析失败就说我们想说的那句话」。
      * 原写法 `catch (JSONException) → ROOM_NOT_FOUND` 抓的是「任何非 JSON」：斗鱼改版、
@@ -446,7 +447,7 @@ class DouyuSite : LiveSite {
 internal enum class BetardShape { JSON, NOT_FOUND_PAGE, OTHER_HTML, EMPTY }
 
 /**
- * 斗鱼「房间不可用」提示页的正文标记。**实测两个变体**（`docs/06 §2.4`）：
+ * 斗鱼「房间不可用」提示页的正文标记。**实测两个变体**（`android/docs/接口实测.md` §2.4）：
  * - `该房间目前没有开放` —— `betard/1`、`betard/88888888`、`betard/999999999`，1354 字节
  * - `没有找到该房间` —— `betard/0`，1349 字节
  *

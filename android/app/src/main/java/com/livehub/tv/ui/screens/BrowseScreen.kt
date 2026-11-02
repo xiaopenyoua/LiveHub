@@ -18,23 +18,26 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.background
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.livehub.tv.core.model.LiveCategory
 import com.livehub.tv.core.model.Platform
 import com.livehub.tv.core.model.Room
+import com.livehub.tv.core.site.FeedResult
 import com.livehub.tv.core.site.IdInput
 import com.livehub.tv.core.site.Sites
 import com.livehub.tv.ui.AppNav
 import com.livehub.tv.ui.Screen
 import com.livehub.tv.ui.components.Async
 import com.livehub.tv.ui.components.CategoryChip
+import com.livehub.tv.ui.components.dpadTo
+import com.livehub.tv.ui.components.rememberTvFocus
 import com.livehub.tv.ui.components.EmptyState
 import com.livehub.tv.ui.components.ErrorBar
 import com.livehub.tv.ui.components.LoadingState
@@ -66,9 +69,10 @@ fun BrowseScreen(nav: AppNav, modifier: Modifier = Modifier) {
     val counts = rememberAsync("browse-counts") { loadPlatformCounts() }
     val feed = rememberAsync("browse-feed", platform?.key) {
         when {
-            platform == null -> Sites.homeFeed()
-            caps?.recommend == false -> emptyList() // 明知返回空还发请求 = 让用户白等 6 秒
-            else -> Sites.of(platform).recommend(1)
+            // 「全部平台」也要把四家的失败归因带上来，不能只给一句「没人播」
+            platform == null -> Sites.homeFeedDetailed()
+            caps?.recommend == false -> FeedResult(emptyList(), emptyList())
+            else -> FeedResult(Sites.of(platform).recommend(1), emptyList())
         }
     }
     val categories = rememberAsync("browse-cats", platform?.key) {
@@ -81,10 +85,30 @@ fun BrowseScreen(nav: AppNav, modifier: Modifier = Modifier) {
     val railFirst = rememberTvFocus()
     val browseTab = nav.tabRequests[Screen.Browse.ordinal]
 
-    val rooms: List<Room> = when (val state = feed.state) {
-        is Async.Ready -> state.data
-        else -> emptyList()
+    // 选中的 chip → 真实 categoryId；有 id 就调 categoryRooms，不再只过滤 recommend(1)。
+    // 旧实现 chips 只是对首屏推荐做 areaName 过滤，绝大多数分类会显示「暂时没有直播间」。
+    val selectedCategoryId: String? = remember(categories.state, nav.browseCategory) {
+        (categories.state as? Async.Ready)?.data
+            ?.firstOrNull { it.name == nav.browseCategory }?.id
     }
+    val usingCategoryFeed = platform != null &&
+        nav.browseCategory != "全部" && selectedCategoryId != null
+    val categoryFeed = rememberAsync("browse-cat", platform?.key, selectedCategoryId) {
+        val p = platform
+        if (p == null || selectedCategoryId == null) {
+            FeedResult(emptyList(), emptyList())
+        } else {
+            FeedResult(Sites.of(p).categoryRooms(selectedCategoryId, 1), emptyList())
+        }
+    }
+    val activeState = if (usingCategoryFeed) categoryFeed.state else feed.state
+    fun retryActive() {
+        if (usingCategoryFeed) categoryFeed.retry() else feed.retry()
+    }
+
+    val activeData = (activeState as? Async.Ready)?.data
+    val rooms: List<Room> = activeData?.rooms.orEmpty()
+    val feedFailures = activeData?.failures.orEmpty()
     // 标签只来自真数据（接口给的分区 + 内容里出现过的分区），没有再编一套兜底标签：
     // 点进去必然为空的标签不是入口，是骗人。
     val categoryNames: List<String> = remember(categories.state, rooms) {
@@ -93,18 +117,15 @@ fun BrowseScreen(nav: AppNav, modifier: Modifier = Modifier) {
         (fetched + fromData).distinct()
     }
     val chips = listOf("全部") + categoryNames
-    val shown = remember(rooms, nav.browseCategory) {
-        if (nav.browseCategory == "全部") rooms
+    val chipRequesters = remember(chips) { chips.map { FocusRequester() } }
+    val shown = remember(rooms, nav.browseCategory, usingCategoryFeed) {
+        if (usingCategoryFeed || nav.browseCategory == "全部") rooms
         else rooms.filter { it.areaName == nav.browseCategory }
     }
 
-    LaunchedEffect(feed.state is Async.Ready && shown.isNotEmpty()) {
-        // 顶栏拿着焦点时不抢：切屏的同一次按键会被这里刚抢到的节点吃掉
-        if (feed.state is Async.Ready && shown.isEmpty() && !nav.inNav) {
-            withFrameNanos { }
-            runCatching { railFirst.requester.requestFocus() }
-        }
-    }
+    // 选平台后**不要抢焦点**。旧实现在「右栏为空」时把焦点拉回左栏第一行
+    // 「全部平台」，于是同屏出现「抖音选中」+「全部平台聚焦」两个当前项（DEF-1）。
+    // 选中的那一行本来就是焦点所在，留在原地最不容易误读；想去「去搜索」按 RIGHT 即可。
 
     Row(
         modifier = modifier
@@ -133,8 +154,11 @@ fun BrowseScreen(nav: AppNav, modifier: Modifier = Modifier) {
                     nav.browsePlatform = null
                     nav.browseCategory = "全部"
                 },
-                // 左栏第一行往上回顶栏「分类」页签，不靠几何
-                modifier = Modifier.upTo(browseTab),
+                // 左栏第一行往上回顶栏「分类」页签；往右先到分类标签行（chip），
+                // 不靠几何——几何会把焦点直接送到下面的卡片，用户按 RIGHT 就进了房间。
+                modifier = Modifier
+                    .upTo(browseTab)
+                    .dpadTo(Key.DirectionRight, chipRequesters.firstOrNull()),
                 tv = railFirst
             )
             Platform.entries.forEach { p ->
@@ -145,7 +169,8 @@ fun BrowseScreen(nav: AppNav, modifier: Modifier = Modifier) {
                     onClick = {
                         nav.browsePlatform = p
                         nav.browseCategory = "全部"
-                    }
+                    },
+                    modifier = Modifier.dpadTo(Key.DirectionRight, chipRequesters.firstOrNull())
                 )
             }
             Spacer(Modifier.height(36.dp))
@@ -183,13 +208,20 @@ fun BrowseScreen(nav: AppNav, modifier: Modifier = Modifier) {
                 if (categoryNames.isNotEmpty()) {
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                         itemsIndexed(chips) { index, name ->
+                            val chipTv = rememberTvFocus(chipRequesters[index])
+                            // 左右只在本行 chip 之间走：不钉的话几何会把焦点送到下方网格卡片，
+                            // 用户按 RIGHT 想换分类，结果直接进了房间。
+                            val chipNav = Modifier
+                                .dpadTo(Key.DirectionLeft, chipRequesters.getOrNull(index - 1))
+                                .dpadTo(Key.DirectionRight, chipRequesters.getOrNull(index + 1))
                             CategoryChip(
                                 text = name,
                                 selected = nav.browseCategory == name,
                                 onClick = { nav.browseCategory = name },
+                                tv = chipTv,
                                 // 标签行是本屏最上面的一排可聚焦内容：往上直接回页签。
                                 // 网格第一行往上走几何会落到这排标签上，那是对的，不要抢。
-                                modifier = if (index == 0) Modifier.upTo(browseTab) else Modifier
+                                modifier = if (index == 0) chipNav.upTo(browseTab) else chipNav
                             )
                         }
                     }
@@ -197,7 +229,7 @@ fun BrowseScreen(nav: AppNav, modifier: Modifier = Modifier) {
                 }
             }
 
-            when (val state = feed.state) {
+            when (val state = activeState) {
                 Async.Loading -> item {
                     LoadingState(text = "正在取${platform?.label ?: "各平台"}的直播间…")
                 }
@@ -208,14 +240,14 @@ fun BrowseScreen(nav: AppNav, modifier: Modifier = Modifier) {
                             // 文案与「能不能重试」都由 `kind` 决定：
                             // `detail`（`HTTP 503 body=…` 这类）是诊断页的证据，不上屏。
                             error = state.kind,
-                            onRetry = { feed.retry() }
+                            onRetry = { retryActive() }
                         )
                         Spacer(Modifier.height(24.dp))
                         EmptyState(
                             title = "这一栏现在是空的",
                             error = state.kind,
                             actionText = "重试",
-                            onAction = { feed.retry() }
+                            onAction = { retryActive() }
                         )
                     }
                 }
@@ -236,16 +268,30 @@ fun BrowseScreen(nav: AppNav, modifier: Modifier = Modifier) {
                             )
                         }
                     } else if (shown.isEmpty()) {
+                        val failureKind = feedFailures.firstOrNull()?.kind
                         item {
-                            EmptyState(
-                                title = if (rooms.isEmpty()) "这个平台现在没有在播的直播间" else "「${nav.browseCategory}」下暂时没有直播间",
-                                body = "换个分类或换个平台看看。",
-                                actionText = if (nav.browseCategory != "全部") "看全部" else "重试",
-                                onAction = {
-                                    if (nav.browseCategory != "全部") nav.browseCategory = "全部"
-                                    else feed.retry()
+                            if (failureKind != null) {
+                                Column {
+                                    ErrorBar(error = failureKind, onRetry = { retryActive() })
+                                    Spacer(Modifier.height(24.dp))
+                                    EmptyState(
+                                        title = "这一栏取数失败了",
+                                        error = failureKind,
+                                        actionText = "重试",
+                                        onAction = { retryActive() }
+                                    )
                                 }
-                            )
+                            } else {
+                                EmptyState(
+                                    title = if (rooms.isEmpty()) "这个平台现在没有在播的直播间" else "「${nav.browseCategory}」下暂时没有直播间",
+                                    body = "换个分类或换个平台看看。",
+                                    actionText = if (nav.browseCategory != "全部") "看全部" else "重试",
+                                    onAction = {
+                                        if (nav.browseCategory != "全部") nav.browseCategory = "全部"
+                                        else retryActive()
+                                    }
+                                )
+                            }
                         }
                     } else {
                         item {
@@ -257,11 +303,15 @@ fun BrowseScreen(nav: AppNav, modifier: Modifier = Modifier) {
                                 gapY = 28.dp,
                                 memoKey = "browse",
                                 memo = nav.focusMemo,
+                                // **不要自动抢焦点**：本屏的入口在左栏平台行/分类 chip，
+                                // 选平台或 chip 会触发重载，网格一抢焦点，用户的下一次 RIGHT
+                                // 就落到卡片上、OK 直接进房（实测多次）。
+                                autoFocus = false,
                                 // 从顶栏切进来时不要抢焦点：同一次按键的抬起会点开第一张卡
                                 autoFocusBlocked = nav.inNav,
-                                // 第 1 行往上回「分类」页签。真机实测：不钉的话焦点死在卡片上
-                                // 一动不动的（几何搜索在滚动容器里没找到顶栏）
-                                upFromFirstRow = browseTab
+                                // 第 1 行往上先回分类标签行（chip），再往上才回「分类」页签：
+                                // 标签行是网格的父级选择器，跳过它会让 chip 在几何上不可达。
+                                upFromFirstRow = chipRequesters.firstOrNull() ?: browseTab
                             )
                         }
                     }

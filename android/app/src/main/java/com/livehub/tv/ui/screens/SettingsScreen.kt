@@ -27,6 +27,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -35,12 +40,13 @@ import com.livehub.tv.ui.AppNav
 import com.livehub.tv.ui.Screen
 import com.livehub.tv.ui.components.GlassBox
 import com.livehub.tv.ui.components.PageHead
-import com.livehub.tv.ui.components.RailRow
+import com.livehub.tv.ui.components.PillButton
 import com.livehub.tv.ui.components.SegmentedVisual
 import com.livehub.tv.ui.components.SwitchVisual
 import com.livehub.tv.ui.components.Tier
 import com.livehub.tv.ui.components.TvFocus
 import com.livehub.tv.ui.components.focusScale
+import com.livehub.tv.ui.components.tryRequestFocus
 import com.livehub.tv.ui.components.upTo
 import com.livehub.tv.ui.components.rememberTvFocus
 import com.livehub.tv.ui.components.tvClickable
@@ -89,7 +95,7 @@ fun SettingsScreen(nav: AppNav, modifier: Modifier = Modifier) {
     val specs = remember(groupIndex) { specsOf(groupIndex) }
     val local = remember { mutableStateMapOf<String, Int>() }
     val scroll = rememberScrollState()
-    val firstRow = rememberTvFocus()
+    val firstRow = rememberTvFocus(nav.settingsFirstRow)
 
     // 首行如果是灰态就落到第一个能调的项上——焦点不该停在一个没反应的开关上
     val firstEnabledIndex = remember(specs) { specs.indexOfFirst { !it.disabled } }
@@ -99,9 +105,22 @@ fun SettingsScreen(nav: AppNav, modifier: Modifier = Modifier) {
         scroll.scrollTo(0)
         // 顶栏拿着焦点时不抢（切屏的同一次按键会被刚抢到的行吃掉）
         if (nav.inNav) return@LaunchedEffect
+        // 整组都是灰置项（账号与同步/关于）时 firstRow 从未 attach，抢焦点会落空；
+        // 让焦点留在左栏分组上，用户仍然能继续导航。
+        if (firstEnabledIndex < 0) return@LaunchedEffect
         withFrameNanos { }
         runCatching { firstRow.requester.requestFocus() }
     }
+
+    val tabRequesters = nav.settingsTabs
+    val decoderLabel = listOf("自动", "硬件", "软件")[Prefs.decoderMode.coerceIn(0, 2)]
+    val qualityText = when (Prefs.preferredQuality) {
+        "150" -> "高清 150"
+        "250" -> "超清 250"
+        "400" -> "蓝光 400"
+        else -> "自动（最高）"
+    }
+    val shieldText = if (Prefs.danmakuKeywords.isBlank()) "关" else "开"
 
     Column(modifier.fillMaxSize()) {
         PageHead(
@@ -113,101 +132,180 @@ fun SettingsScreen(nav: AppNav, modifier: Modifier = Modifier) {
                 .fillMaxSize()
                 .padding(top = 36.dp)
         ) {
-            // ---------- 左：分组 ----------
-            Column(
+            // ---------- 左：只读状态卡（设计稿 §8.1） ----------
+            Box(
                 modifier = Modifier
-                    .width(340.dp)
+                    .width(490.dp)
                     .padding(start = Tokens.Gutter)
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(Tokens.Panel)
+                    .padding(34.dp)
             ) {
-                GROUP_NAMES.forEachIndexed { index, name ->
-                    RailRow(
-                        label = name,
-                        current = groupIndex == index,
-                        height = 82.dp,
-                        paddingHorizontal = 26.dp,
-                        onClick = { nav.settingsGroup = index }
+                Column {
+                    Text(text = "当前播放", style = LiveHubType.small, color = Tokens.Faint)
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        text = "$decoderLabel 解码",
+                        style = LiveHubType.h2,
+                        color = Tokens.Text
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        text = "线路降级${if (Prefs.autoDowngrade) "已开启" else "已关闭"} · 起播缓冲 1 秒",
+                        style = LiveHubType.small,
+                        color = Tokens.Muted
+                    )
+                    Spacer(Modifier.height(26.dp))
+                    StatusLine("默认画质", qualityText)
+                    StatusLine("解码方式", decoderLabel)
+                    StatusLine("线路自动降级", if (Prefs.autoDowngrade) "开" else "关")
+                    StatusLine("关键词屏蔽", shieldText)
+                    Spacer(Modifier.height(24.dp))
+                    val firstMs = Prefs.lastFirstFrameMs
+                    val drops = Prefs.downgrades7d()
+                    val dropText = if (drops == 0) {
+                        "过去 7 天没有触发过降级。"
+                    } else {
+                        "过去 7 天触发了 $drops 次降级。"
+                    }
+                    Text(
+                        text = if (firstMs > 0) {
+                            "首帧 ${String.format(java.util.Locale.CHINA, "%.1f", firstMs / 1000.0)} 秒。$dropText"
+                        } else {
+                            "还没成功起播过。$dropText"
+                        },
+                        style = LiveHubType.small,
+                        color = Tokens.Faint
+                    )
+                    Spacer(Modifier.height(18.dp))
+                    Text(
+                        text = "LiveHub v0.1.0",
+                        style = LiveHubType.small.copy(fontSize = 18.sp),
+                        color = Color(0xFF5A5A5E)
+                    )
+                    Text(
+                        text = "仅观看各平台公开直播内容",
+                        style = LiveHubType.small.copy(fontSize = 18.sp),
+                        color = Color(0xFF5A5A5E)
                     )
                 }
-                Spacer(Modifier.height(34.dp))
-                Text(
-                    text = "LiveHub v0.1.0",
-                    style = LiveHubType.small.copy(fontSize = 18.sp),
-                    color = Color(0xFF5A5A5E),
-                    modifier = Modifier.padding(start = 26.dp)
-                )
-                Spacer(Modifier.height(4.dp))
-                // 这一行真机上被断成「…直播内 / 容」——12 个汉字在 20sp 下要 240dp，
-                // 左栏内容宽只有 260-26=234dp。字号降到 18sp（216dp）留出余量，
-                // 也不再靠 \n 手工折行（换字号就散）。
-                Text(
-                    text = "仅观看各平台公开直播内容",
-                    style = LiveHubType.small.copy(fontSize = 18.sp),
-                    color = Color(0xFF5A5A5E),
-                    modifier = Modifier.padding(start = 26.dp)
-                )
             }
 
             Spacer(Modifier.width(48.dp))
 
-            // ---------- 右：设置面板 ----------
-            Box(
+            // ---------- 右：横向分组标签 + 设置面板 ----------
+            Column(
                 modifier = Modifier
                     .weight(1f)
                     .padding(end = Tokens.Gutter, bottom = 36.dp)
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(Tokens.Panel)
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(scroll)
-                        // 底部 96dp：最后一项要能滚到渐隐之上、整行露出。
-                        // 26dp 时真机上一行被面板底边切掉一半，像是「还有一个但点不到」。
-                        .padding(start = 32.dp, end = 32.dp, top = 16.dp, bottom = 96.dp)
-                ) {
-                    specs.forEachIndexed { index, spec ->
-                        val value = local[spec.label] ?: spec.read()
-                        SettingRow(
-                            spec = spec,
-                            value = value,
-                            tv = if (index == firstEnabledIndex) firstRow else rememberTvFocus(),
-                            // 第一项往上回顶栏「设置」页签：面板是自滚区，几何搜索在滚动过的
-                            // 容器里会落到左栏分组行上，观感像「跳了一下」
-                            upTo = if (index == firstEnabledIndex) nav.tabRequests[Screen.Settings.ordinal] else null,
-                            onClick = {
-                                val next = if (spec.options.isEmpty()) {
-                                    if (value == 0) 1 else 0
-                                } else {
-                                    (value + 1) % spec.options.size
+                Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                    GROUP_NAMES.forEachIndexed { index, name ->
+                        val tabTv = rememberTvFocus(tabRequesters[index])
+                        PillButton(
+                            text = name,
+                            onClick = { nav.settingsGroup = index },
+                            solid = groupIndex == index,
+                            tv = tabTv,
+                            height = 56.dp,
+                            horizontalPadding = 24.dp,
+                            fontSize = 24.sp,
+                            modifier = Modifier
+                                .onPreviewKeyEvent { event ->
+                                    if (event.type != KeyEventType.KeyDown) {
+                                        return@onPreviewKeyEvent false
+                                    }
+                                    when (event.key) {
+                                        Key.DirectionLeft ->
+                                            tabRequesters.getOrNull(index - 1)
+                                                ?.tryRequestFocus() ?: true
+                                        Key.DirectionRight ->
+                                            tabRequesters.getOrNull(index + 1)
+                                                ?.tryRequestFocus() ?: true
+                                        Key.DirectionUp ->
+                                            nav.tabRequests[Screen.Settings.ordinal]
+                                                .tryRequestFocus()
+                                        Key.DirectionDown ->
+                                            if (firstEnabledIndex >= 0) {
+                                                firstRow.requester.tryRequestFocus()
+                                            } else {
+                                                false
+                                            }
+                                        else -> false
+                                    }
                                 }
-                                local[spec.label] = next
-                                spec.write(next)
-                            }
                         )
                     }
-                    Text(
-                        text = settingsNote(groupIndex),
-                        style = LiveHubType.small,
-                        color = Tokens.Faint,
-                        modifier = Modifier.padding(start = 20.dp, top = 18.dp, bottom = 8.dp)
-                    )
                 }
-                // 下沿渐隐：列表没滚到底时，最后一行不该像被刀切过——它该「隐进」面板里。
-                // 用同一块 Panel 色做渐变，所以只在有内容压过来时才看得见。
+                Spacer(Modifier.height(24.dp))
                 Box(
                     modifier = Modifier
-                        .align(Alignment.BottomCenter)
                         .fillMaxWidth()
-                        .height(88.dp)
-                        .background(
-                            Brush.verticalGradient(
-                                0f to Tokens.Panel.copy(alpha = 0f),
-                                1f to Tokens.Panel
+                        .weight(1f)
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(Tokens.Panel)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(scroll)
+                            // 底部 96dp：最后一项要能滚到渐隐之上、整行露出。
+                            .padding(start = 32.dp, end = 32.dp, top = 16.dp, bottom = 96.dp)
+                    ) {
+                        specs.forEachIndexed { index, spec ->
+                            val value = local[spec.label] ?: spec.read()
+                            SettingRow(
+                                spec = spec,
+                                value = value,
+                                tv = if (index == firstEnabledIndex) firstRow else rememberTvFocus(),
+                                // 第一项往上回本组标签；标签再往上才回「设置」页签
+                                upTo = if (index == firstEnabledIndex) tabRequesters[groupIndex] else null,
+                                onClick = {
+                                    val next = if (spec.options.isEmpty()) {
+                                        if (value == 0) 1 else 0
+                                    } else {
+                                        (value + 1) % spec.options.size
+                                    }
+                                    local[spec.label] = next
+                                    spec.write(next)
+                                }
                             )
+                        }
+                        Text(
+                            text = settingsNote(groupIndex),
+                            style = LiveHubType.small,
+                            color = Tokens.Faint,
+                            modifier = Modifier.padding(start = 20.dp, top = 18.dp, bottom = 8.dp)
                         )
-                )
+                    }
+                    // 下沿渐隐：列表没滚到底时，最后一行不该像被刀切过——它该「隐进」面板里。
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth()
+                            .height(88.dp)
+                            .background(
+                                Brush.verticalGradient(
+                                    0f to Tokens.Panel.copy(alpha = 0f),
+                                    1f to Tokens.Panel
+                                )
+                            )
+                    )
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun StatusLine(label: String, value: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 7.dp)
+    ) {
+        Text(text = label, style = LiveHubType.small, color = Tokens.Muted, modifier = Modifier.weight(1f))
+        Text(text = value, style = LiveHubType.small, color = Tokens.Text)
     }
 }
 
@@ -336,22 +434,24 @@ private fun specsOf(group: Int): List<SettingSpec> = when (group) {
         ),
         SettingSpec(
             label = "默认画质",
-            desc = "只列 150/250/400 三档；服务端压档时以播放页显示的为准",
-            options = listOf("高清 150", "超清 250", "蓝光 400"),
+            desc = "自动 = 向平台要最高档；平台压档时以播放页显示的为准",
+            options = listOf("自动（最高）", "高清 150", "超清 250", "蓝光 400"),
             read = {
                 when (Prefs.preferredQuality) {
-                    "150" -> 0
-                    "400" -> 2
-                    else -> 1
+                    "150" -> 1
+                    "250" -> 2
+                    "400" -> 3
+                    else -> 0
                 }
             },
             write = {
                 // 存平台自己的 qn 数字，不存「原画」这种名字：
                 // 哔哩未登录会被压到 250，我们能诚实地要 250，但不能假装给了原画
                 Prefs.preferredQuality = when (it) {
-                    0 -> "150"
-                    2 -> "400"
-                    else -> "250"
+                    1 -> "150"
+                    2 -> "250"
+                    3 -> "400"
+                    else -> ""
                 }
             }
         ),
@@ -443,7 +543,7 @@ private fun specsOf(group: Int): List<SettingSpec> = when (group) {
         ),
         SettingSpec(
             label = "关键词屏蔽",
-            desc = "当前词表：$DEFAULT_SHIELD",
+            desc = "开启后按固定词表过滤：广告 / 加群 / 私信等",
             read = { if (Prefs.danmakuKeywords.isBlank()) 0 else 1 },
             write = { if (it == 1) Prefs.danmakuKeywords = DEFAULT_SHIELD else Prefs.danmakuKeywords = "" }
         ),

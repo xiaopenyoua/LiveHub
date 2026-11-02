@@ -177,8 +177,12 @@ class HuyaSite : LiveSite {
         val quality = qualityName(stream)
         val flv = ArrayList<PlayUrl>()
         val hls = ArrayList<PlayUrl>()
-        for (i in 0 until cdns.length()) {
-            val cdn = cdns.optJSONObject(i) ?: continue
+        // 本环境实测每条 FLV 连接给的数据量：HS ≈2.2 MB、AL ≈0.5 MB、TX ≈0.14 MB。
+        // 所以按 HS → AL → TX 排；只影响同一清晰度内的候选顺序，用户仍可手动换线。
+        val orderedCdns = (0 until cdns.length())
+            .mapNotNull { cdns.optJSONObject(it) }
+            .sortedBy { cdnRank(it.optString("sCdnType")) }
+        for (cdn in orderedCdns) {
             val streamName = cdn.optString("sStreamName")
             val uid = cdn.optString("lPresenterUid")
             // FLV 与 HLS 各用各的 antiCode（实测两者内容一致，但字段是分开给的）
@@ -210,8 +214,11 @@ class HuyaSite : LiveSite {
                 val hlsSuffix = cdn.optString("sHlsUrlSuffix").ifBlank { "m3u8" }
                 hls.add(
                     PlayUrl(
-                        url = upgrade("$hlsUrl/$streamName.$hlsSuffix?$hlsQuery"),
-                        quality = "$quality·HLS",
+                        // **不要 upgrade 成 https**：2026-10-30 实测 HS 系 HLS 的 https 恒 403，
+                        // http 才是 200 application/x-mpegurl（同一串 antiCode、只改 scheme）。
+                        // 这不是「明文更稳」的口味问题，是该边缘节点根本不提供 TLS。
+                        url = "$hlsUrl/$streamName.$hlsSuffix?$hlsQuery",
+                        quality = quality,
                         format = StreamFormat.HLS,
                         headers = streamHeaders
                     )
@@ -219,8 +226,11 @@ class HuyaSite : LiveSite {
             }
         }
         val out = ArrayList<PlayUrl>(flv.size + hls.size)
-        out.addAll(flv)
+        // HLS 优先：HS 的 m3u8 是连续播放列表，能跨分片一直播下去；FLV 实测每条连接
+        // 只给约 1–2 MB 就被对端关闭（0.5–9s），会不断触发 STATE_ENDED。
+        // 把稳定线路排第一，FLV 留作 HLS 不可用时的回落。
         out.addAll(hls)
+        out.addAll(flv)
         if (out.isEmpty()) {
             throw SiteException(SiteError.PARSE_BROKEN, null, "虎牙：房间 $roomId 没有可用播放线路")
         }
@@ -303,8 +313,14 @@ class HuyaSite : LiveSite {
         val ctype = params["ctype"] ?: "tars_mp"
         val fs = params["fs"] ?: "bgct"
         val uuid = java.util.UUID.randomUUID().toString().replace("-", "")
+        // `t` 必须用服务端在 antiCode 里给的值（2026-10 实测是 102），**不能写死 100**。
+        // 2026-10-30 复现：同一 room/同一 antiCode，t=100 一律 403 text/html，
+        // t=102 返回 200 video/x-flv 且能持续拉流。这曾让虎牙「能起播但接不下去」。
+        // `ratio` 若服务端给了也原样带上；没给就不要自己编。
+        val t = params["t"] ?: "102"
+        val ratio = params["ratio"]?.takeIf { it.isNotBlank() }?.let { "&ratio=$it" } ?: ""
         return "wsSecret=$secret&wsTime=$wsTime&seqid=$seqid&ctype=$ctype" +
-            "&ver=1&fs=$fs&uuid=$uuid&u=$uid&t=100&sv=2403051630"
+            "&ver=1&fs=$fs&uuid=$uuid&u=$uid&t=$t$ratio&sv=2403051630"
     }
 
     /** 直播列表：gameId=0 就是全站热门，分区靠 gameId={gid} */
@@ -362,7 +378,8 @@ class HuyaSite : LiveSite {
         for (i in 0 until rates.length()) {
             val o = rates.optJSONObject(i) ?: continue
             val name = o.optString("sDisplayName")
-            if (name.isNotBlank() && o.optInt("iBitRate", 0) > 0) return name
+            // 档位顺序由数组顺序携带；`iBitRate` 报 0 的首档名字不能丢（见上方长注释）
+            if (name.isNotBlank()) return name
         }
         return "默认画质"
     }
@@ -371,6 +388,14 @@ class HuyaSite : LiveSite {
         url.isBlank() -> ""
         url.startsWith("http://") -> "https://" + url.substring(7)
         else -> url
+    }
+
+    /** 同清晰度内的 CDN 排序：HS 在本环境给的连续数据最多，AL 次之，TX 最少 */
+    private fun cdnRank(type: String): Int = when {
+        type.startsWith("HS") -> 0
+        type.startsWith("AL") -> 1
+        type.startsWith("TX") -> 2
+        else -> 3
     }
 
     private fun encode(raw: String): String = java.net.URLEncoder.encode(raw, "UTF-8")

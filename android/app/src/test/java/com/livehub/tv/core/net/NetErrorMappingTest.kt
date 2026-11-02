@@ -109,6 +109,41 @@ class NetErrorMappingTest {
         assertTrue("detail 要留证据，不然分不清是哪种 403: ${e.detail}", e.detail!!.contains("-352"))
     }
 
+    /**
+     * 403 的错误页**读到一半连接被 reset**：状态码不能丢。
+     *
+     * 这是 2026-10-30 修复的 L4.6 的回归点：旧实现先 `body.bytes()` 再判 `isSuccessful`，
+     * body 读取抛 IOException 时会被外层 `catch` 接走 → `NET_TIMEOUT`「网络可能不太稳」，
+     * 用户被引导去查路由器。现在 body 读取包了 `runCatching`，状态码优先。
+     *
+     * 没有这条断言，把读取顺序改回去也会全绿——旧测试里的 403 都带完整 body。
+     */
+    @Test
+    fun forbiddenWithTruncatedBodyStaysSignInvalid() {
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(403)
+                .setBody("forbidden")
+                .setSocketPolicy(SocketPolicy.DISCONNECT_DURING_RESPONSE_BODY)
+        )
+        val e = call { Net.get(url()) }
+        assertEquals(SiteError.SIGN_INVALID, e.kind)
+        assertTrue(e.detail!!.startsWith("HTTP 403"))
+    }
+
+    @Test
+    fun postForbiddenWithTruncatedBodyStaysSignInvalid() {
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(403)
+                .setBody("forbidden")
+                .setSocketPolicy(SocketPolicy.DISCONNECT_DURING_RESPONSE_BODY)
+        )
+        val e = call { Net.postForm(url()) }
+        assertEquals(SiteError.SIGN_INVALID, e.kind)
+        assertTrue(e.detail!!.startsWith("HTTP 403"))
+    }
+
     // ---------------------------------------------------------------- 3. 429 / 404 / 其他 4xx
 
     @Test

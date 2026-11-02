@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.WebSocket
@@ -140,6 +141,7 @@ class BilibiliDanmaku : DanmakuClient {
         onUp: () -> Unit
     ): Outcome {
         val done = CompletableDeferred<Outcome>()
+        val closed = CompletableDeferred<Unit>()
 
         val ws = Net.client.newWebSocket(
             Request.Builder()
@@ -178,6 +180,7 @@ class BilibiliDanmaku : DanmakuClient {
 
                 override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
                     Log.i(TAG, "closed: $code $reason")
+                    closed.complete(Unit)
                     done.complete(Outcome.CLOSED)
                 }
             }
@@ -203,6 +206,11 @@ class BilibiliDanmaku : DanmakuClient {
         } finally {
             heartbeat.cancel()
             ws.close(1000, "bye")
+            // 等关闭握手完成；对端不回声就 1.5s 后强拆。
+            // 不这样做的话，OkHttp 的 loopReader 线程会挂到读超时（Net.client 12s），
+            // 换台几次就积出一批常驻线程（2026-10-30 实测一次会话 ~80 个）。
+            withTimeoutOrNull(1_500) { closed.await() }
+            ws.cancel()
         }
     }
 

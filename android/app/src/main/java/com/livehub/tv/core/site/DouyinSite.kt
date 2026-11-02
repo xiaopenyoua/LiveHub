@@ -161,7 +161,7 @@ class DouyinSite : LiveSite {
         // 「已开播，但取不到画面（接口可能改版）」是产品定的用户文案（team-lead），
         // 这里直接用同一句，避免出现两套说法。诊断用的细节（缺 stream_url / 缺线路 /
         // 结构哪一段变了）等 ui/strings 接上后进 SiteException.detail 的诊断位，
-        // 现在的临时载体是 docs/06 §4.6。
+        // 现在的临时载体是 android/docs/接口实测.md §4.7。
         val stream = room.optJSONObject("stream_url")
             ?: throw SiteException(
                 SiteError.PARSE_BROKEN, null, "抖音：已开播，但取不到画面（接口可能改版）"
@@ -183,7 +183,7 @@ class DouyinSite : LiveSite {
         // 但 HLS 一定留在列表里（tvOS 的 AVPlayer 只能放 HLS）。
         // 这四处全部命名传参：`url` 与 `quality` 都是 String 且相邻，互换能编过（见 BilibiliSite 同处注释）。
         // 抖音这两行尤其危险——`upgrade(...)` 与 `label` 两个都是短表达式，看错一眼就是「地址当画质」。
-        for (key in orderedKeys(flvMap)) {
+        for (key in orderedKeys(flvMap).sortedBy { keyGrade(it, preferQuality) }) {
             val label = names?.optString(key).orEmpty().ifBlank { key }
             out.add(
                 PlayUrl(
@@ -192,7 +192,7 @@ class DouyinSite : LiveSite {
                 )
             )
         }
-        for (key in orderedKeys(hlsMap)) {
+        for (key in orderedKeys(hlsMap).sortedBy { keyGrade(it, preferQuality) }) {
             val label = names?.optString(key).orEmpty().ifBlank { key }
             out.add(
                 PlayUrl(
@@ -383,6 +383,24 @@ class DouyinSite : LiveSite {
             val idx = rank.indexOf(key)
             if (idx >= 0) idx else rank.size
         }
+    }
+
+    /**
+     * 用户偏好（哔哩口径的数字码）→ 抖音档位 key 的优先序。
+     *
+     * 四个平台的「档」本来就不是同一套东西，这里只做**尽力而为的映射**：
+     * 用户要 250（超清）就先把 HD1 排前面，拿不到再按原有顺序回落。
+     * 不把映射写进 `PlayUrl.quality`——上屏的永远是平台自己给的名字。
+     */
+    private fun keyGrade(key: String, preferQuality: String?): Int {
+        val wanted = when (preferQuality) {
+            "150" -> setOf("SD1", "SD2")
+            "250" -> setOf("HD1")
+            "400" -> setOf("FULL_HD1")
+            "10000" -> setOf("ORIGION")
+            else -> return 0
+        }
+        return if (key in wanted) 0 else 1
     }
 
     private fun keysOf(obj: JSONObject?): List<String> {

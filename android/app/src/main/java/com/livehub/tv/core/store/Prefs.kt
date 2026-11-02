@@ -43,9 +43,9 @@ object Prefs {
         get() = sp.getInt("danmaku_size", 40)
         set(v) = sp.edit().putInt("danmaku_size", v).apply()
 
-    /** 弹幕不透明度 0-100，设计规范默认 80% */
+    /** 弹幕不透明度 0-100。设置页档位是 70/85/100，默认取 85 与 UI 一致 */
     var danmakuAlpha: Int
-        get() = sp.getInt("danmaku_alpha", 80)
+        get() = sp.getInt("danmaku_alpha", 85)
         set(v) = sp.edit().putInt("danmaku_alpha", v).apply()
 
     /** 屏蔽词，逗号分隔 */
@@ -124,6 +124,47 @@ object Prefs {
     var danmakuAreaPercent: Int
         get() = sp.getInt("danmaku_area", 33)
         set(v) = sp.edit().putInt("danmaku_area", v).apply()
+
+    // ---------- 播放统计（设置页只读状态卡） ----------
+
+    /** 最近一次起播的首帧延迟（ms）；0 = 本次安装还没成功出过首帧 */
+    var lastFirstFrameMs: Long
+        get() = sp.getLong("last_first_frame_ms", 0L)
+        private set(v) = sp.edit().putLong("last_first_frame_ms", v).apply()
+
+    private var downgradeWindowStartMs: Long
+        get() = sp.getLong("downgrade_window_start", 0L)
+        set(v) = sp.edit().putLong("downgrade_window_start", v).apply()
+
+    private var downgradeCount: Int
+        get() = sp.getInt("downgrade_count", 0)
+        set(v) = sp.edit().putInt("downgrade_count", v).apply()
+
+    fun noteFirstFrame(ms: Long) {
+        if (ms > 0L) lastFirstFrameMs = ms
+    }
+
+    /**
+     * 记录一次「播放失败触发的自动换线」。
+     * 7 天滚动窗口：窗口过期就从 0 重新计，设置页只读状态卡显示这个数。
+     */
+    fun noteDowngrade() {
+        val now = System.currentTimeMillis()
+        val start = downgradeWindowStartMs
+        if (start <= 0L || now - start > 7L * 24 * 60 * 60 * 1000) {
+            downgradeWindowStartMs = now
+            downgradeCount = 1
+        } else {
+            downgradeCount += 1
+        }
+    }
+
+    /** 过去 7 天自动降级次数；窗口过期按 0 算（不清库，等下一次 note 时重置） */
+    fun downgrades7d(): Int {
+        val start = downgradeWindowStartMs
+        if (start <= 0L) return 0
+        return if (System.currentTimeMillis() - start > 7L * 24 * 60 * 60 * 1000) 0 else downgradeCount
+    }
 
     // ---------- 关注 ----------
 

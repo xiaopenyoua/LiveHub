@@ -186,11 +186,13 @@ class BilibiliSite : LiveSite {
     // ---------------------------------------------------------------- 详情 / 取流
 
     override suspend fun detail(roomId: String): RoomDetail? {
-        val init = Net.getJson("$LIVE_API/room/v1/Room/room_init?id=$roomId", apiHeaders, REFERER)
-        requireOk(init)
-        val initData = init.optJSONObject("data") ?: return null
+        val initUrl = "$LIVE_API/room/v1/Room/room_init?id=$roomId"
+        val init = Net.getJson(initUrl, apiHeaders, REFERER)
+        val initData = roomInitData(init, initUrl, roomId)
         val realId = initData.optLong("room_id", 0L)
-        if (realId <= 0L) return null
+        if (realId <= 0L) {
+            throw SiteException(SiteError.ROOM_NOT_FOUND, initUrl, "哔哩哔哩：房间 $roomId 不存在")
+        }
         val live = initData.optInt("live_status", 0) == 1
 
         val info = Net.getJson("$LIVE_API/room/v1/Room/get_info?room_id=$realId", apiHeaders, REFERER)
@@ -209,7 +211,9 @@ class BilibiliSite : LiveSite {
 
         val room = Room(
             platform = platform,
-            roomId = roomId,
+            // 用 room_init 解析出的真实房间号，不要回用户输入的短号：
+            // 短号与真实号会形成两个 identity，关注/换台/去重会把同一房间当成两个。
+            roomId = realId.toString(),
             title = d.optString("title").ifBlank { "未命名直播间" },
             hostName = hostName,
             coverUrl = cover(d.optString("user_cover")),
@@ -229,8 +233,13 @@ class BilibiliSite : LiveSite {
     override suspend fun playUrls(roomId: String, preferQuality: String?): List<PlayUrl> {
         ensureBuvid()
         val realId = resolveRealId(roomId)
+        // 用户偏好是平台数字码（150/250/400），不是名字。空白 = 要最高档。
+        // 注意 `qn` 只是「我们要哪一档」，实际给了哪一档仍以 `current_qn` 为准。
+        val wantedQn = preferQuality?.toIntOrNull()
+            ?.takeIf { it == 150 || it == 250 || it == 400 || it == 10000 }
+            ?: 10000
         val url = "$LIVE_API/xlive/web-room/v2/index/getRoomPlayInfo?room_id=$realId" +
-            "&protocol=0,1&format=0,1,2&codec=0&qn=10000&platform=web&ptype=8&dolby=5&panorama=1"
+            "&protocol=0,1&format=0,1,2&codec=0&qn=$wantedQn&platform=web&ptype=8&dolby=5&panorama=1"
         val json = Net.getJson(url, apiHeaders, "https://live.bilibili.com/$roomId")
         requireOk(json, url)
         val data = json.optJSONObject("data")
@@ -323,17 +332,33 @@ class BilibiliSite : LiveSite {
     private suspend fun resolveRealId(roomId: String): String {
         val url = "$LIVE_API/room/v1/Room/room_init?id=$roomId"
         val json = Net.getJson(url, apiHeaders, REFERER)
-        requireOk(json, url)
-        // room_init 是「房间存不存在」的权威接口：code=0 但没有 data/room_id，就是房间没了。
-        // 这里给 ROOM_NOT_FOUND 而不是 PARSE_BROKEN，是因为虎牙/斗鱼同一场景也归这个码，
-        // UI 的「回首页」按钮只在这一个码上出现。
-        val data = json.optJSONObject("data")
-            ?: throw SiteException(SiteError.ROOM_NOT_FOUND, url, "哔哩哔哩：房间 $roomId 不存在")
+        val data = roomInitData(json, url, roomId)
         val real = data.optLong("room_id", 0L)
         if (real <= 0L) {
             throw SiteException(SiteError.ROOM_NOT_FOUND, url, "哔哩哔哩：房间 $roomId 不存在")
         }
         return real.toString()
+    }
+
+    /**
+     * `room_init` 的三种结果：`code=0` + data（正常）、`code=60004`（房间不存在）、
+     * 其它非零码（风控/改版）。
+     *
+     * **不能只靠 [requireOk]**：它只认 `-352`，其余非零码一律 `PARSE_BROKEN`，
+     * 于是用户把房间号打错时会被告诉「接口可能已改版」——错的是动作，不是接口。
+     * 判据来自平台给的码，不来自我们解析失败。
+     */
+    private fun roomInitData(json: JSONObject, url: String, roomId: String): JSONObject {
+        if (bilibiliRoomInitMissing(json)) {
+            val code = json.optInt("code", -1)
+            throw SiteException(
+                SiteError.ROOM_NOT_FOUND, url,
+                "哔哩哔哩：房间 $roomId 不存在（code=$code）"
+            )
+        }
+        requireOk(json, url)
+        return json.optJSONObject("data")
+            ?: throw SiteException(SiteError.ROOM_NOT_FOUND, url, "哔哩哔哩：房间 $roomId 不存在（无 data）")
     }
 
     private suspend fun ensureBuvid() {
@@ -376,7 +401,13 @@ class BilibiliSite : LiveSite {
         val detail = "哔哩哔哩：接口异常 code=$code${if (msg.isBlank()) "" else "（$msg）"}"
         // -352 是风控（w_rid 校验失败）。退避有效、原地立刻重试无效，所以和普通 4xx 分开：
         // 这两种失败的用户动作相反（等一会儿 vs 换线路）。
-        val kind = if (code == -352) SiteError.RATE_LIMITED else SiteError.PARSE_BROKEN
+        // -352 / -412 / -509 都是风控/限流（wbi 校验、请求过频），不是「我们没读懂接口」；
+        // 归 PARSE_BROKEN 会让一次限流变成我们自己的故障，并污染错误码统计。
+        val kind = if (code == -352 || code == -412 || code == -509) {
+            SiteError.RATE_LIMITED
+        } else {
+            SiteError.PARSE_BROKEN
+        }
         throw SiteException(kind, url, detail)
     }
 
@@ -400,4 +431,19 @@ class BilibiliSite : LiveSite {
             SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.CHINA).parse(raw)?.time?.div(1000L) ?: 0L
         }.getOrDefault(0L)
     }
+}
+
+/**
+ * `room_init` 是否明确表示「房间不存在」。**纯函数**，单测直接喂 JSON。
+ *
+ * 判据只有两条平台给的事实：
+ * - `code == 60004`（哔哩自己的「房间不存在」）；
+ * - `code == 0` 但没有 `data`（接口说成功却不给房间）。
+ *
+ * 其余非零码（`-352` 风控、改版）**不在这里**：它们该走 `requireOk` 的归责，
+ * 不能被说成「用户房间号打错了」。
+ */
+internal fun bilibiliRoomInitMissing(json: JSONObject): Boolean {
+    val code = json.optInt("code", -1)
+    return code == 60004 || (code == 0 && json.optJSONObject("data") == null)
 }

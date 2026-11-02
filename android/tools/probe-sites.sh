@@ -29,7 +29,7 @@ DOUYU_RID=288016     # 斗鱼官方赛事
 HUYA_RID=660000      # 虎牙 LOL 赛事
 # 抖音这里放的是 web_rid（直播间地址里 6–12 位的号），不是 19 位 room_id。
 # 房间下播不影响本项判定：reflow 对「存在但已下播」的房间照样返回 status_code 0 + room 对象，
-# 而「在播 / 已下播」只有 room.status（2/4）能区分 —— 两者 stream_url 都是满配的（见 docs/06 §4.6）。
+# 而「在播 / 已下播」只有 room.status（2/4）能区分 —— 两者 stream_url 都是满配的（见 接口实测.md §4.7）。
 DOUYIN_WEBRID="${DOUYIN_WEBRID:-517422039354}"
 # 备用房间：只在主房间配不上号时才用，用来分辨「这个房间没了」和「页面结构变了」。
 # 抖音是本产品唯一没有兜底的平台，一声红必须能直接告诉人该换房间号还是该改解析。
@@ -201,7 +201,7 @@ if [ "$ONLY" = "all" ] || [ "$ONLY" = "douyin" ]; then
   #   HTTP 200 + {"data":{"message":"Request params error"}}（status_code 4001038）。
   # 这就是「HTTP 200 不构成成功证明」的活例子 —— 断言只写 "data" 会把它误判成成功。
   # 为什么断言 "room": 而不是 "stream_url"：下播房间（status 4）的 stream_url 一样满配
-  #   4 路 FLV + 4 路 HLS，只是拉起来 404/超时（见 docs/06 §4.6）。拿 stream_url 当判据
+  #   4 路 FLV + 4 路 HLS，只是拉起来 404/超时（见 接口实测.md §4.7）。拿 stream_url 当判据
   #   区分不出「接口挂了」和「房间下播」，只剩一个会看心情变红的假闹钟。
   #
   # 为什么失败路径要多打一次页面：抖音是四家里唯一没有兜底的平台，一声红必须能直接

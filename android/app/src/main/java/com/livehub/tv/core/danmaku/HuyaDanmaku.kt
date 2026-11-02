@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.WebSocket
@@ -187,6 +188,7 @@ class HuyaDanmaku : DanmakuClient {
         onConnected: () -> Unit
     ): Outcome {
         val done = CompletableDeferred<Outcome>()
+        val closed = CompletableDeferred<Unit>()
         val emit: (DanmakuEvent) -> Unit = { scope.trySend(it) }
 
         // 最近一次收到任何帧的时刻。健康连接每 60s 会有一条心跳回执，
@@ -246,6 +248,7 @@ class HuyaDanmaku : DanmakuClient {
             }
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                closed.complete(Unit)
                 done.complete(Outcome.CLOSED)
             }
         }
@@ -281,6 +284,9 @@ class HuyaDanmaku : DanmakuClient {
         } finally {
             heartbeat.cancel()
             ws.close(1000, "bye")
+            // 等关闭握手；对端不回声就强拆，避免 loopReader 线程挂到读超时。
+            withTimeoutOrNull(1_500) { closed.await() }
+            ws.cancel()
         }
     }
 
