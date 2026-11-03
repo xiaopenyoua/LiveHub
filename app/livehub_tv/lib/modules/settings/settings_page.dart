@@ -407,12 +407,10 @@ class SettingsPage extends GetView<SettingsController> {
 
   List<Widget> _aboutRows(BuildContext context) {
     return [
-      _actionRow(
-        context,
+      SettingsRow(
         focusNode: controller.versionFocusNode,
         title: "版本",
         desc: "v${Utils.packageInfo.version}",
-        onTap: () {},
         autofocus: true,
       ),
     ];

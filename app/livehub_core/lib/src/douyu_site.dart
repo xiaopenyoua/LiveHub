@@ -190,7 +190,8 @@ class DouyuSite implements LiveSite {
       );
       items.add(roomItem);
     }
-    var hasMore = page < result['data']['pgcnt'];
+    // allpage 接口的 pgcnt 恒为 0，不能用它判断；本页还有房间就继续翻。
+    var hasMore = items.isNotEmpty;
     return LiveCategoryResult(hasMore: hasMore, items: items);
   }
 

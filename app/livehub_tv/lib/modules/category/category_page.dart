@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:livehub_tv/app/app_focus_node.dart';
-import 'package:livehub_tv/app/sites.dart';
 import 'package:livehub_tv/modules/category/category_controller.dart';
 import 'package:livehub_tv/routes/app_navigation.dart';
 import 'package:livehub_tv/routes/tv_tab.dart';
@@ -59,17 +58,7 @@ class _CategoryPageState extends State<CategoryPage> {
           () => Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Padding(
-                padding: EdgeInsets.only(bottom: 6 * t.unit),
-                child: _buildPlatformRow(
-                  context,
-                  id: CategoryController.kAllPlatforms,
-                  name: "全部平台",
-                  focusNode: controller.allPlatformFocusNode,
-                  selected: controller.isAllPlatforms,
-                ),
-              ),
-              for (final site in Sites.supportSites)
+              for (final site in controller.platforms)
                 Padding(
                   padding: EdgeInsets.only(bottom: 6 * t.unit),
                   child: _buildPlatformRow(
@@ -249,6 +238,47 @@ class _CategoryPageState extends State<CategoryPage> {
             },
           ),
         ),
+        // 追加下一页时的底部加载提示；不参与焦点。
+        Positioned(
+          left: 0,
+          right: 80 * t.unit,
+          bottom: 18 * t.unit,
+          child: Obx(
+            () => controller.loadingMore.value
+                ? IgnorePointer(
+                    child: Center(
+                      child: SizedBox(
+                        width: 40 * t.unit,
+                        height: 40 * t.unit,
+                        child: CircularProgressIndicator(
+                          color: t.text,
+                          strokeWidth: 4 * t.unit,
+                        ),
+                      ),
+                    ),
+                  )
+                : const SizedBox.shrink(),
+          ),
+        ),
+        Positioned(
+          left: 0,
+          right: 80 * t.unit,
+          bottom: 18 * t.unit,
+          child: Obx(
+            () => (!controller.hasMore.value &&
+                    !controller.loadingMore.value &&
+                    controller.rooms.isNotEmpty)
+                ? IgnorePointer(
+                    child: Center(
+                      child: Text(
+                        "已经到底了",
+                        style: t.small.copyWith(color: t.faint),
+                      ),
+                    ),
+                  )
+                : const SizedBox.shrink(),
+          ),
+        ),
       ],
     );
   }
@@ -268,17 +298,19 @@ class _CategoryPageState extends State<CategoryPage> {
         controller.rooms.first.focusNode.requestFocus();
         return;
       }
+      if (controller.errorMsg.value.isNotEmpty) {
+        controller.retryFocusNode.requestFocus();
+        return;
+      }
       if (controller.categories.isNotEmpty) {
         controller
             .categoryFocusNode(controller.selectedCategoryIndex.value)
             .requestFocus();
         return;
       }
-      if (controller.isAllPlatforms) {
-        controller.allPlatformFocusNode.requestFocus();
-        return;
-      }
-      Sites.supportSites.first.appFocusNode.requestFocus();
+      (controller.site ?? controller.platforms.first)
+          .appFocusNode
+          .requestFocus();
     });
   }
 }
