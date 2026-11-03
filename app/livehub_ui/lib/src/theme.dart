@@ -191,6 +191,10 @@ ThemeData liveHubTheme({
       dividerColor: Colors.transparent,
       labelStyle: tokens.tab,
       unselectedLabelStyle: tokens.tab,
+      // 选中反馈只由胶囊指示器表达。默认的 Material ink 会在整个页签槽位
+      // 上盖一块比胶囊更大的浅色方框，点按切换时非常抢眼。
+      overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+      splashFactory: NoSplash.splashFactory,
     ),
     bottomNavigationBarTheme: BottomNavigationBarThemeData(
       backgroundColor: Colors.transparent,
@@ -205,7 +209,8 @@ ThemeData liveHubTheme({
       backgroundColor: Colors.transparent,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
-      indicatorColor: palette.glassTint,
+      // 与页签胶囊同一档：12% 文字色，而不是比背景更浅的 glassTint。
+      indicatorColor: palette.text.withValues(alpha: 0.12),
       labelTextStyle: WidgetStatePropertyAll(tokens.cardMeta),
       iconTheme: WidgetStateProperty.resolveWith(
         (states) => IconThemeData(
@@ -215,6 +220,14 @@ ThemeData liveHubTheme({
           size: 24 * unit,
         ),
       ),
+    ),
+    navigationRailTheme: NavigationRailThemeData(
+      backgroundColor: Colors.transparent,
+      indicatorColor: palette.text.withValues(alpha: 0.12),
+      selectedIconTheme: IconThemeData(color: palette.text, size: 24 * unit),
+      unselectedIconTheme: IconThemeData(color: palette.faint, size: 24 * unit),
+      selectedLabelTextStyle: tokens.cardMeta.copyWith(color: palette.text),
+      unselectedLabelTextStyle: tokens.cardMeta.copyWith(color: palette.faint),
     ),
     extensions: <ThemeExtension<dynamic>>[tokens],
   );
