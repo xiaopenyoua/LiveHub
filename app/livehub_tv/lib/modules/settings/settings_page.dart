@@ -5,500 +5,751 @@ import 'package:livehub_tv/app/app_focus_node.dart';
 import 'package:livehub_tv/app/controller/app_settings_controller.dart';
 import 'package:livehub_tv/app/utils.dart';
 import 'package:livehub_tv/modules/settings/settings_controller.dart';
+import 'package:livehub_tv/routes/app_navigation.dart';
+import 'package:livehub_tv/routes/tv_tab.dart';
 import 'package:livehub_tv/services/bilibili_account_service.dart';
 import 'package:livehub_tv/services/follow_user_service.dart';
-import 'package:livehub_tv/widgets/app_scaffold.dart';
-import 'package:livehub_tv/widgets/button/highlight_button.dart';
-import 'package:livehub_tv/widgets/button/highlight_list_tile.dart';
-import 'package:livehub_tv/widgets/settings_item_widget.dart';
+import 'package:livehub_tv/widgets/settings/settings_group_tabs.dart';
+import 'package:livehub_tv/widgets/settings/settings_row.dart';
+import 'package:livehub_tv/widgets/settings/settings_segment.dart';
+import 'package:livehub_tv/widgets/settings/settings_status_card.dart';
+import 'package:livehub_tv/widgets/settings/settings_switch.dart';
+import 'package:livehub_tv/widgets/tv_page_scaffold.dart';
 import 'package:livehub_ui/livehub_ui.dart';
 
+/// 设置页：左栏只读状态卡，右栏分组条 + 可滚动的设置条目。
+///
+/// 左栏一个可聚焦元素都没有；默认焦点落在第一条设置行上（设计规范 §8.1）。
 class SettingsPage extends GetView<SettingsController> {
   const SettingsPage({super.key});
+
+  static const _groupLabels = ["播放", "弹幕", "关注", "账号与同步", "关于"];
 
   @override
   Widget build(BuildContext context) {
     final t = context.lh;
-    return AppScaffold(
-      child: Column(
-        children: [
-          SizedBox(height: 32 * t.unit),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+    return TvPageScaffold(
+      tab: TvTab.settings,
+      child: Obx(() {
+        final group = controller.groupIndex.value;
+        return Padding(
+          padding: EdgeInsets.fromLTRB(
+            80 * t.unit,
+            36 * t.unit,
+            80 * t.unit,
+            36 * t.unit,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SizedBox(width: 48 * t.unit),
-              HighlightButton(
-                focusNode: AppFocusNode(),
-                iconData: Icons.arrow_back,
-                text: "返回",
-                onTap: () {
-                  Get.back();
-                },
+              SizedBox(
+                width: 496 * t.unit,
+                child: _buildStatusCard(group),
               ),
-              SizedBox(width: 32 * t.unit),
-              Text(
-                "设置",
-                style: t.h2,
-              ),
-              SizedBox(width: 24 * t.unit),
-              const Spacer(),
-              SizedBox(width: 48 * t.unit),
+              SizedBox(width: 56 * t.unit),
+              Expanded(child: _buildRightPane(context, group)),
             ],
           ),
-          SizedBox(height: 48 * t.unit),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Obx(
-                () => HighlightButton(
-                  focusNode: AppFocusNode(),
-                  iconData: Icons.play_circle_outline,
-                  text: "播放",
-                  selected: controller.tabIndex.value == 0,
-                  onTap: () {
-                    controller.tabController.animateTo(0);
-                  },
-                ),
-              ),
-              SizedBox(width: 32 * t.unit),
-              Obx(
-                () => HighlightButton(
-                  focusNode: AppFocusNode(),
-                  iconData: Icons.subtitles_outlined,
-                  text: "弹幕",
-                  selected: controller.tabIndex.value == 1,
-                  onTap: () {
-                    controller.tabController.animateTo(1);
-                  },
-                ),
-              ),
-              SizedBox(width: 32 * t.unit),
-              Obx(
-                () => HighlightButton(
-                  focusNode: AppFocusNode(),
-                  iconData: Icons.favorite_border,
-                  text: "关注",
-                  selected: controller.tabIndex.value == 2,
-                  onTap: () {
-                    controller.tabController.animateTo(2);
-                  },
-                ),
-              ),
-              SizedBox(width: 32 * t.unit),
-              Obx(
-                () => HighlightButton(
-                  focusNode: AppFocusNode(),
-                  iconData: Icons.account_circle_outlined,
-                  selected: controller.tabIndex.value == 3,
-                  text: "账号",
-                  onTap: () {
-                    controller.tabController.animateTo(3);
-                  },
-                ),
-              ),
-              SizedBox(width: 32 * t.unit),
-              Obx(
-                () => HighlightButton(
-                  focusNode: AppFocusNode(),
-                  iconData: Icons.info_outline,
-                  selected: controller.tabIndex.value == 4,
-                  text: "关于",
-                  onTap: () {
-                    controller.tabController.animateTo(4);
-                  },
-                ),
-              ),
-            ],
-          ),
-          Expanded(
-            child: Center(
-              child: SizedBox(
-                width: 800 * t.unit,
-                child: TabBarView(
-                  controller: controller.tabController,
-                  children: [
-                    buildPlayerSettings(),
-                    buildDanmakuSettings(),
-                    buildFollowSettings(),
-                    buildAccountSettings(),
-                    buildAbout(),
-                  ],
-                ),
-              ),
+        );
+      }),
+    );
+  }
+
+  Widget _buildStatusCard(int group) {
+    final status = _statusFor(group);
+    return SettingsStatusCard(
+      kicker: status.kicker,
+      title: status.title,
+      subtitle: status.subtitle,
+      items: status.items,
+      note: status.note,
+    );
+  }
+
+  Widget _buildRightPane(BuildContext context, int group) {
+    final t = context.lh;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SettingsGroupTabs(
+          labels: _groupLabels,
+          focusNodes: controller.groupTabFocusNodes,
+          selectedIndex: group,
+          onSelect: controller.selectGroup,
+        ),
+        SizedBox(height: 24 * t.unit),
+        Expanded(child: _buildList(context, group)),
+      ],
+    );
+  }
+
+  Widget _buildList(BuildContext context, int group) {
+    final t = context.lh;
+    final rows = _rowsFor(context, group);
+    // 设计稿 .spane 的负 margin + 等量 padding：把裁剪边界退到条目边缘外 14px，
+    // 行内容仍与分组条左缘对齐，焦点行放大 1.02 的外扩量也不会被切掉（§8.2）。
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bleed = 14 * t.unit;
+        return OverflowBox(
+          minWidth: constraints.maxWidth + bleed * 2,
+          maxWidth: constraints.maxWidth + bleed * 2,
+          alignment: Alignment.center,
+          child: ListView.separated(
+            key: ValueKey(group),
+            padding: EdgeInsets.fromLTRB(
+              bleed,
+              6 * t.unit,
+              bleed,
+              26 * t.unit,
             ),
+            itemCount: rows.length,
+            separatorBuilder: (_, __) => SizedBox(height: 8 * t.unit),
+            itemBuilder: (_, index) => rows[index],
           ),
+        );
+      },
+    );
+  }
+
+  List<Widget> _rowsFor(BuildContext context, int group) {
+    switch (group) {
+      case 1:
+        return _danmakuRows(context);
+      case 2:
+        return _followRows(context);
+      case 3:
+        return _accountRows(context);
+      case 4:
+        return _aboutRows(context);
+      default:
+        return _playerRows(context);
+    }
+  }
+
+  // ---------------------------------------------------------------- 播放
+
+  List<Widget> _playerRows(BuildContext context) {
+    final settings = AppSettingsController.instance;
+    return [
+      _switchRow(
+        context,
+        focusNode: controller.hardwareDecodeFocusNode,
+        title: "硬件解码",
+        desc: "硬件解码更省电，遇到花屏再切软件",
+        value: settings.hardwareDecode.value,
+        onChanged: settings.setHardwareDecode,
+        autofocus: true,
+      ),
+      _segmentRow<int>(
+        context,
+        focusNode: controller.defaultQualityFocusNode,
+        title: "默认清晰度",
+        desc: "网络不稳时自动降一档",
+        options: const [
+          SettingsOption(0, "最低画质"),
+          SettingsOption(1, "中等画质"),
+          SettingsOption(2, "最高画质"),
         ],
+        value: settings.qualityLevel.value,
+        onChanged: settings.setQualityLevel,
+      ),
+      _choiceRow(
+        context,
+        focusNode: controller.scaleFoucsNode,
+        title: "画面比例",
+        desc: "适应 / 拉伸 / 铺满 / 16:9 / 4:3",
+        items: const {
+          0: "适应",
+          1: "拉伸",
+          2: "铺满",
+          3: "16:9",
+          4: "4:3",
+        },
+        value: settings.scaleMode.value,
+        onChanged: (value) => settings.setScaleMode(value as int),
+      ),
+      _switchRow(
+        context,
+        focusNode: controller.compatibleModeFocusNode,
+        title: "兼容模式",
+        desc: "部分设备取流异常时打开",
+        value: settings.playerCompatMode.value,
+        onChanged: settings.setPlayerCompatMode,
+      ),
+    ];
+  }
+
+  // ---------------------------------------------------------------- 弹幕
+
+  List<Widget> _danmakuRows(BuildContext context) {
+    final settings = AppSettingsController.instance;
+    return [
+      _switchRow(
+        context,
+        focusNode: controller.danmakuFoucsNode,
+        title: "弹幕开关",
+        desc: "进入直播间自动显示弹幕",
+        value: settings.danmuEnable.value,
+        onChanged: settings.setDanmuEnable,
+        autofocus: true,
+      ),
+      _choiceRow(
+        context,
+        focusNode: controller.danmakuSizeFoucsNode,
+        title: "弹幕大小",
+        desc: "大屏建议 40 以上",
+        items: {
+          24.0: "24",
+          32.0: "32",
+          40.0: "40",
+          48.0: "48",
+          56.0: "56",
+          64.0: "64",
+          72.0: "72",
+        },
+        value: settings.danmuSize.value,
+        onChanged: (value) => settings.setDanmuSize(value as double),
+      ),
+      _choiceRow(
+        context,
+        focusNode: controller.danmakuSpeedFoucsNode,
+        title: "弹幕速度",
+        desc: "越大越慢",
+        items: {
+          18.0: "很慢",
+          14.0: "较慢",
+          12.0: "慢",
+          10.0: "正常",
+          8.0: "快",
+          6.0: "较快",
+          4.0: "很快",
+        },
+        value: settings.danmuSpeed.value,
+        onChanged: (value) => settings.setDanmuSpeed(value as double),
+      ),
+      _choiceRow(
+        context,
+        focusNode: controller.danmakuAreaFoucsNode,
+        title: "显示区域",
+        desc: "只铺上半屏，字幕和比分不会被挡",
+        items: {
+          0.25: "1/4",
+          0.5: "1/2",
+          0.75: "3/4",
+          1.0: "全屏",
+        },
+        value: settings.danmuArea.value,
+        onChanged: (value) => settings.setDanmuArea(value as double),
+      ),
+      _choiceRow(
+        context,
+        focusNode: controller.danmakuOpacityFoucsNode,
+        title: "不透明度",
+        desc: "压低一点，别盖住画面细节",
+        items: {
+          0.1: "10%",
+          0.2: "20%",
+          0.3: "30%",
+          0.4: "40%",
+          0.5: "50%",
+          0.6: "60%",
+          0.7: "70%",
+          0.8: "80%",
+          0.9: "90%",
+          1.0: "100%",
+        },
+        value: settings.danmuOpacity.value,
+        onChanged: (value) => settings.setDanmuOpacity(value as double),
+      ),
+      _choiceRow(
+        context,
+        focusNode: controller.danmakuStorkeFoucsNode,
+        title: "描边宽度",
+        desc: "字压在亮画面上时保住可读性",
+        items: {
+          2.0: "2",
+          4.0: "4",
+          6.0: "6",
+          8.0: "8",
+          10.0: "10",
+          12.0: "12",
+          14.0: "14",
+          16.0: "16",
+        },
+        value: settings.danmuStrokeWidth.value,
+        onChanged: (value) => settings.setDanmuStrokeWidth(value as double),
+      ),
+    ];
+  }
+
+  // ---------------------------------------------------------------- 关注
+
+  List<Widget> _followRows(BuildContext context) {
+    final settings = AppSettingsController.instance;
+    return [
+      _switchRow(
+        context,
+        focusNode: controller.autoUpdateFollowEnableFocusNode,
+        title: "自动更新关注",
+        desc: "关注的主播开播时自动刷新状态",
+        value: settings.autoUpdateFollowEnable.value,
+        onChanged: (value) {
+          settings.setAutoUpdateFollowEnable(value);
+          FollowUserService.instance.initTimer();
+        },
+        autofocus: true,
+      ),
+      _choiceRow(
+        context,
+        focusNode: controller.autoUpdateFollowDurationFocusNode,
+        title: "自动更新间隔",
+        desc: "越勤越准，流量也越多",
+        items: const {
+          5: "5分钟",
+          10: "10分钟",
+          15: "15分钟",
+          20: "20分钟",
+          25: "25分钟",
+          30: "30分钟",
+          60: "1小时",
+        },
+        value: settings.autoUpdateFollowDuration.value,
+        onChanged: (value) {
+          settings.setAutoUpdateFollowDuration(value as int);
+          FollowUserService.instance.initTimer();
+        },
+      ),
+      _choiceRow(
+        context,
+        focusNode: controller.updateFollowThreadFocusNode,
+        title: "更新线程数",
+        desc: "同时更新的主播线程数",
+        items: const {
+          1: "1",
+          2: "2",
+          3: "3",
+          4: "4",
+          6: "6",
+          8: "8",
+          10: "10",
+          12: "12",
+        },
+        value: settings.updateFollowThreadCount.value,
+        onChanged: (value) => settings.setUpdateFollowThreadCount(value as int),
+      ),
+    ];
+  }
+
+  // ---------------------------------------------------------------- 账号与同步
+
+  List<Widget> _accountRows(BuildContext context) {
+    final t = context.lh;
+    final account = BiliBiliAccountService.instance;
+    return [
+      _actionRow(
+        context,
+        focusNode: controller.syncFocusNode,
+        title: "数据同步",
+        desc: "在手机与电视之间同步关注、记录与账号",
+        leading: SizedBox(
+          width: 96 * t.unit,
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Icon(Icons.devices, size: 40 * t.unit, color: t.muted),
+          ),
+        ),
+        onTap: AppNavigator.toSync,
+        autofocus: true,
+      ),
+      _actionRow(
+        context,
+        focusNode: controller.bilibiliFoucsNode,
+        title: "哔哩哔哩账号",
+        desc: account.logined.value ? "已登录：${account.name.value}" : "未登录，点击登录",
+        leading: _platformLabel(context, "哔哩"),
+        onTap: controller.bilibiliTap,
+      ),
+      _actionRow(
+        context,
+        focusNode: controller.douyuAccountFocusNode,
+        title: "斗鱼账号",
+        desc: "无需登录",
+        leading: _platformLabel(context, "斗鱼"),
+        onTap: () {
+          SmartDialog.showToast("无需登录斗鱼，您可以直接观看直播");
+        },
+      ),
+      _actionRow(
+        context,
+        focusNode: controller.huyaAccountFocusNode,
+        title: "虎牙账号",
+        desc: "无需登录",
+        leading: _platformLabel(context, "虎牙"),
+        onTap: () {
+          SmartDialog.showToast("无需登录虎牙，您可以直接观看直播");
+        },
+      ),
+      _actionRow(
+        context,
+        focusNode: controller.douyinAccountFocusNode,
+        title: "抖音账号",
+        desc: "无需登录",
+        leading: _platformLabel(context, "抖音"),
+        onTap: () {
+          SmartDialog.showToast("无需登录抖音，您可以直接观看直播");
+        },
+      ),
+    ];
+  }
+
+  // ---------------------------------------------------------------- 关于
+
+  List<Widget> _aboutRows(BuildContext context) {
+    return [
+      _actionRow(
+        context,
+        focusNode: controller.versionFocusNode,
+        title: "版本",
+        desc: "v${Utils.packageInfo.version}",
+        onTap: () {},
+        autofocus: true,
+      ),
+    ];
+  }
+
+  // ---------------------------------------------------------------- 行控件
+
+  Widget _switchRow(
+    BuildContext context, {
+    required AppFocusNode focusNode,
+    required String title,
+    required String desc,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+    bool autofocus = false,
+  }) {
+    KeyEventResult toggle() {
+      onChanged(!value);
+      return KeyEventResult.handled;
+    }
+
+    return SettingsRow(
+      focusNode: focusNode,
+      title: title,
+      desc: desc,
+      autofocus: autofocus,
+      trailing: SettingsSwitch(value: value),
+      onTap: () => onChanged(!value),
+      onLeftKey: toggle,
+      onRightKey: toggle,
+    );
+  }
+
+  Widget _segmentRow<T>(
+    BuildContext context, {
+    required AppFocusNode focusNode,
+    required String title,
+    required String desc,
+    required List<SettingsOption<T>> options,
+    required T value,
+    required ValueChanged<T> onChanged,
+    bool autofocus = false,
+  }) {
+    final selected = options.indexWhere((option) => option.value == value);
+
+    KeyEventResult step(int delta) {
+      if (options.isEmpty) return KeyEventResult.ignored;
+      final current = selected < 0 ? 0 : selected;
+      final next = (current + delta + options.length) % options.length;
+      onChanged(options[next].value);
+      return KeyEventResult.handled;
+    }
+
+    return SettingsRow(
+      focusNode: focusNode,
+      title: title,
+      desc: desc,
+      autofocus: autofocus,
+      trailing: SettingsSegment<T>(options: options, value: value),
+      onTap: () => step(1),
+      onLeftKey: () => step(-1),
+      onRightKey: () => step(1),
+    );
+  }
+
+  /// 选项较少时用行内分段控件，选项较多时用“当前值 + 左右箭头”。
+  /// 两条路径都只在行内完成，不再打开模态弹层（设计稿的设置行只有 .seg / .sw）。
+  static const _maxSegmentOptions = 5;
+
+  Widget _choiceRow(
+    BuildContext context, {
+    required AppFocusNode focusNode,
+    required String title,
+    required String desc,
+    required Map<dynamic, String> items,
+    required dynamic value,
+    required ValueChanged<dynamic> onChanged,
+    bool autofocus = false,
+  }) {
+    final t = context.lh;
+    final keys = items.keys.toList();
+    final selected = keys.indexOf(value);
+
+    KeyEventResult step(int delta) {
+      if (keys.isEmpty) return KeyEventResult.ignored;
+      final current = selected < 0 ? 0 : selected;
+      final next = (current + delta + keys.length) % keys.length;
+      onChanged(keys[next]);
+      return KeyEventResult.handled;
+    }
+
+    final inlineSegment = keys.length >= 2 && keys.length <= _maxSegmentOptions;
+
+    return SettingsRow(
+      focusNode: focusNode,
+      title: title,
+      desc: desc,
+      autofocus: autofocus,
+      trailing: inlineSegment
+          ? SettingsSegment<dynamic>(
+              options: [
+                for (final key in keys)
+                  SettingsOption<dynamic>(key, items[key] ?? ''),
+              ],
+              value: value,
+            )
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.chevron_left, size: 32 * t.unit, color: t.faint),
+                SizedBox(width: 12 * t.unit),
+                ConstrainedBox(
+                  constraints: BoxConstraints(minWidth: 120 * t.unit),
+                  child: Text(
+                    items[value] ?? '',
+                    textAlign: TextAlign.center,
+                    style: t.body.copyWith(color: t.muted),
+                  ),
+                ),
+                SizedBox(width: 12 * t.unit),
+                Icon(Icons.chevron_right, size: 32 * t.unit, color: t.faint),
+              ],
+            ),
+      // 分段行点击切到下一档；长列表只靠左右键步进。
+      onTap: inlineSegment ? () => step(1) : null,
+      onLeftKey: () => step(-1),
+      onRightKey: () => step(1),
+    );
+  }
+
+  Widget _actionRow(
+    BuildContext context, {
+    required AppFocusNode focusNode,
+    required String title,
+    required String desc,
+    Widget? leading,
+    required VoidCallback onTap,
+    bool autofocus = false,
+  }) {
+    return SettingsRow(
+      focusNode: focusNode,
+      title: title,
+      desc: desc,
+      leading: leading,
+      chevron: true,
+      autofocus: autofocus,
+      onTap: onTap,
+    );
+  }
+
+  Widget _platformLabel(BuildContext context, String label) {
+    final t = context.lh;
+    return SizedBox(
+      width: 96 * t.unit,
+      child: Text(
+        label,
+        style: t.body.copyWith(
+          color: t.muted,
+          fontWeight: FontWeight.w500,
+        ),
       ),
     );
   }
 
-  Widget buildPlayerSettings() {
-    final t = Get.context!.lh;
-    return ListView(
-      padding: EdgeInsets.all(48 * t.unit),
-      children: [
-        Obx(
-          () => SettingsItemWidget(
-            foucsNode: controller.hardwareDecodeFocusNode,
-            autofocus: controller.hardwareDecodeFocusNode.isFoucsed.value,
-            title: "硬件解码",
-            items: const {
-              0: "关",
-              1: "开",
-            },
-            value: AppSettingsController.instance.hardwareDecode.value ? 1 : 0,
-            onChanged: (e) {
-              AppSettingsController.instance
-                  .setHardwareDecode(e == 1 ? true : false);
-            },
-          ),
-        ),
-        SizedBox(height: 24 * t.unit),
-        Obx(
-          () => SettingsItemWidget(
-            foucsNode: controller.compatibleModeFocusNode,
-            autofocus: controller.compatibleModeFocusNode.isFoucsed.value,
-            title: "兼容模式",
-            items: const {
-              0: "关",
-              1: "开",
-            },
-            value:
-                AppSettingsController.instance.playerCompatMode.value ? 1 : 0,
-            onChanged: (e) {
-              AppSettingsController.instance
-                  .setPlayerCompatMode(e == 1 ? true : false);
-            },
-          ),
-        ),
-        SizedBox(height: 24 * t.unit),
-        Obx(
-          () => SettingsItemWidget(
-            foucsNode: controller.scaleFoucsNode,
-            autofocus: controller.scaleFoucsNode.isFoucsed.value,
-            title: "画面比例",
-            items: const {
-              0: "适应",
-              1: "拉伸",
-              2: "铺满",
-              3: "16:9",
-              4: "4:3",
-            },
-            value: AppSettingsController.instance.scaleMode.value,
-            onChanged: (e) {
-              AppSettingsController.instance.setScaleMode(e);
-            },
-          ),
-        ),
-        SizedBox(height: 24 * t.unit),
-        Obx(
-          () => SettingsItemWidget(
-            foucsNode: controller.defaultQualityFocusNode,
-            autofocus: controller.defaultQualityFocusNode.isFoucsed.value,
-            title: "默认清晰度",
-            items: const {
-              0: "最低画质",
-              1: "中等画质",
-              2: "最高画质",
-            },
-            value: AppSettingsController.instance.qualityLevel.value,
-            onChanged: (e) {
-              AppSettingsController.instance.setQualityLevel(e);
-            },
-          ),
-        ),
+  // ---------------------------------------------------------------- 左栏文案
+
+  _SettingsStatus _statusFor(int group) {
+    final settings = AppSettingsController.instance;
+    switch (group) {
+      case 1:
+        return _danmakuStatus(settings);
+      case 2:
+        return _followStatus(settings);
+      case 3:
+        return _accountStatus();
+      case 4:
+        return _aboutStatus();
+      default:
+        return _playerStatus(settings);
+    }
+  }
+
+  _SettingsStatus _playerStatus(AppSettingsController settings) {
+    final hardware = settings.hardwareDecode.value;
+    final quality = _qualityLabel(settings.qualityLevel.value);
+    final compat = settings.playerCompatMode.value;
+    return _SettingsStatus(
+      kicker: "当前播放",
+      title: "$quality · ${hardware ? "硬件解码" : "软件解码"}",
+      subtitle:
+          "兼容模式${compat ? "开" : "关"} · 缓冲 ${settings.playerBufferSize.value}",
+      items: [
+        SettingsStatusItem("默认清晰度", quality),
+        SettingsStatusItem("硬件解码", hardware ? "开" : "关"),
+        SettingsStatusItem("画面比例", _scaleLabel(settings.scaleMode.value)),
+        SettingsStatusItem("兼容模式", compat ? "开" : "关"),
       ],
+      note: "这些设置只影响本机播放，不改变账号与关注内容。",
     );
   }
 
-  Widget buildFollowSettings() {
-    final t = Get.context!.lh;
-    return ListView(
-      padding: EdgeInsets.all(48 * t.unit),
-      children: [
-        Obx(
-          () => SettingsItemWidget(
-            foucsNode: controller.autoUpdateFollowEnableFocusNode,
-            autofocus:
-                controller.autoUpdateFollowEnableFocusNode.isFoucsed.value,
-            title: "自动更新关注",
-            items: const {
-              0: "关",
-              1: "开",
-            },
-            value: AppSettingsController.instance.autoUpdateFollowEnable.value
-                ? 1
-                : 0,
-            onChanged: (e) {
-              AppSettingsController.instance
-                  .setAutoUpdateFollowEnable(e == 1 ? true : false);
-              FollowUserService.instance.initTimer();
-            },
-          ),
-        ),
-        SizedBox(height: 24 * t.unit),
-        Obx(
-          () => SettingsItemWidget(
-            foucsNode: controller.autoUpdateFollowDurationFocusNode,
-            autofocus:
-                controller.autoUpdateFollowDurationFocusNode.isFoucsed.value,
-            title: "自动更新间隔",
-            items: const {
-              5: "5分钟",
-              10: "10分钟",
-              15: "15分钟",
-              20: "20分钟",
-              25: "25分钟",
-              30: "30分钟",
-              60: "1小时",
-            },
-            value:
-                AppSettingsController.instance.autoUpdateFollowDuration.value,
-            onChanged: (e) {
-              AppSettingsController.instance.setAutoUpdateFollowDuration(e);
-              FollowUserService.instance.initTimer();
-            },
-          ),
-        ),
-        SizedBox(height: 24 * t.unit),
-        Obx(
-          () => SettingsItemWidget(
-            foucsNode: controller.updateFollowThreadFocusNode,
-            autofocus: controller.updateFollowThreadFocusNode.isFoucsed.value,
-            title: "更新线程数",
-            items: const {
-              1: "1",
-              2: "2",
-              3: "3",
-              4: "4",
-              6: "6",
-              8: "8",
-              10: "10",
-              12: "12",
-            },
-            value: AppSettingsController.instance.updateFollowThreadCount.value,
-            onChanged: (e) {
-              AppSettingsController.instance.setUpdateFollowThreadCount(e);
-            },
-          ),
+  _SettingsStatus _danmakuStatus(AppSettingsController settings) {
+    final enabled = settings.danmuEnable.value;
+    return _SettingsStatus(
+      kicker: "当前弹幕",
+      title:
+          "字号 ${settings.danmuSize.value.toInt()} · ${_areaLabel(settings.danmuArea.value)}",
+      subtitle:
+          "弹幕${enabled ? "开" : "关"} · 速度 ${_speedLabel(settings.danmuSpeed.value)}",
+      items: [
+        SettingsStatusItem("弹幕开关", enabled ? "开" : "关"),
+        SettingsStatusItem("字号", settings.danmuSize.value.toInt().toString()),
+        SettingsStatusItem("显示区域", _areaLabel(settings.danmuArea.value)),
+        SettingsStatusItem(
+          "不透明度",
+          "${(settings.danmuOpacity.value * 100).round()}%",
         ),
       ],
+      note: "字号与不透明度只影响本机渲染，不发送到直播间。",
     );
   }
 
-  Widget buildDanmakuSettings() {
-    final t = Get.context!.lh;
-    return ListView(
-      padding: EdgeInsets.all(48 * t.unit),
-      children: [
-        Obx(
-          () => SettingsItemWidget(
-            foucsNode: controller.danmakuFoucsNode,
-            autofocus: controller.danmakuFoucsNode.isFoucsed.value,
-            title: "弹幕开关",
-            items: const {
-              0: "关",
-              1: "开",
-            },
-            value: AppSettingsController.instance.danmuEnable.value ? 1 : 0,
-            onChanged: (e) {
-              AppSettingsController.instance.setDanmuEnable(e == 1);
-            },
-          ),
+  _SettingsStatus _followStatus(AppSettingsController settings) {
+    final service = FollowUserService.instance;
+    final enabled = settings.autoUpdateFollowEnable.value;
+    return _SettingsStatus(
+      kicker: "当前关注",
+      title: "${service.list.length} 位关注主播",
+      subtitle:
+          "自动更新 ${enabled ? "开" : "关"} · 每 ${settings.autoUpdateFollowDuration.value} 分钟",
+      items: [
+        SettingsStatusItem("自动更新", enabled ? "开" : "关"),
+        SettingsStatusItem(
+          "间隔",
+          "${settings.autoUpdateFollowDuration.value} 分钟",
         ),
-        SizedBox(height: 24 * t.unit),
-        Obx(
-          () => SettingsItemWidget(
-            foucsNode: controller.danmakuSizeFoucsNode,
-            autofocus: controller.danmakuSizeFoucsNode.isFoucsed.value,
-            title: "弹幕大小",
-            items: {
-              24.0: "24",
-              32.0: "32",
-              40.0: "40",
-              48.0: "48",
-              56.0: "56",
-              64.0: "64",
-              72.0: "72",
-            },
-            value: AppSettingsController.instance.danmuSize.value,
-            onChanged: (e) {
-              AppSettingsController.instance.setDanmuSize(e);
-            },
-          ),
-        ),
-        SizedBox(height: 24 * t.unit),
-        Obx(
-          () => SettingsItemWidget(
-            foucsNode: controller.danmakuSpeedFoucsNode,
-            autofocus: controller.danmakuSpeedFoucsNode.isFoucsed.value,
-            title: "弹幕速度",
-            items: {
-              18.0: "很慢",
-              14.0: "较慢",
-              12.0: "慢",
-              10.0: "正常",
-              8.0: "快",
-              6.0: "较快",
-              4.0: "很快",
-            },
-            value: AppSettingsController.instance.danmuSpeed.value,
-            onChanged: (e) {
-              AppSettingsController.instance.setDanmuSpeed(e);
-            },
-          ),
-        ),
-        SizedBox(height: 24 * t.unit),
-        Obx(
-          () => SettingsItemWidget(
-            foucsNode: controller.danmakuAreaFoucsNode,
-            autofocus: controller.danmakuAreaFoucsNode.isFoucsed.value,
-            title: "显示区域",
-            items: {
-              0.25: "1/4",
-              0.5: "1/2",
-              0.75: "3/4",
-              1.0: "全屏",
-            },
-            value: AppSettingsController.instance.danmuArea.value,
-            onChanged: (e) {
-              AppSettingsController.instance.setDanmuArea(e);
-            },
-          ),
-        ),
-        SizedBox(height: 24 * t.unit),
-        Obx(
-          () => SettingsItemWidget(
-            foucsNode: controller.danmakuOpacityFoucsNode,
-            autofocus: controller.danmakuOpacityFoucsNode.isFoucsed.value,
-            title: "不透明度",
-            items: {
-              0.1: "10%",
-              0.2: "20%",
-              0.3: "30%",
-              0.4: "40%",
-              0.5: "50%",
-              0.6: "60%",
-              0.7: "70%",
-              0.8: "80%",
-              0.9: "90%",
-              1.0: "100%",
-            },
-            value: AppSettingsController.instance.danmuOpacity.value,
-            onChanged: (e) {
-              AppSettingsController.instance.setDanmuOpacity(e);
-            },
-          ),
-        ),
-        SizedBox(height: 24 * t.unit),
-        Obx(
-          () => SettingsItemWidget(
-            foucsNode: controller.danmakuStorkeFoucsNode,
-            autofocus: controller.danmakuStorkeFoucsNode.isFoucsed.value,
-            title: "描边宽度",
-            items: {
-              2.0: "2",
-              4.0: "4",
-              6.0: "6",
-              8.0: "8",
-              10.0: "10",
-              12.0: "12",
-              14.0: "14",
-              16.0: "16",
-            },
-            value: AppSettingsController.instance.danmuStrokeWidth.value,
-            onChanged: (e) {
-              AppSettingsController.instance.setDanmuStrokeWidth(e);
-            },
-          ),
+        SettingsStatusItem(
+          "线程数",
+          settings.updateFollowThreadCount.value.toString(),
         ),
       ],
+      note: "当前 ${service.livingList.length} 位正在直播。",
     );
   }
 
-  Widget buildAccountSettings() {
-    final t = Get.context!.lh;
-    return ListView(
-      padding: EdgeInsets.all(48 * t.unit),
-      children: [
-        Obx(
-          () => HighlightListTile(
-            focusNode: controller.bilibiliFoucsNode,
-            autofocus: controller.bilibiliFoucsNode.isFoucsed.value,
-            title: "哔哩哔哩账号",
-            subtitle: BiliBiliAccountService.instance.logined.value
-                ? "已登录：${BiliBiliAccountService.instance.name.value}"
-                : "未登录，点击登录",
-            leading: SizedBox(
-              width: 64 * t.unit,
-              child: Center(
-                child: Text("哔哩", style: t.body.copyWith(color: t.muted)),
-              ),
-            ),
-            onTap: controller.bilibiliTap,
-          ),
-        ),
-        SizedBox(height: 24 * t.unit),
-        HighlightListTile(
-          focusNode: AppFocusNode(),
-          title: "斗鱼账号",
-          subtitle: "无需登录",
-          leading: SizedBox(
-            width: 64 * t.unit,
-            child: Center(
-              child: Text("斗鱼", style: t.body.copyWith(color: t.muted)),
-            ),
-          ),
-          onTap: () {
-            SmartDialog.showToast("无需登录斗鱼，您可以直接观看直播");
-          },
-        ),
-        SizedBox(height: 24 * t.unit),
-        HighlightListTile(
-          focusNode: AppFocusNode(),
-          title: "虎牙账号",
-          subtitle: "无需登录",
-          leading: SizedBox(
-            width: 64 * t.unit,
-            child: Center(
-              child: Text("虎牙", style: t.body.copyWith(color: t.muted)),
-            ),
-          ),
-          onTap: () {
-            SmartDialog.showToast("无需登录虎牙，您可以直接观看直播");
-          },
-        ),
-        SizedBox(height: 24 * t.unit),
-        HighlightListTile(
-          focusNode: AppFocusNode(),
-          title: "抖音账号",
-          subtitle: "无需登录",
-          leading: SizedBox(
-            width: 64 * t.unit,
-            child: Center(
-              child: Text("抖音", style: t.body.copyWith(color: t.muted)),
-            ),
-          ),
-          onTap: () {
-            SmartDialog.showToast("无需登录抖音，您可以直接观看直播");
-          },
-        )
+  _SettingsStatus _accountStatus() {
+    final account = BiliBiliAccountService.instance;
+    final logged = account.logined.value;
+    final name = logged ? account.name.value : "未登录";
+    return _SettingsStatus(
+      kicker: "当前账号",
+      title: "哔哩${logged ? "已登录" : "未登录"}",
+      subtitle: "数据同步与账号管理",
+      items: [
+        SettingsStatusItem("哔哩账号", name),
+        const SettingsStatusItem("数据同步", "扫码连接"),
+        const SettingsStatusItem("平台账号", "4 个平台"),
       ],
+      note: "换电视后扫码登录即可恢复关注与观看记录。",
     );
   }
 
-  Widget buildAbout() {
-    final t = Get.context!.lh;
-    return ListView(
-      padding: EdgeInsets.all(48 * t.unit),
-      children: [
-        HighlightListTile(
-          focusNode: controller.versionFocusNode,
-          title: "版本",
-          subtitle: "v${Utils.packageInfo.version}",
-          onTap: () {},
-        ),
+  _SettingsStatus _aboutStatus() {
+    final version = Utils.packageInfo.version;
+    return _SettingsStatus(
+      kicker: "关于",
+      title: "LiveHub v$version",
+      subtitle: "仅观看各平台公开直播内容",
+      items: [
+        SettingsStatusItem("版本", "v$version"),
+        const SettingsStatusItem("开源许可", "GPL-3.0"),
       ],
+      note: "仅观看各平台公开直播内容，版权归原作者。",
     );
   }
+
+  String _qualityLabel(int value) {
+    switch (value) {
+      case 0:
+        return "最低画质";
+      case 2:
+        return "最高画质";
+      default:
+        return "中等画质";
+    }
+  }
+
+  String _scaleLabel(int value) {
+    switch (value) {
+      case 0:
+        return "适应";
+      case 1:
+        return "拉伸";
+      case 2:
+        return "铺满";
+      case 3:
+        return "16:9";
+      case 4:
+        return "4:3";
+      default:
+        return "适应";
+    }
+  }
+
+  String _areaLabel(double value) {
+    if (value <= 0.25) return "1/4";
+    if (value <= 0.5) return "1/2";
+    if (value <= 0.75) return "3/4";
+    return "全屏";
+  }
+
+  String _speedLabel(double value) {
+    final labels = {
+      18.0: "很慢",
+      14.0: "较慢",
+      12.0: "慢",
+      10.0: "正常",
+      8.0: "快",
+      6.0: "较快",
+      4.0: "很快",
+    };
+    return labels[value] ?? "正常";
+  }
+}
+
+class _SettingsStatus {
+  const _SettingsStatus({
+    required this.kicker,
+    required this.title,
+    required this.subtitle,
+    required this.items,
+    required this.note,
+  });
+
+  final String kicker;
+  final String title;
+  final String subtitle;
+  final List<SettingsStatusItem> items;
+  final String note;
 }

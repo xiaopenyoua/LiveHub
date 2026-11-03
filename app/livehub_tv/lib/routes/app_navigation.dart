@@ -29,6 +29,11 @@ class AppNavigator {
     });
   }
 
+  /// 跳转至数据同步
+  static void toSync() {
+    Get.toNamed(RoutePath.kSync);
+  }
+
   /// 跳转至哔哩哔哩登录
   static Future toBiliBiliLogin() async {
     await Get.toNamed(RoutePath.kBiliBiliQRLogin);

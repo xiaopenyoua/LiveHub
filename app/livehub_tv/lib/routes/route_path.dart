@@ -9,6 +9,9 @@ class RoutePath {
   /// 数据同步
   static const kSync = "/sync";
 
+  /// 搜索
+  static const kSearch = "/search";
+
   /// 搜索房间
   static const kSearchRoom = "/search/room";
 

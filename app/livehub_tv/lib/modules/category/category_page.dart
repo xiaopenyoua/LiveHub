@@ -1,186 +1,284 @@
 import 'package:flutter/material.dart';
-import 'package:livehub_tv/routes/app_navigation.dart';
-import 'package:livehub_tv/widgets/highlight_widget.dart';
-import 'package:livehub_tv/widgets/net_image.dart';
 import 'package:get/get.dart';
 import 'package:livehub_tv/app/app_focus_node.dart';
 import 'package:livehub_tv/app/sites.dart';
 import 'package:livehub_tv/modules/category/category_controller.dart';
-import 'package:livehub_tv/widgets/app_scaffold.dart';
+import 'package:livehub_tv/routes/app_navigation.dart';
+import 'package:livehub_tv/routes/tv_tab.dart';
 import 'package:livehub_tv/widgets/button/highlight_button.dart';
+import 'package:livehub_tv/widgets/card/live_room_card.dart';
+import 'package:livehub_tv/widgets/highlight_widget.dart';
+import 'package:livehub_tv/widgets/tv_page_scaffold.dart';
 import 'package:livehub_ui/livehub_ui.dart';
 
-class CategoryPage extends GetView<CategoryController> {
+/// 分类页：左栏钉住平台，右栏 chips 选分类、4 列网格直接看直播间。
+class CategoryPage extends StatefulWidget {
   const CategoryPage({super.key});
+
+  @override
+  State<CategoryPage> createState() => _CategoryPageState();
+}
+
+class _CategoryPageState extends State<CategoryPage> {
+  CategoryController get controller => Get.find<CategoryController>();
+
+  bool _focusScheduled = false;
 
   @override
   Widget build(BuildContext context) {
     final t = context.lh;
-    return AppScaffold(
-      child: Column(
-        children: [
-          SizedBox(height: 32 * t.unit),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              SizedBox(width: 48 * t.unit),
-              HighlightButton(
-                focusNode: AppFocusNode(),
-                iconData: Icons.arrow_back,
-                text: "返回",
-                autofocus: true,
-                onTap: () {
-                  Get.back();
-                },
-              ),
-              SizedBox(width: 32 * t.unit),
-              Text(
-                "直播类目",
-                style: t.h2,
-              ),
-              SizedBox(width: 24 * t.unit),
-              const Spacer(),
-              Obx(
-                () => Visibility(
-                  visible: controller.loadding.value,
-                  child: SizedBox(
-                    width: 48 * t.unit,
-                    height: 48 * t.unit,
-                    child: CircularProgressIndicator(
-                      color: t.text,
-                      strokeWidth: 4 * t.unit,
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(width: 48 * t.unit),
-            ],
-          ),
-          SizedBox(height: 24 * t.unit),
-          Wrap(
-            alignment: WrapAlignment.center,
-            spacing: 36 * t.unit,
-            children: Sites.supportSites
-                .map(
-                  (e) => Obx(
-                    () => HighlightButton(
-                      text: e.shortName,
-                      selected: controller.siteId.value == e.id,
-                      focusNode: AppFocusNode(),
-                      onTap: () {
-                        controller.setSite(e.id);
-                      },
-                    ),
-                  ),
-                )
-                .toList(),
-          ),
-          SizedBox(height: 24 * t.unit),
-          Expanded(
-            child: Obx(
-              () => ListView.builder(
-                padding: EdgeInsets.symmetric(horizontal: 48 * t.unit),
-                itemCount: controller.list.length,
-                controller: controller.scrollController,
-                itemBuilder: (_, i) {
-                  var item = controller.list[i];
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Padding(
-                        padding: EdgeInsets.symmetric(vertical: 32 * t.unit),
-                        child: Text(
-                          item.name,
-                          style: t.h2,
-                        ),
-                      ),
-                      Obx(
-                        () => GridView.count(
-                          shrinkWrap: true,
-                          padding: EdgeInsets.symmetric(vertical: 8 * t.unit),
-                          physics: const NeverScrollableScrollPhysics(),
-                          crossAxisCount: 8,
-                          crossAxisSpacing: 36 * t.unit,
-                          mainAxisSpacing: 36 * t.unit,
-                          children: item.showAll.value
-                              ? (item.childrenExt
-                                  .map(
-                                    (e) => buildSubCategory(e),
-                                  )
-                                  .toList())
-                              : (item.take15
-                                  .map(
-                                    (e) => buildSubCategory(e),
-                                  )
-                                  .toList()
-                                ..add(buildShowMore(item))),
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget buildSubCategory(LiveSubCategoryExt item) {
-    final t = Get.context!.lh;
-    return HighlightWidget(
-      focusNode: item.focusNode,
-      onTap: () {
-        AppNavigator.toCategoryDetail(site: controller.site, category: item);
-      },
-      borderRadius: t.cardRadius,
-      focusScale: 1.06,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          (item.pic != null && item.pic!.isNotEmpty)
-              ? NetImage(
-                  item.pic ?? "",
-                  width: 64 * t.unit,
-                  height: 64 * t.unit,
-                  borderRadius: 16 * t.unit,
-                  cacheWidth: 100,
-                )
-              : Icon(
-                  Icons.category_outlined,
-                  size: 64 * t.unit,
-                  color: t.faint,
-                ),
-          SizedBox(height: 12 * t.unit),
-          Text(
-            item.name,
-            maxLines: 1,
-            textAlign: TextAlign.center,
-            style: t.body.copyWith(color: t.text),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget buildShowMore(AppLiveCategory item) {
-    final t = Get.context!.lh;
-    return HighlightWidget(
-      focusNode: item.moreFocusNode,
-      onTap: () {
-        item.showAll.value = true;
-      },
-      borderRadius: t.cardRadius,
-      focusScale: 1.06,
-      child: Center(
-        child: Text(
-          "显示全部",
-          maxLines: 1,
-          textAlign: TextAlign.center,
-          style: t.body.copyWith(color: t.muted),
+    return TvPageScaffold(
+      tab: TvTab.category,
+      child: Padding(
+        padding: EdgeInsets.only(left: 80 * t.unit, top: 44 * t.unit),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SizedBox(width: 320 * t.unit, child: _buildRail(context)),
+            SizedBox(width: 44 * t.unit),
+            Expanded(child: _buildContent(context)),
+          ],
         ),
       ),
     );
+  }
+
+  Widget _buildRail(BuildContext context) {
+    final t = context.lh;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text("分类", style: t.h1),
+        SizedBox(height: 12 * t.unit),
+        Text(
+          "按平台筛，或在搜索里输入房间号。",
+          style: t.small.copyWith(color: t.faint),
+        ),
+        SizedBox(height: 26 * t.unit),
+        Obx(
+          () => Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: EdgeInsets.only(bottom: 6 * t.unit),
+                child: _buildPlatformRow(
+                  context,
+                  id: CategoryController.kAllPlatforms,
+                  name: "全部平台",
+                  focusNode: controller.allPlatformFocusNode,
+                  selected: controller.isAllPlatforms,
+                ),
+              ),
+              for (final site in Sites.supportSites)
+                Padding(
+                  padding: EdgeInsets.only(bottom: 6 * t.unit),
+                  child: _buildPlatformRow(
+                    context,
+                    id: site.id,
+                    name: site.name.replaceAll("直播", ""),
+                    focusNode: site.appFocusNode,
+                    selected: controller.platformId.value == site.id,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPlatformRow(
+    BuildContext context, {
+    required String id,
+    required String name,
+    required AppFocusNode focusNode,
+    required bool selected,
+  }) {
+    final t = context.lh;
+    return HighlightWidget(
+      focusNode: focusNode,
+      borderRadius: t.listRadius,
+      focusScale: 1.02,
+      idleLevel: 0.062,
+      focusLevel: 0.215,
+      onTap: () {
+        controller.selectPlatform(id);
+      },
+      child: SizedBox(
+        height: 84 * t.unit,
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 32 * t.unit),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: t.title.copyWith(
+                    color: selected ? t.text : t.muted,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContent(BuildContext context) {
+    final t = context.lh;
+    return Obx(() {
+      _scheduleFocus();
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            height: 72 * t.unit,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: EdgeInsets.symmetric(horizontal: 6 * t.unit),
+              itemCount: controller.categories.length + 1,
+              separatorBuilder: (_, __) => SizedBox(width: 14 * t.unit),
+              itemBuilder: (_, i) {
+                return Center(
+                  child: HighlightButton(
+                    text: i == 0 ? "全部" : controller.categories[i - 1].name,
+                    selected: controller.selectedCategoryIndex.value == i,
+                    focusNode: controller.categoryFocusNode(i),
+                    onTap: () {
+                      controller.selectCategory(i);
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
+          SizedBox(height: 40 * t.unit),
+          Expanded(child: _buildGrid(context)),
+        ],
+      );
+    });
+  }
+
+  Widget _buildGrid(BuildContext context) {
+    final t = context.lh;
+    final items = controller.rooms;
+
+    if (controller.loadingRooms.value) {
+      return Center(
+        child: SizedBox(
+          width: 48 * t.unit,
+          height: 48 * t.unit,
+          child: CircularProgressIndicator(
+            color: t.text,
+            strokeWidth: 4 * t.unit,
+          ),
+        ),
+      );
+    }
+
+    if (controller.errorMsg.value.isNotEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              controller.errorMsg.value,
+              style: t.body.copyWith(color: t.muted),
+            ),
+            SizedBox(height: 24 * t.unit),
+            HighlightButton(
+              text: "重试",
+              iconData: Icons.refresh,
+              focusNode: controller.retryFocusNode,
+              onTap: controller.retry,
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (items.isEmpty) {
+      return Center(
+        child: Text("暂无直播", style: t.body.copyWith(color: t.muted)),
+      );
+    }
+
+    // 左缘退 16px：卡片的焦点放大会越过滚动容器的裁剪线（设计规范 §8.2）。
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Positioned(
+          left: -16 * t.unit,
+          top: 0,
+          right: 0,
+          bottom: 0,
+          child: GridView.builder(
+            controller: controller.scrollController,
+            padding: EdgeInsets.only(
+              left: 16 * t.unit,
+              right: 80 * t.unit,
+              top: 8 * t.unit,
+              bottom: 60 * t.unit,
+            ),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 4,
+              crossAxisSpacing: 20 * t.unit,
+              mainAxisSpacing: 32 * t.unit,
+              childAspectRatio: 16 / 9,
+            ),
+            itemCount: items.length,
+            itemBuilder: (_, i) {
+              final item = items[i];
+              return LiveRoomCard(
+                cover: item.cover,
+                title: item.title,
+                anchor: item.userName,
+                siteName: item.siteName,
+                roomId: item.roomId,
+                online: item.online,
+                focusNode: item.focusNode,
+                onTap: () => AppNavigator.toLiveRoomDetail(
+                  site: item.site,
+                  roomId: item.roomId,
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 默认焦点：第一张直播间卡；没有房间时落当前分类 chip；再退到左栏。
+  void _scheduleFocus() {
+    if (_focusScheduled) return;
+    if (controller.loadingRooms.value && controller.rooms.isEmpty) return;
+    _focusScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _focusScheduled = false;
+      if (!mounted) return;
+      final primary = FocusManager.instance.primaryFocus;
+      if (primary != null && primary is! FocusScopeNode) return;
+
+      if (controller.rooms.isNotEmpty) {
+        controller.rooms.first.focusNode.requestFocus();
+        return;
+      }
+      if (controller.categories.isNotEmpty) {
+        controller
+            .categoryFocusNode(controller.selectedCategoryIndex.value)
+            .requestFocus();
+        return;
+      }
+      if (controller.isAllPlatforms) {
+        controller.allPlatformFocusNode.requestFocus();
+        return;
+      }
+      Sites.supportSites.first.appFocusNode.requestFocus();
+    });
   }
 }

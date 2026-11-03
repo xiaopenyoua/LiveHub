@@ -1,8 +1,8 @@
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:livehub_tv/app/controller/base_controller.dart';
 import 'package:livehub_tv/app/sites.dart';
+import 'package:livehub_tv/models/live_room_item_ext.dart';
 import 'package:livehub_tv/modules/category/category_controller.dart';
-import 'package:livehub_tv/modules/hot_live/hot_live_controller.dart';
 
 class CategoryDetailController extends BasePageController<LiveRoomItemExt> {
   final Site site;
@@ -37,6 +37,7 @@ class CategoryDetailController extends BasePageController<LiveRoomItemExt> {
             cover: e.cover,
             userName: e.userName,
             online: e.online,
+            site: site,
           ),
         )
         .toList();

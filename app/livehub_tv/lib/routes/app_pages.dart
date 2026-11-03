@@ -13,14 +13,10 @@ import 'package:livehub_tv/modules/history/history_controller.dart';
 import 'package:livehub_tv/modules/history/history_page.dart';
 import 'package:livehub_tv/modules/home/home_controller.dart';
 import 'package:livehub_tv/modules/home/home_page.dart';
-import 'package:livehub_tv/modules/hot_live/hot_live_controller.dart';
-import 'package:livehub_tv/modules/hot_live/hot_live_page.dart';
 import 'package:livehub_tv/modules/live_room/live_room_controller.dart';
 import 'package:livehub_tv/modules/live_room/live_room_page.dart';
-import 'package:livehub_tv/modules/search/anchor/search_anchor_controller.dart';
-import 'package:livehub_tv/modules/search/anchor/search_anchor_page.dart';
-import 'package:livehub_tv/modules/search/room/search_room_controller.dart';
-import 'package:livehub_tv/modules/search/room/search_room_page.dart';
+import 'package:livehub_tv/modules/search/search_controller.dart';
+import 'package:livehub_tv/modules/search/search_page.dart';
 import 'package:livehub_tv/modules/settings/settings_controller.dart';
 import 'package:livehub_tv/modules/settings/settings_page.dart';
 import 'package:livehub_tv/modules/sync/sync_controller.dart';
@@ -93,14 +89,6 @@ class AppPages {
         BindingsBuilder.put(() => HistoryController()),
       ],
     ),
-    //热门直播
-    GetPage(
-      name: RoutePath.kHotLive,
-      page: () => const HotLivePage(),
-      bindings: [
-        BindingsBuilder.put(() => HotliveController()),
-      ],
-    ),
     //分类
     GetPage(
       name: RoutePath.kCategory,
@@ -120,28 +108,12 @@ class AppPages {
         ),
       ),
     ),
-    // 搜索房间
+    // 搜索
     GetPage(
-      name: RoutePath.kSearchRoom,
-      page: () => const SearchRoomPage(),
+      name: RoutePath.kSearch,
+      page: () => const SearchPage(),
       bindings: [
-        BindingsBuilder.put(
-          () => SearchRoomController(
-            Get.arguments,
-          ),
-        ),
-      ],
-    ),
-    // 搜索主播
-    GetPage(
-      name: RoutePath.kSearchAnchor,
-      page: () => const SearchAnchorPage(),
-      bindings: [
-        BindingsBuilder.put(
-          () => SearchAnchorController(
-            Get.arguments,
-          ),
-        ),
+        BindingsBuilder.put(() => TvSearchController()),
       ],
     ),
   ];
