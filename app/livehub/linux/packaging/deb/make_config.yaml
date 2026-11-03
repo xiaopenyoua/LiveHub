@@ -1,0 +1,20 @@
+display_name: LiveHub
+package_name: livehub
+maintainer:
+  name: LiveHub contributors
+  email: livehub@users.noreply.github.com
+priority: optional
+section: x11
+installed_size: 24400
+essential: false
+icon: assets/logo.png
+
+keywords:
+  - LiveHub
+
+generic_name: LiveHub
+
+categories:
+  - Media
+
+startup_notify: true

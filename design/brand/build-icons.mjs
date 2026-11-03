@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * LiveHub 应用图标 · 产物生成器
+ * LiveHub 应用图标 · 设计源 → 交付位图光栅化器
  *
  * 输入（唯一设计源，路径相对仓库根）
  *   design/brand/wordmark/src/square-48-B.svg       48 画布（LH 构成，竖干阈值以下的交付版）
@@ -8,31 +8,31 @@
  *   design/brand/wordmark/src/square-96.svg         96 画布（完整 LiveHub）
  *   design/brand/wordmark/src/square-144.svg        144 画布（完整）
  *   design/brand/wordmark/src/square-192.svg        192 画布（完整）
- *   design/brand/wordmark/src/banner-16x9-bleed.svg TV banner 满版矢量（圆角交给 launcher 裁）
+ *   design/brand/wordmark/src/banner-16x9.svg       圆角 banner（展示档）
  *
  * 输出（交付位图，平铺在 design/brand/wordmark/export/）
- *   square-48-B.png    48       → mipmap-mdpi/ic_launcher.png      （由 sync-icons.mjs 同步）
- *   square-72.png      72       → mipmap-hdpi/ic_launcher.png      （同上）
- *   square-96.png      96       → mipmap-xhdpi/ic_launcher.png     （同上）
- *   square-144.png     144      → mipmap-xxhdpi/ic_launcher.png    （同上）
- *   square-192.png     192      → mipmap-xxxhdpi/ic_launcher.png   （同上）
- *   banner-320.png     320×180  手工档：带 alpha 的圆角预览版，**不**同步进 res/
- *                               （res 里那张 tv_banner.png 是满版 bleed，圆角交 launcher 裁）
+ *   square-48-B.png    48       → app/livehub{,_tv} …/mipmap-mdpi/ic_launcher.png
+ *   square-72.png      72       → app/livehub{,_tv} …/mipmap-hdpi/ic_launcher.png
+ *   square-96.png      96       → app/livehub{,_tv} …/mipmap-xhdpi/ic_launcher.png
+ *   square-144.png     144      → app/livehub{,_tv} …/mipmap-xxhdpi/ic_launcher.png
+ *   square-192.png     192      → app/livehub{,_tv} …/mipmap-xxxhdpi/ic_launcher.png
+ *   banner-320.png     320×180  圆角展示档，给 design/v1.0.0/icon.html 看；不同步进任何平台目录
  *
- * 本脚本只读 wordmark/src/*.svg、只写 wordmark/export/*.png，跑完不碰 android/。
- * 把位图送进 android/ 的唯一入口是 android/tools/sync-icons.mjs（字节拷贝 + 逐档 md5 断言）——
+ * 本脚本只读 wordmark/src/*.svg、只写 wordmark/export/*.png，跑完不碰 app/。
+ * 把位图送进 app/ 的唯一入口是 app/tools/sync-icons.mjs（字节拷贝 + 逐档 md5 断言）——
  * 设计侧不持有开发侧的写权限。
  *
+ * banner 有两种图：export/banner-320.png 是带 alpha 的圆角展示档（本脚本产出），
+ * TV launcher 用的满版 bleed banner 是**手工档**（真源 banner-16x9-bleed.svg，
+ * 渲染一次、人工确认后放置），不在本脚本里，见 design/brand/README.md。
+ *
  * 用法
- *   node design/brand/build-icons.mjs            光栅化并写进 wordmark/export/，同时与现有交付逐档比对
+ *   node design/brand/build-icons.mjs            光栅化并写进 wordmark/export/，同时与现有交付比对
  *   node design/brand/build-icons.mjs --check    只在内存里光栅化后比对，一个文件都不写
  *   node design/brand/build-icons.mjs --out DIR  写到别的目录（默认 wordmark/export/）
  *
  * 光栅化用本机 Chrome 的 DevTools 协议：viewport 锁死为目标像素、deviceScaleFactor=1、
  * 默认背景透明。所以产物是「在自己的坐标系里重新光栅化」，不是大图缩下来的。
- *
- * 自适应图标的三层（foreground / monochrome / colors / anydpi-v26 / anydpi-v33）是手写矢量，
- * 7 条 path 与 square.svg 逐字节同源，不需要再过一道生成器；本脚本只核对它们在不在。
  */
 import { spawn } from 'node:child_process';
 import { mkdirSync, existsSync, readFileSync, rmSync, mkdtempSync } from 'node:fs';
@@ -43,23 +43,15 @@ import { createHash } from 'node:crypto';
 
 const ROOT = resolve(dirname(new URL(import.meta.url).pathname), '../..');
 const SVG_DIR = join(ROOT, 'design/brand/wordmark/src');
-const RES = join(ROOT, 'android/app/src/main/res');
 
 const TIERS = [
-  { dir: 'mipmap-mdpi', svg: 'square-48-B.svg', px: 48, comp: 'LH' },
-  { dir: 'mipmap-hdpi', svg: 'square-72.svg', px: 72, comp: 'LH' },
-  { dir: 'mipmap-xhdpi', svg: 'square-96.svg', px: 96, comp: 'LiveHub' },
-  { dir: 'mipmap-xxhdpi', svg: 'square-144.svg', px: 144, comp: 'LiveHub' },
-  { dir: 'mipmap-xxxhdpi', svg: 'square-192.svg', px: 192, comp: 'LiveHub' },
+  { svg: 'square-48-B.svg', px: 48, comp: 'LH' },
+  { svg: 'square-72.svg', px: 72, comp: 'LH' },
+  { svg: 'square-96.svg', px: 96, comp: 'LiveHub' },
+  { svg: 'square-144.svg', px: 144, comp: 'LiveHub' },
+  { svg: 'square-192.svg', px: 192, comp: 'LiveHub' },
 ];
-const BANNER = { dir: 'drawable-xhdpi', file: 'tv_banner.png', src: 'banner-16x9-bleed.svg', png: 'banner-320.png' };
-const HANDWRITTEN = [
-  'mipmap-anydpi-v26/ic_launcher.xml',
-  'mipmap-anydpi-v33/ic_launcher.xml',
-  'drawable/ic_launcher_foreground.xml',
-  'drawable/ic_launcher_monochrome.xml',
-  'values/ic_launcher_colors.xml',
-];
+const BANNER = { src: 'banner-16x9.svg', png: 'banner-320.png', w: 320, h: 180 };
 
 const argv = process.argv.slice(2);
 const has = (f) => argv.includes(f);
@@ -67,7 +59,7 @@ const opt = (f, d) => { const i = argv.indexOf(f); return i >= 0 && argv[i + 1] 
 const CHECK = has('--check');
 const OUT = resolve(ROOT, opt('--out', 'design/brand/wordmark/export'));
 
-/** 输出恒为设计侧交付位图（平铺、按档位命名）；本脚本不写 android/ */
+/** 输出恒为设计侧交付位图（平铺、按尺寸命名）；本脚本不写 app/ */
 const outPath = (png) => join(OUT, png);
 
 function findChrome() {
@@ -165,7 +157,6 @@ function pngSize(b) {
   if (b.readUInt32BE(0) !== 0x89504e47) throw new Error('不是 PNG');
   return { w: b.readUInt32BE(16), h: b.readUInt32BE(20) };
 }
-const md5 = (f) => createHash('md5').update(readFileSync(f)).digest('hex');
 const md5buf = (b) => createHash('md5').update(b).digest('hex');
 
 const browser = await launchChrome();
@@ -181,50 +172,43 @@ try {
     await p.close();
     if (!CHECK) { mkdirSync(dirname(out), { recursive: true }); writeFileSync(out, buf); }
     const size = pngSize(buf);
-    const del = join(RES, t.dir, 'ic_launcher.png');
+    const same = existsSync(out) && readFileSync(out).equals(buf);
     rows.push({
-      tier: t.dir, px: String(t.px), comp: t.comp, src: t.svg,
+      tier: t.svg.replace(/\.svg$/, ''), px: String(t.px), comp: t.comp, src: t.svg,
       out: `${size.w}×${size.h}`,
       md5: md5buf(buf).slice(0, 8),
-      del: existsSync(del) ? md5(del).slice(0, 8) : '缺',
-      same: existsSync(del) && md5buf(buf) === md5(del),
+      same,
     });
   }
 
-  // banner：交付档 320×180，用 bleed 版矢量（满版无圆角）重新光栅化 ——
-  // 圆角由 TV launcher 自己裁，画进图里就是双重圆角。
+  // banner 展示档：320×180 圆角版（RGBA，角透明）。
   const bOut = outPath(BANNER.png);
-  const bp = await browser.page(320, 180);
+  const bp = await browser.page(BANNER.w, BANNER.h);
   await bp.open('file://' + join(SVG_DIR, BANNER.src));
   const bBuf = await bp.shot();
   await bp.close();
   if (!CHECK) { mkdirSync(dirname(bOut), { recursive: true }); writeFileSync(bOut, bBuf); }
-  const bDel = join(RES, BANNER.dir, BANNER.file);
+  const bSize = pngSize(bBuf);
   rows.push({
-    tier: BANNER.dir, px: '320×180', comp: 'banner', src: BANNER.src,
-    out: (s => `${s.w}×${s.h}`)(pngSize(bBuf)),
+    tier: BANNER.png.replace(/\.png$/, ''), px: `${BANNER.w}×${BANNER.h}`, comp: 'banner', src: BANNER.src,
+    out: `${bSize.w}×${bSize.h}`,
     md5: md5buf(bBuf).slice(0, 8),
-    del: existsSync(bDel) ? md5(bDel).slice(0, 8) : '缺',
-    same: existsSync(bDel) && md5buf(bBuf) === md5(bDel),
+    same: existsSync(bOut) && readFileSync(bOut).equals(bBuf),
   });
 } finally {
   browser.close();
 }
 
-console.log('\n档位              像素      构成      设计源               产物      md5       现有交付   一致');
-console.log('─'.repeat(106));
+console.log('\n档位          像素        构成      设计源               产物      md5       现有交付');
+console.log('─'.repeat(88));
 for (const r of rows) {
-  console.log(r.tier.padEnd(17) + r.px.padEnd(10) + r.comp.padEnd(10) + r.src.padEnd(21) +
-    String(r.out).padEnd(9) + r.md5.padEnd(10) + r.del.padEnd(11) + (r.same ? '✓' : '△'));
+  console.log(r.tier.padEnd(14) + r.px.padEnd(12) + r.comp.padEnd(10) + r.src.padEnd(21) +
+    String(r.out).padEnd(9) + r.md5.padEnd(10) + (r.same ? '✓ 一致' : '△ 不同'));
 }
-
-let missing = HANDWRITTEN.filter((f) => !existsSync(join(RES, f)));
-console.log(`\n自适应三层 / 颜色：${HANDWRITTEN.length - missing.length}/${HANDWRITTEN.length} 在 res 里` +
-  (missing.length ? '，缺：' + missing.join('、') : ' ✓'));
 
 const diff = rows.filter((r) => !r.same);
 console.log(diff.length
-  ? `\n与现有交付有 ${diff.length} 项 md5 不同（多为边缘抗锯齿差异）；核对后由 android/tools/sync-icons.mjs --write 落盘。`
+  ? `\n与现有交付有 ${diff.length} 项不同（多为边缘抗锯齿差异）；确认后不带 --check 跑一次更新 export/，再由 app/tools/sync-icons.mjs --write 落盘到平台目录。`
   : '\n与现有交付逐字节一致 ✓');
 
-if (!CHECK) console.log(`\n已导出 ${OUT}，android/ 未改动。`);
+if (!CHECK) console.log(`\n已导出 ${OUT}，app/ 未改动。`);

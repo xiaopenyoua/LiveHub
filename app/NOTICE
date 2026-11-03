@@ -1,0 +1,74 @@
+LiveHub
+=======
+
+Copyright (C) 2026 LiveHub contributors
+
+This project is a modified version of dart_simple_live.
+
+Upstream project
+----------------
+
+  Name:        dart_simple_live
+  Author:      xiaoyaocz
+  Copyright:   Copyright (C) 2023-2025 xiaoyaocz
+  License:     GNU General Public License, version 3 (GPL-3.0)
+  Source:      https://github.com/xiaoyaocz/dart_simple_live
+
+The full GPL-3.0 text is included in this directory as LICENSE. It is the
+license under which the upstream work was received, and it continues to apply
+to this derivative work. Redistribution of this project or any derivative work
+must be accompanied by the corresponding source code under GPL-3.0.
+
+Package mapping
+---------------
+
+  upstream simple_live_core      -> app/livehub_core
+  upstream simple_live_app       -> app/livehub
+  upstream simple_live_tv_app    -> app/livehub_tv
+  upstream simple_live_console   -> app/livehub_console
+  new in this repository         -> app/livehub_ui
+
+Changes made in this repository
+-------------------------------
+
+1. Renamed the product to LiveHub and renamed the Dart packages from
+   `simple_live_*` to `livehub_*`, including package imports and platform
+   identifiers where applicable.
+
+2. Added `app/livehub_ui`, a shared design system implementing this project's
+   visual language (charcoal ground, warm-gold glow, smoke-glass surfaces,
+   Inter typeface). Both `livehub` and `livehub_tv` consume it so the UI style
+   stays consistent across platforms.
+
+3. Replaced the application icon and brand assets with the LiveHub wordmark
+   (design source in `design/brand/wordmark/src/`, rasterized delivery in
+   `design/brand/wordmark/export/`).
+
+4. Updated platform display names, window titles and packaging metadata to
+   LiveHub where those files are owned by the platform packages.
+
+5. Rewrote repository documentation and engineering tooling for the Flutter
+   monorepo layout (`AGENTS.md`, `README.md`, `app/README.md`,
+   `app/tools/sync-icons.mjs`, `app/tools/verify-layout.sh`).
+
+6. Kept the upstream functional implementation intact: pages, routes, GetX
+   controllers and services, Hive data models and player logic follow
+   dart_simple_live. The four live platforms (Bilibili, Douyu, Huya, Douyin)
+   and their extraction/danmaku behaviour are unchanged.
+
+Upstream URLs intentionally retained
+------------------------------------
+
+Some source files still reference upstream URLs (version-check endpoints, the
+Huya play-config endpoint, and the upstream project page). These are required
+for the application to keep working and as attribution; they are not product
+name leftovers and must not be removed.
+
+Third-party references
+----------------------
+
+The upstream project lists third-party protocol references and libraries in its
+README. Those references remain valid for this derivative work; see the upstream
+repository above and the source comments in `app/livehub_core`.
+
+Date: 2026-11-02

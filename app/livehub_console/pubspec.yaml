@@ -1,0 +1,16 @@
+name: livehub_console
+description: "LiveHub 命令行工具"
+version: 1.0.0
+publish_to: "none"
+# repository: https://github.com/my_org/my_repo
+
+environment:
+  sdk: '>=3.10.0'
+
+dependencies:
+  livehub_core:
+    path: ../livehub_core
+
+dev_dependencies:
+  lints: ^2.0.0
+  test: ^1.21.0

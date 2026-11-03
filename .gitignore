@@ -1,16 +1,62 @@
+# macOS
 .DS_Store
-示例参考软件.apk
-# Android
-android/.gradle/
-android/.kotlin/
-android/build/
-android/app/build/
-android/local.properties
-android/.idea/
-android/captures/
-*.iml
-android/tools/*/build/
 
+# 参考 APK 不进仓库（技术方案调研记录其大小与 SHA-256 前缀即可）
+示例参考软件.apk
+
+# Flutter / Dart
+**/.dart_tool/
+**/build/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.packages
+**/.pub-cache/
+**/.pub/
+**/.fvm/
+**/*.iml
+**/.idea/
+**/*.log
+**/app.*.symbols
+**/app.*.map.json
+# monorepo 当前不提交锁文件；需要可复现构建时在包内放行并提交
+**/pubspec.lock
+
+# Android
+**/android/.gradle/
+**/android/.kotlin/
+**/android/local.properties
+**/android/key.properties
+**/android/captures/
+**/android/app/debug/
+**/android/app/profile/
+**/android/app/release/
+**/android/app/.cxx/
+
+# iOS
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/Flutter/ephemeral/
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/Runner/GeneratedPluginRegistrant.*
+**/ios/Podfile.lock
+
+# macOS
+**/macos/Pods/
+**/macos/Flutter/ephemeral/
+**/macos/Flutter/GeneratedPluginRegistrant.swift
+
+# Windows
+**/windows/flutter/ephemeral/
+**/windows/flutter/generated_plugin_registrant.*
+**/windows/flutter/generated_plugins.cmake
+
+# Linux
+**/linux/flutter/ephemeral/
+**/linux/flutter/generated_plugin_registrant.*
+**/linux/flutter/generated_plugins.cmake
+
+# 本地工具产物
 .workbuddy/audit/*
 .workbuddy/test/*
 .workbuddy/memory/*

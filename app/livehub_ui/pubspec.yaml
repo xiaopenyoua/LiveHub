@@ -1,0 +1,22 @@
+name: livehub_ui
+description: "LiveHub 共享设计系统：炭灰暖金玻璃体系、字阶、焦点与通用控件"
+version: 0.1.0
+publish_to: "none"
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+  flutter: ">=3.10.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+flutter:
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/InterVariable.ttf
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
