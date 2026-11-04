@@ -11,9 +11,8 @@ import 'package:livehub_tv/services/bilibili_account_service.dart';
 import 'package:livehub_tv/services/follow_user_service.dart';
 import 'package:livehub_tv/widgets/settings/settings_group_tabs.dart';
 import 'package:livehub_tv/widgets/settings/settings_row.dart';
-import 'package:livehub_tv/widgets/settings/settings_segment.dart';
+import 'package:livehub_tv/widgets/settings/settings_rows.dart';
 import 'package:livehub_tv/widgets/settings/settings_status_card.dart';
-import 'package:livehub_tv/widgets/settings/settings_switch.dart';
 import 'package:livehub_tv/widgets/tv_page_scaffold.dart';
 import 'package:livehub_ui/livehub_ui.dart';
 
@@ -141,18 +140,18 @@ class SettingsPage extends GetView<SettingsController> {
         onChanged: settings.setHardwareDecode,
         autofocus: true,
       ),
-      _segmentRow<int>(
+      _choiceRow(
         context,
         focusNode: controller.defaultQualityFocusNode,
         title: "默认清晰度",
         desc: "网络不稳时自动降一档",
-        options: const [
-          SettingsOption(0, "最低画质"),
-          SettingsOption(1, "中等画质"),
-          SettingsOption(2, "最高画质"),
-        ],
+        items: const {
+          0: "最低画质",
+          1: "中等画质",
+          2: "最高画质",
+        },
         value: settings.qualityLevel.value,
-        onChanged: settings.setQualityLevel,
+        onChanged: (value) => settings.setQualityLevel(value as int),
       ),
       _choiceRow(
         context,
@@ -279,6 +278,22 @@ class SettingsPage extends GetView<SettingsController> {
         },
         value: settings.danmuStrokeWidth.value,
         onChanged: (value) => settings.setDanmuStrokeWidth(value as double),
+      ),
+      _choiceRow(
+        context,
+        focusNode: controller.danmakuRateFoucsNode,
+        title: "弹幕密度",
+        desc: "每秒最多上屏几条；超出的在排版前就丢掉，不掉帧",
+        items: {
+          8: "8",
+          12: "12",
+          20: "20",
+          30: "30",
+          45: "45",
+          60: "60",
+        },
+        value: settings.danmuMaxRate.value,
+        onChanged: (value) => settings.setDanmuMaxRate(value as int),
       ),
     ];
   }
@@ -427,59 +442,18 @@ class SettingsPage extends GetView<SettingsController> {
     required ValueChanged<bool> onChanged,
     bool autofocus = false,
   }) {
-    KeyEventResult toggle() {
-      onChanged(!value);
-      return KeyEventResult.handled;
-    }
-
-    return SettingsRow(
+    return SettingsSwitchRow(
       focusNode: focusNode,
       title: title,
       desc: desc,
+      value: value,
+      onChanged: onChanged,
       autofocus: autofocus,
-      trailing: SettingsSwitch(value: value),
-      onTap: () => onChanged(!value),
-      onLeftKey: toggle,
-      onRightKey: toggle,
-    );
-  }
-
-  Widget _segmentRow<T>(
-    BuildContext context, {
-    required AppFocusNode focusNode,
-    required String title,
-    required String desc,
-    required List<SettingsOption<T>> options,
-    required T value,
-    required ValueChanged<T> onChanged,
-    bool autofocus = false,
-  }) {
-    final selected = options.indexWhere((option) => option.value == value);
-
-    KeyEventResult step(int delta) {
-      if (options.isEmpty) return KeyEventResult.ignored;
-      final current = selected < 0 ? 0 : selected;
-      final next = (current + delta + options.length) % options.length;
-      onChanged(options[next].value);
-      return KeyEventResult.handled;
-    }
-
-    return SettingsRow(
-      focusNode: focusNode,
-      title: title,
-      desc: desc,
-      autofocus: autofocus,
-      trailing: SettingsSegment<T>(options: options, value: value),
-      onTap: () => step(1),
-      onLeftKey: () => step(-1),
-      onRightKey: () => step(1),
     );
   }
 
   /// 选项较少时用行内分段控件，选项较多时用“当前值 + 左右箭头”。
-  /// 两条路径都只在行内完成，不再打开模态弹层（设计稿的设置行只有 .seg / .sw）。
-  static const _maxSegmentOptions = 5;
-
+  /// 两条路径都只在行内完成，不打开模态弹层。
   Widget _choiceRow(
     BuildContext context, {
     required AppFocusNode focusNode,
@@ -490,54 +464,14 @@ class SettingsPage extends GetView<SettingsController> {
     required ValueChanged<dynamic> onChanged,
     bool autofocus = false,
   }) {
-    final t = context.lh;
-    final keys = items.keys.toList();
-    final selected = keys.indexOf(value);
-
-    KeyEventResult step(int delta) {
-      if (keys.isEmpty) return KeyEventResult.ignored;
-      final current = selected < 0 ? 0 : selected;
-      final next = (current + delta + keys.length) % keys.length;
-      onChanged(keys[next]);
-      return KeyEventResult.handled;
-    }
-
-    final inlineSegment = keys.length >= 2 && keys.length <= _maxSegmentOptions;
-
-    return SettingsRow(
+    return SettingsChoiceRow(
       focusNode: focusNode,
       title: title,
       desc: desc,
+      items: items,
+      value: value,
+      onChanged: onChanged,
       autofocus: autofocus,
-      trailing: inlineSegment
-          ? SettingsSegment<dynamic>(
-              options: [
-                for (final key in keys)
-                  SettingsOption<dynamic>(key, items[key] ?? ''),
-              ],
-              value: value,
-            )
-          : Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.chevron_left, size: 32 * t.unit, color: t.faint),
-                SizedBox(width: 12 * t.unit),
-                ConstrainedBox(
-                  constraints: BoxConstraints(minWidth: 120 * t.unit),
-                  child: Text(
-                    items[value] ?? '',
-                    textAlign: TextAlign.center,
-                    style: t.body.copyWith(color: t.muted),
-                  ),
-                ),
-                SizedBox(width: 12 * t.unit),
-                Icon(Icons.chevron_right, size: 32 * t.unit, color: t.faint),
-              ],
-            ),
-      // 分段行点击切到下一档；长列表只靠左右键步进。
-      onTap: inlineSegment ? () => step(1) : null,
-      onLeftKey: () => step(-1),
-      onRightKey: () => step(1),
     );
   }
 

@@ -12,9 +12,10 @@ import 'package:livehub_tv/widgets/highlight_widget.dart';
 import 'package:livehub_tv/widgets/tv_page_scaffold.dart';
 import 'package:livehub_ui/livehub_ui.dart';
 
-/// 搜索页：左栏是“直播间 / 主播”切换 + 输入框 + 搜索按钮，右栏是历史或结果。
+/// 搜索页：左栏输入框 + 搜索按钮，右栏是历史或结果。
 ///
-/// 键盘方案被用户明确改成类型切换：不做屏上 QWERTY 键盘，输入交给系统输入法。
+/// 一次搜索同时返回「正在直播」与「主播」两类结果；提交搜索只刷新结果，
+/// 不自动进入任何直播间。键盘输入交给系统输入法，不做屏上 QWERTY。
 class SearchPage extends StatefulWidget {
   const SearchPage({super.key});
 
@@ -26,8 +27,6 @@ class _SearchPageState extends State<SearchPage> {
   late final TvSearchController _c = Get.find<TvSearchController>();
 
   final TextEditingController _textController = TextEditingController();
-  final AppFocusNode _roomModeNode = AppFocusNode();
-  final AppFocusNode _anchorModeNode = AppFocusNode();
   final AppFocusNode _inputNode = AppFocusNode();
   final AppFocusNode _searchButtonNode = AppFocusNode();
   final AppFocusNode _retryNode = AppFocusNode();
@@ -36,16 +35,12 @@ class _SearchPageState extends State<SearchPage> {
   @override
   void initState() {
     super.initState();
-    // 输入框聚焦后，方向键要能离开输入框：上下到模式切换/搜索按钮，
-    // 右方向键只在光标已在末尾时才进入右栏，否则交给 TextField 移动光标。
+    // 输入框聚焦后，方向键要能离开输入框：下到搜索按钮，右方向键只在
+    // 光标已在末尾时才进入结果区，否则交给 TextField 移动光标。
     _inputNode.onKeyEvent = (node, event) {
       if (event is! KeyDownEvent) return KeyEventResult.ignored;
       if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
         _searchButtonNode.requestFocus();
-        return KeyEventResult.handled;
-      }
-      if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
-        (_c.mode.value == 0 ? _roomModeNode : _anchorModeNode).requestFocus();
         return KeyEventResult.handled;
       }
       if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
@@ -53,8 +48,11 @@ class _SearchPageState extends State<SearchPage> {
         final atEnd = selection.isCollapsed &&
             selection.baseOffset == _textController.text.length;
         if (atEnd) {
-          _inputNode.focusInDirection(TraversalDirection.right);
-          return KeyEventResult.handled;
+          final first = _firstResultNode;
+          if (first != null) {
+            first.requestFocus();
+            return KeyEventResult.handled;
+          }
         }
         return KeyEventResult.ignored;
       }
@@ -70,8 +68,6 @@ class _SearchPageState extends State<SearchPage> {
   @override
   void dispose() {
     _textController.dispose();
-    _roomModeNode.dispose();
-    _anchorModeNode.dispose();
     _inputNode.dispose();
     _searchButtonNode.dispose();
     _retryNode.dispose();
@@ -84,42 +80,45 @@ class _SearchPageState extends State<SearchPage> {
   AppFocusNode _historyNode(String word) =>
       _historyNodes.putIfAbsent(word, () => AppFocusNode());
 
-  /// 提交搜索。空白查询交给控制器回到“搜索历史”；有结果时按设计规范
-  /// §8.3 打开第一条（“搜索键打开第一条”）。
-  Future<void> _submit({String? raw, bool? openFirst}) async {
+  AppFocusNode? get _firstResultNode {
+    if (_c.rooms.isNotEmpty) return _c.rooms.first.focusNode;
+    if (_c.anchors.isNotEmpty) return _c.anchors.first.focusNode;
+    return null;
+  }
+
+  /// 提交搜索：只刷新结果区，进入哪个直播间由用户按 OK 选择。
+  Future<void> _submit({String? raw}) async {
     final text = (raw ?? _textController.text).trim();
     await _c.search(text);
     if (!mounted || text.isEmpty) return;
-    // 只有查询完全命中（房间号 / 精确主播名）才直接进直播间；
-    // 普通关键字先把结果留在右栏，避免一按搜索就被播放器接走。
-    final shouldOpen = openFirst ?? _c.firstIsExact;
-    if (!shouldOpen) return;
-    if (_c.mode.value == 0) {
-      if (_c.rooms.isEmpty) return;
-      final first = _c.rooms.first;
-      AppNavigator.toLiveRoomDetail(site: first.site, roomId: first.roomId);
-    } else {
-      if (_c.anchors.isEmpty) return;
-      final first = _c.anchors.first;
-      AppNavigator.toLiveRoomDetail(site: first.site, roomId: first.roomId);
-    }
+    _focusFirstResult();
   }
 
-  /// 全平台失败后的重试：不自动打开第一条，让用户先看到结果。
+  void _focusFirstResult() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _firstResultNode?.requestFocus();
+    });
+  }
+
+  /// 全平台失败后的重试：同样只刷新结果，不自动打开。
   void _retry() {
     final text = _textController.text.trim();
-    _c.search(
+    _c
+        .search(
       text.isEmpty ? _c.queryText.value : text,
       recordHistory: false,
-    );
+    )
+        .then((_) {
+      if (mounted) _focusFirstResult();
+    });
   }
 
   void _useHistory(String word) {
     _textController.text = word;
     _textController.selection =
         TextSelection.collapsed(offset: _textController.text.length);
-    _submit(raw: word, openFirst: false);
-    _searchButtonNode.requestFocus();
+    _submit(raw: word);
   }
 
   @override
@@ -143,7 +142,7 @@ class _SearchPageState extends State<SearchPage> {
                 Text("搜索", style: t.h1),
                 SizedBox(height: 10 * t.unit),
                 Text(
-                  "输入直播间或主播关键字，按直播间 / 主播切换结果类型。",
+                  "输入主播或直播间关键字，一次搜索四个平台。",
                   style: t.body.copyWith(color: t.muted),
                 ),
               ],
@@ -178,35 +177,6 @@ class _SearchPageState extends State<SearchPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Obx(
-          () => Row(
-            children: [
-              HighlightButton(
-                text: "直播间",
-                iconData: Icons.live_tv,
-                selected: _c.mode.value == 0,
-                focusNode: _roomModeNode,
-                autofocus: true,
-                onTap: () {
-                  _roomModeNode.requestFocus();
-                  _c.setMode(0, query: _textController.text);
-                },
-              ),
-              SizedBox(width: 20 * t.unit),
-              HighlightButton(
-                text: "主播",
-                iconData: Icons.person,
-                selected: _c.mode.value == 1,
-                focusNode: _anchorModeNode,
-                onTap: () {
-                  _anchorModeNode.requestFocus();
-                  _c.setMode(1, query: _textController.text);
-                },
-              ),
-            ],
-          ),
-        ),
-        SizedBox(height: 28 * t.unit),
-        Obx(
           () => LiveHubGlass(
             level: _inputNode.isFoucsed.value ? 0.18 : 0.055,
             radius: t.cardRadius,
@@ -228,7 +198,7 @@ class _SearchPageState extends State<SearchPage> {
                   decoration: InputDecoration(
                     filled: false,
                     border: InputBorder.none,
-                    hintText: _c.mode.value == 0 ? "输入直播间关键字" : "输入主播关键字",
+                    hintText: "输入主播名、房间号或关键字",
                     hintStyle: t.body.copyWith(color: t.faint),
                     contentPadding:
                         EdgeInsets.symmetric(horizontal: 32 * t.unit),
@@ -283,40 +253,146 @@ class _SearchPageState extends State<SearchPage> {
       if (!_c.hasSearched.value) {
         return _buildHistory(t);
       }
-      final count = _c.resultCount;
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
+      if (_c.resultCount == 0) {
+        return _buildEmpty(t);
+      }
+      return _buildResults(t);
+    });
+  }
+
+  Widget _buildEmpty(LiveHubTokens t) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          "没有找到相关直播间或主播，换个关键字试试。",
+          style: t.body.copyWith(color: t.muted),
+        ),
+        if (_c.platformNotices.isNotEmpty) ...[
+          SizedBox(height: 16 * t.unit),
           Text(
-            "找到 $count 个结果",
-            style: t.meta.copyWith(color: t.faint),
-          ),
-          if (_c.firstIsExact) ...[
-            SizedBox(height: 8 * t.unit),
-            Text(
-              "按「搜索」直达第一条结果",
-              style: t.small.copyWith(color: t.faint),
-            ),
-          ],
-          SizedBox(height: 20 * t.unit),
-          Expanded(
-            child: count == 0
-                ? Align(
-                    alignment: Alignment.topLeft,
-                    child: Text(
-                      _c.mode.value == 0
-                          ? "没有找到相关直播间，换个关键字试试。"
-                          : "没有找到相关主播，换个关键字试试。",
-                      style: t.body.copyWith(color: t.muted),
-                    ),
-                  )
-                : (_c.mode.value == 0
-                    ? _buildRoomGrid(t)
-                    : _buildAnchorGrid(t)),
+            _c.platformNotices.join(" · "),
+            style: t.small.copyWith(color: t.faint),
           ),
         ],
-      );
-    });
+      ],
+    );
+  }
+
+  Widget _buildResults(LiveHubTokens t) {
+    final rooms = _c.rooms;
+    final anchors = _c.anchors;
+    return CustomScrollView(
+      slivers: [
+        if (_c.platformNotices.isNotEmpty)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.only(bottom: 16 * t.unit),
+              child: Text(
+                _c.platformNotices.join(" · "),
+                style: t.small.copyWith(color: t.faint),
+              ),
+            ),
+          ),
+        if (rooms.isNotEmpty) ...[
+          SliverToBoxAdapter(
+            child: _sectionHeader(t, "正在直播", rooms.length),
+          ),
+          SliverPadding(
+            padding: EdgeInsets.fromLTRB(
+              24 * t.unit,
+              12 * t.unit,
+              24 * t.unit,
+              24 * t.unit,
+            ),
+            sliver: SliverGrid(
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 20 * t.unit,
+                mainAxisSpacing: 24 * t.unit,
+                childAspectRatio: 16 / 9,
+              ),
+              delegate: SliverChildBuilderDelegate(
+                (_, i) {
+                  final item = rooms[i];
+                  return LiveRoomCard(
+                    cover: item.cover,
+                    title: item.title,
+                    anchor: item.userName,
+                    siteName: item.siteName,
+                    roomId: item.roomId,
+                    online: item.online,
+                    focusNode: item.focusNode,
+                    onTap: () => AppNavigator.toLiveRoomDetail(
+                      site: item.site,
+                      roomId: item.roomId,
+                    ),
+                  );
+                },
+                childCount: rooms.length,
+              ),
+            ),
+          ),
+        ],
+        if (anchors.isNotEmpty) ...[
+          SliverToBoxAdapter(
+            child: _sectionHeader(t, "主播", anchors.length),
+          ),
+          SliverPadding(
+            padding: EdgeInsets.fromLTRB(
+              16 * t.unit,
+              12 * t.unit,
+              24 * t.unit,
+              60 * t.unit,
+            ),
+            sliver: SliverGrid(
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 4,
+                crossAxisSpacing: 20 * t.unit,
+                mainAxisSpacing: 20 * t.unit,
+                mainAxisExtent: 236 * t.unit,
+              ),
+              delegate: SliverChildBuilderDelegate(
+                (_, i) {
+                  final item = anchors[i];
+                  return PersonCard(
+                    avatar: item.avatar,
+                    name: item.userName,
+                    siteName: item.siteName,
+                    liveStatus: item.liveStatus,
+                    focusNode: item.focusNode,
+                    onTap: () => AppNavigator.toLiveRoomDetail(
+                      site: item.site,
+                      roomId: item.roomId,
+                    ),
+                  );
+                },
+                childCount: anchors.length,
+              ),
+            ),
+          ),
+        ],
+        const SliverToBoxAdapter(child: SizedBox(height: 60)),
+      ],
+    );
+  }
+
+  Widget _sectionHeader(LiveHubTokens t, String title, int count) {
+    return Padding(
+      padding: EdgeInsets.only(left: 24 * t.unit),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
+        children: [
+          Text(title, style: t.title),
+          SizedBox(width: 12 * t.unit),
+          Text(
+            "$count 个",
+            style: t.meta.copyWith(color: t.faint),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildHistory(LiveHubTokens t) {
@@ -376,77 +452,6 @@ class _SearchPageState extends State<SearchPage> {
                 ),
         ),
       ],
-    );
-  }
-
-  Widget _buildRoomGrid(LiveHubTokens t) {
-    final items = _c.rooms;
-    return GridView.builder(
-      // 设计稿的 .card-grid 下限是 400px：2 列时每张约 474px，
-      // 3 列会掉到 317px，22px 的标题会被普遍截断。
-      // 2 列时焦点放大 1.08 左右各外扩约 19px，左留白要大于它。
-      padding: EdgeInsets.fromLTRB(
-        24 * t.unit,
-        12 * t.unit,
-        24 * t.unit,
-        60 * t.unit,
-      ),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 20 * t.unit,
-        mainAxisSpacing: 24 * t.unit,
-        childAspectRatio: 16 / 9,
-      ),
-      itemCount: items.length,
-      itemBuilder: (_, i) {
-        final item = items[i];
-        return LiveRoomCard(
-          cover: item.cover,
-          title: item.title,
-          anchor: item.userName,
-          siteName: item.siteName,
-          roomId: item.roomId,
-          online: item.online,
-          focusNode: item.focusNode,
-          onTap: () => AppNavigator.toLiveRoomDetail(
-            site: item.site,
-            roomId: item.roomId,
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildAnchorGrid(LiveHubTokens t) {
-    final items = _c.anchors;
-    return GridView.builder(
-      padding: EdgeInsets.fromLTRB(
-        16 * t.unit,
-        12 * t.unit,
-        24 * t.unit,
-        60 * t.unit,
-      ),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 4,
-        crossAxisSpacing: 20 * t.unit,
-        mainAxisSpacing: 20 * t.unit,
-        mainAxisExtent: 236 * t.unit,
-      ),
-      itemCount: items.length,
-      itemBuilder: (_, i) {
-        final item = items[i];
-        return PersonCard(
-          avatar: item.avatar,
-          name: item.userName,
-          siteName: item.siteName,
-          liveStatus: item.liveStatus,
-          focusNode: item.focusNode,
-          onTap: () => AppNavigator.toLiveRoomDetail(
-            site: item.site,
-            roomId: item.roomId,
-          ),
-        );
-      },
     );
   }
 }

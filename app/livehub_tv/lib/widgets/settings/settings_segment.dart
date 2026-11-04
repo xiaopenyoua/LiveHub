@@ -71,28 +71,33 @@ class SettingsSegment<T> extends StatelessWidget {
                   child: const SizedBox.expand(),
                 ),
               ),
-            Row(
-              children: [
-                for (var i = 0; i < options.length; i++)
-                  Padding(
-                    padding: EdgeInsets.only(left: i == 0 ? 0 : gap),
-                    child: SizedBox(
-                      width: itemWidth,
-                      height: itemHeight,
-                      child: Center(
-                        child: Text(
-                          options[i].label,
-                          style: t.meta.copyWith(
-                            color: i == selectedIndex ? t.text : t.muted,
-                            fontWeight: i == selectedIndex
-                                ? FontWeight.w600
-                                : FontWeight.w500,
+            // Stack 默认 topStart；药丸用 top/left = pad 定位，Row 也必须
+            // 缩进同样的 pad，否则文字会相对药丸上移、左移各 pad。
+            Padding(
+              padding: EdgeInsets.all(pad),
+              child: Row(
+                children: [
+                  for (var i = 0; i < options.length; i++)
+                    Padding(
+                      padding: EdgeInsets.only(left: i == 0 ? 0 : gap),
+                      child: SizedBox(
+                        width: itemWidth,
+                        height: itemHeight,
+                        child: Center(
+                          child: Text(
+                            options[i].label,
+                            style: t.meta.copyWith(
+                              color: i == selectedIndex ? t.text : t.muted,
+                              fontWeight: i == selectedIndex
+                                  ? FontWeight.w600
+                                  : FontWeight.w500,
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ],
         ),

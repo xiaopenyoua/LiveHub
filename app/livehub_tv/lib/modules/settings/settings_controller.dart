@@ -22,6 +22,7 @@ class SettingsController extends BaseController {
   AppFocusNode danmakuAreaFoucsNode = AppFocusNode();
   AppFocusNode danmakuOpacityFoucsNode = AppFocusNode();
   AppFocusNode danmakuStorkeFoucsNode = AppFocusNode();
+  AppFocusNode danmakuRateFoucsNode = AppFocusNode();
 
   AppFocusNode autoUpdateFollowEnableFocusNode = AppFocusNode();
   AppFocusNode autoUpdateFollowDurationFocusNode = AppFocusNode();

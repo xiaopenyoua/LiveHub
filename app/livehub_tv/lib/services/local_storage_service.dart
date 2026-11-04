@@ -59,6 +59,9 @@ class LocalStorageService extends GetxService {
   /// 弹幕开启
   static const String kDanmuEnable = "DanmuEnable";
 
+  /// 弹幕每秒上屏上限（赛事房那种密度的房间靠它保住帧率）
+  static const String kDanmuMaxRate = "DanmuMaxRate";
+
   /// 硬件解码
   static const String kHardwareDecode = "HardwareDecode";
 

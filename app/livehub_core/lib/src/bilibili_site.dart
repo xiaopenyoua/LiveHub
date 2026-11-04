@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 import 'package:livehub_core/src/common/convert_helper.dart';
+import 'package:livehub_core/src/common/core_log.dart';
 import 'package:livehub_core/src/common/http_client.dart';
 import 'package:livehub_core/src/danmaku/bilibili_danmaku.dart';
 import 'package:livehub_core/src/interface/live_danmaku.dart';
@@ -106,9 +107,17 @@ class BiliBiliSite implements LiveSite {
       header: await getHeader(),
     );
 
-    var hasMore = result["data"]["has_more"] == 1;
+    // `area_id=0`（"全部网游"这类伪分区）在 second/getList 上直接返回 `data: null`，
+    // 原写法会抛 NoSuchMethod 到界面上。分区页里这类条目是列出来的，
+    // 所以这里必须给空结果而不是崩。
+    final data = result["data"];
+    if (data == null) {
+      CoreLog.d("[BiliBili] 分区无数据：${category.parentId}/${category.id}");
+      return LiveCategoryResult(hasMore: false, items: []);
+    }
+    var hasMore = data["has_more"] == 1;
     var items = <LiveRoomItem>[];
-    for (var item in result["data"]["list"]) {
+    for (var item in (data["list"] as List?) ?? const []) {
       var roomItem = LiveRoomItem(
         roomId: item["roomid"].toString(),
         title: item["title"].toString(),
@@ -136,28 +145,65 @@ class BiliBiliSite implements LiveSite {
       },
       header: await getHeader(),
     );
-    var qualitiesMap = <int, String>{};
-    for (var item in result["data"]["playurl_info"]["playurl"]["g_qn_desc"]) {
-      qualitiesMap[int.tryParse(item["qn"].toString()) ?? 0] =
-          item["desc"].toString();
+    // 赛事/版权房在部分时段只签发 HLS 或只签发 hevc，写死 stream[0].format[0].codec[0]
+    // 会在那类房间上直接抛 NoSuchMethodError（然后被上层吞成一句 toast）。
+    // 这里改成“按 avc 优先、能找到 accept_qn 的那条流”。
+    final playurl = result["data"]?["playurl_info"]?["playurl"];
+    if (playurl == null) {
+      CoreLog.error("[BiliBili] 没有取到 playurl_info：room=${detail.roomId}");
+      return qualities;
     }
 
-    for (var item in result["data"]["playurl_info"]["playurl"]["stream"][0]
-        ["format"][0]["codec"][0]["accept_qn"]) {
-      var qualityItem = LivePlayQuality(
-        quality: qualitiesMap[item] ?? "未知清晰度",
-        data: item,
-      );
-      qualities.add(qualityItem);
+    var qualitiesMap = <int, String>{};
+    for (var item in (playurl["g_qn_desc"] as List?) ?? const []) {
+      qualitiesMap[int.tryParse("${item["qn"]}") ?? 0] = "${item["desc"]}";
+    }
+
+    List? acceptQn;
+    for (var stream in (playurl["stream"] as List?) ?? const []) {
+      for (var format in (stream["format"] as List?) ?? const []) {
+        for (var codec in (format["codec"] as List?) ?? const []) {
+          if ("${codec["codec_name"]}" != "avc") {
+            continue;
+          }
+          final qnList = (codec["accept_qn"] as List?) ?? const [];
+          if (qnList.isEmpty) {
+            continue;
+          }
+          acceptQn = qnList;
+          break;
+        }
+        if (acceptQn != null) break;
+      }
+      if (acceptQn != null) break;
+    }
+    if (acceptQn == null) {
+      CoreLog.error("[BiliBili] 没有 accept_qn：room=${detail.roomId}");
+      return qualities;
+    }
+
+    for (var item in acceptQn) {
+      final qn = int.tryParse("$item") ?? 0;
+      final desc = qualitiesMap[qn];
+      if (desc == null) {
+        continue;
+      }
+      qualities.add(LivePlayQuality(quality: desc, data: qn, sort: qn));
     }
     return qualities;
   }
 
+  /// 单次取流里同时拿到 FLV 与 HLS 两种线路。
+  ///
+  /// 排序规则（离屏播不动时按这个顺序换线就够）：
+  /// 1. `http_stream`+`flv`：延迟最低，直播首选；
+  /// 2. `http_hls`+`fmp4`：分片短，弱网更稳；
+  /// 3. `http_hls`+`ts`：老格式，最后再试；
+  /// 4. 含 `mcdn` 的 P2P 边缘节点一律丢弃 —— 赛事/版权房在这类节点上常年 403。
   @override
   Future<LivePlayUrl> getPlayUrls(
       {required LiveRoomDetail detail,
       required LivePlayQuality quality}) async {
-    List<String> urls = [];
     var result = await HttpClient.instance.getJson(
       "https://api.live.bilibili.com/xlive/web-room/v2/index/getRoomPlayInfo",
       queryParameters: {
@@ -170,38 +216,79 @@ class BiliBiliSite implements LiveSite {
       },
       header: await getHeader(),
     );
-    var streamList = result["data"]["playurl_info"]["playurl"]["stream"];
-    for (var streamItem in streamList) {
-      var formatList = streamItem["format"];
-      for (var formatItem in formatList) {
-        var codecList = formatItem["codec"];
-        for (var codecItem in codecList) {
-          var urlList = codecItem["url_info"];
-          var baseUrl = codecItem["base_url"].toString();
-          for (var urlItem in urlList) {
-            urls.add(
-              "${urlItem["host"]}$baseUrl${urlItem["extra"]}",
-            );
+
+    final lines = <LivePlayLine>[];
+    final seen = <String>{};
+    int actualQn = 0;
+    for (var streamItem
+        in (result["data"]?["playurl_info"]?["playurl"]?["stream"] as List?) ??
+            const []) {
+      final protocol = "${streamItem["protocol_name"]}";
+      for (var formatItem in (streamItem["format"] as List?) ?? const []) {
+        final format = "${formatItem["format_name"]}";
+        for (var codecItem in (formatItem["codec"] as List?) ?? const []) {
+          final qn = int.tryParse("${codecItem["current_qn"]}") ?? 0;
+          if (qn > 0) {
+            actualQn = qn;
+          }
+          final baseUrl = "${codecItem["base_url"]}";
+          for (var urlItem in (codecItem["url_info"] as List?) ?? const []) {
+            final host = "${urlItem["host"]}";
+            final url = "$host$baseUrl${urlItem["extra"]}";
+            if (url.contains("mcdn")) {
+              continue;
+            }
+            if (!seen.add(url)) {
+              continue;
+            }
+            lines.add(LivePlayLine(
+              url: url,
+              host: host,
+              quality: qn,
+              kind: _lineKind(protocol, format),
+            ));
           }
         }
       }
     }
-    // 对链接进行排序，包含mcdn的在后
-    urls.sort((a, b) {
-      if (a.contains("mcdn")) {
-        return 1;
-      } else {
-        return -1;
-      }
+
+    // 稳定排序：按 kind 优先级，再按平台给的 host 顺序。
+    final priority = {"FLV": 0, "HLS·fMP4": 1, "HLS·TS": 2};
+    final indexed = <MapEntry<int, LivePlayLine>>[];
+    for (var i = 0; i < lines.length; i++) {
+      indexed.add(MapEntry(i, lines[i]));
+    }
+    indexed.sort((a, b) {
+      final pa = priority[a.value.kind] ?? 9;
+      final pb = priority[b.value.kind] ?? 9;
+      if (pa != pb) return pa.compareTo(pb);
+      return a.key.compareTo(b.key);
     });
+
+    final referer =
+        detail.url.isNotEmpty ? detail.url : "https://live.bilibili.com/";
     return LivePlayUrl(
-      urls: urls,
+      urls: indexed.map((e) => e.value.url).toList(),
+      lines: indexed.map((e) => e.value).toList(),
+      actualQuality: actualQn > 0 ? actualQn : null,
       headers: {
-        "referer": "https://live.bilibili.com",
-        "user-agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36 Edg/115.0.1901.188"
+        // 与接口层用同一个 UA：短效 sig 是按「申请时的客户端画像」签的，
+        // 换个 UA 去拉流会落到防盗链分支（赛事/版权房最先中招）。
+        "referer": referer,
+        "origin": "https://live.bilibili.com",
+        "user-agent": kDefaultUserAgent,
       },
     );
+  }
+
+  String _lineKind(String protocol, String format) {
+    if (protocol.contains("stream")) {
+      return "FLV";
+    }
+    if (format.contains("fmp4")) {
+      return "HLS·fMP4";
+    }
+    return "HLS·TS";
   }
 
   @override
@@ -272,7 +359,7 @@ class BiliBiliSite implements LiveSite {
 
         String formattedDuration =
             '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-        print('Bilibili直播间 $roomId 开播时长: $formattedDuration');
+        CoreLog.d('Bilibili直播间 $roomId 开播时长: $formattedDuration');
       } catch (e) {
         print('计算 Bilibili 开播时长出错: $e');
       }
@@ -312,7 +399,12 @@ class BiliBiliSite implements LiveSite {
       queryParameters: queryParams,
       header: await getHeader(),
     );
-    print("【B站接口返回】roomId=$roomId, result=$result");
+    // 这条响应有 30~60KB（赛事房带一堆 rank / tab / skin 字段）。
+    // release 里每次进房都 print 一遍，等于把一行超长日志塞进 logcat，
+    // 既拖慢进房也把真正有用的播放器日志冲掉。只在调试开关打开时打前 400 字。
+    final text = "$result";
+    CoreLog.d(
+        "【B站接口返回】roomId=$roomId, ${text.length > 400 ? "${text.substring(0, 400)}..." : text}");
     return result["data"];
   }
 

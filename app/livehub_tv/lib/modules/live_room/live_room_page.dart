@@ -54,6 +54,11 @@ class LiveRoomPage extends GetView<LiveRoomController> {
     }
     Log.logPrint(key);
 
+    // 面板打开时，方向键 / OK 归面板内控件；全局快捷键不响应。
+    if (Get.isDialogOpen == true) {
+      return;
+    }
+
     // if (key.logicalKey == LogicalKeyboardKey.escape ||
     //     key.logicalKey == LogicalKeyboardKey.backspace ||
     //     key.logicalKey == LogicalKeyboardKey.goBack) {
@@ -150,6 +155,44 @@ class LiveRoomPage extends GetView<LiveRoomController> {
               child: Text(
                 "未开播",
                 style: t.body.copyWith(color: t.muted),
+              ),
+            ),
+          ),
+        ),
+        // 播放链路出错时得说出来。以前 errorMsg 只写不读，
+        // 取流失败 / 换线换完 / 看门狗放弃 —— 三种结局在屏幕上长得一模一样：
+        // 黑屏或一张静止的画面，没有任何提示。
+        Obx(
+          () => Visibility(
+            visible: controller.errorMsg.value.isNotEmpty &&
+                !controller.pageLoadding.value,
+            child: Center(
+              child: Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: 40 * t.unit,
+                  vertical: 28 * t.unit,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xCC1A140F),
+                  borderRadius: BorderRadius.circular(16 * t.unit),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text("播放异常", style: t.title),
+                    SizedBox(height: 12 * t.unit),
+                    Text(
+                      controller.errorMsg.value,
+                      textAlign: TextAlign.center,
+                      style: t.body.copyWith(color: t.muted),
+                    ),
+                    SizedBox(height: 12 * t.unit),
+                    Text(
+                      "按 → 打开设置换线路，按 ↑ / ↓ 换台",
+                      style: t.meta.copyWith(color: t.muted),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

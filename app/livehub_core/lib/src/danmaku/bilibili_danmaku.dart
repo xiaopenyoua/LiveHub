@@ -53,6 +53,11 @@ class BiliBiliDanmaku implements LiveDanmaku {
 
   WebScoketUtils? webScoketUtils;
   late BiliBiliDanmakuArgs danmakuArgs;
+
+  /// 诊断计数（只在 UI 上做「限流丢了 N 条」的归因用，不参与业务）。
+  int packetMessages = 0;
+  int parsedMessages = 0;
+  int droppedMessages = 0;
   @override
   Future start(dynamic args) async {
     danmakuArgs = args as BiliBiliDanmakuArgs;
@@ -172,15 +177,68 @@ class BiliBiliDanmaku implements LiveDanmaku {
 
         var text = utf8.decode(body, allowMalformed: true);
 
-        var group =
-            text.split(RegExp(r"[\x00-\x1f]+", unicode: true, multiLine: true));
-        for (var item
-            in group.where((x) => x.length > 2 && x.startsWith('{'))) {
+        // 原来这里是 `text.split(RegExp(r"[\x00-\x1f]+", unicode: true))` +
+        // 对**每一个**片段 json.decode。赛事房一条包常有 50~200 条消息，
+        // 其中九成是进场/礼物/点赞/在线榜 —— 全在 UI isolate 上解析完再丢掉。
+        // 改成：手写花括号扫描切 JSON（无正则、不分隔符假设）+ 解析前先做子串预筛。
+        for (final item in _splitJsonObjects(text)) {
+          packetMessages++;
+          if (!item.contains('"cmd":"DANMU_MSG') &&
+              !item.contains('"cmd":"SUPER_CHAT_MESSAGE')) {
+            droppedMessages++;
+            continue;
+          }
+          parsedMessages++;
           parseMessage(item);
         }
       }
     } catch (e) {
       CoreLog.error(e);
+    }
+  }
+
+
+  /// 逐条切出 JSON 对象：不依赖 `\u0000` 分隔（历史包不带分隔符），
+  /// 也不构造正则状态机。字符串内的花括号由 `inString`/`escape` 处理。
+  Iterable<String> _splitJsonObjects(String text) sync* {
+    var cursor = 0;
+    while (true) {
+      final start = text.indexOf('{', cursor);
+      if (start < 0) {
+        return;
+      }
+      var depth = 0;
+      var inString = false;
+      var escaped = false;
+      var i = start;
+      for (; i < text.length; i++) {
+        final c = text.codeUnitAt(i);
+        if (inString) {
+          if (escaped) {
+            escaped = false;
+          } else if (c == 0x5C) {
+            escaped = true;
+          } else if (c == 0x22) {
+            inString = false;
+          }
+          continue;
+        }
+        if (c == 0x22) {
+          inString = true;
+        } else if (c == 0x7B) {
+          depth++;
+        } else if (c == 0x7D) {
+          depth--;
+          if (depth == 0) {
+            break;
+          }
+        }
+      }
+      if (i >= text.length) {
+        return;
+      }
+      yield text.substring(start, i + 1);
+      cursor = i + 1;
     }
   }
 

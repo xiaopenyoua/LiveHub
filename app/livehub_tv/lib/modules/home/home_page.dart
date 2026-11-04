@@ -120,7 +120,7 @@ class HomePage extends GetView<HomeController> {
   Widget _buildHero(BuildContext context, LiveRoomItemExt item) {
     final t = context.lh;
     return SizedBox(
-      height: 478 * t.unit,
+      height: 597.5 * t.unit,
       child: Stack(
         fit: StackFit.expand,
         children: [

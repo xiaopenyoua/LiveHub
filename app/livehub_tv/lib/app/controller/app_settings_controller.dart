@@ -25,6 +25,8 @@ class AppSettingsController extends GetxController {
         .getValue(LocalStorageService.kDanmuSpeed, 10.0);
     danmuEnable.value = LocalStorageService.instance
         .getValue(LocalStorageService.kDanmuEnable, true);
+    danmuMaxRate.value = LocalStorageService.instance
+        .getValue(LocalStorageService.kDanmuMaxRate, 12);
     danmuStrokeWidth.value = LocalStorageService.instance
         .getValue(LocalStorageService.kDanmuStrokeWidth, 4.0);
     danmuTopMargin.value = LocalStorageService.instance
@@ -59,8 +61,12 @@ class AppSettingsController extends GetxController {
     roomAutoExitDuration.value = LocalStorageService.instance
         .getValue(LocalStorageService.kRoomAutoExitDuration, 60);
 
+    // 兼容模式 = `vo=mediacodec_embed` + `hwdec=mediacodec`（上游遗留的
+    // SurfaceView 直渲路径）。它只在 gpu VO 出花屏的老设备上才有意义：
+    // 走这条路时 AndroidVideoController 每次 surface 重挂都要重设 vo/vid 并
+    // seek(0)，直播流被这一步钉死的概率很高。所以默认关，需要时再开。
     playerCompatMode.value = LocalStorageService.instance
-        .getValue(LocalStorageService.kPlayerCompatMode, true);
+        .getValue(LocalStorageService.kPlayerCompatMode, false);
 
     playerAutoPause.value = LocalStorageService.instance
         .getValue(LocalStorageService.kPlayerAutoPause, false);
@@ -168,6 +174,19 @@ class AppSettingsController extends GetxController {
     danmuStrokeWidth.value = e;
     LocalStorageService.instance
         .setValue(LocalStorageService.kDanmuStrokeWidth, e);
+  }
+
+  /// 弹幕每秒上屏上限。
+  ///
+  /// 1080p + 40 号字 + 1/4 显示区域时轨道只有 5 条，每条轨道大约 0.5 条/秒，
+  /// 也就是**看得见的上限约 3 条/秒**。超出的部分 canvas_danmaku 会整条丢掉，
+  /// 但丢掉之前已经付过「量宽 + 建 Paragraph」的钱。默认 12/s 是"看得见的上限"
+  /// 的 4 倍余量：正常房间完全不受影响，赛事房少做 90% 的无用排版。
+  var danmuMaxRate = 12.obs;
+  void setDanmuMaxRate(int e) {
+    danmuMaxRate.value = e;
+    LocalStorageService.instance
+        .setValue(LocalStorageService.kDanmuMaxRate, e);
   }
 
   var qualityLevel = 1.obs;

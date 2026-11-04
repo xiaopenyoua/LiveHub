@@ -11,7 +11,7 @@ import 'package:livehub_tv/modules/live_room/live_room_controller.dart';
 import 'package:livehub_tv/services/follow_user_service.dart';
 import 'package:livehub_tv/widgets/button/highlight_button.dart';
 import 'package:livehub_tv/widgets/card/anchor_card.dart';
-import 'package:livehub_tv/widgets/settings_item_widget.dart';
+import 'package:livehub_tv/widgets/settings/settings_rows.dart';
 import 'package:livehub_tv/widgets/status/app_empty_widget.dart';
 import 'package:livehub_ui/livehub_ui.dart';
 
@@ -246,15 +246,12 @@ Widget buildControls(VideoState videoState, LiveRoomController controller) {
 
 Widget buildDanmuView(VideoState videoState, LiveRoomController controller) {
   var padding = MediaQuery.of(videoState.context).padding;
+  // 选项从控制器统一取（含 massiveMode / 描边），不再在这里拼第二份，
+  // 否则「设置页改了、播放页没变」这种不一致会一直存在。
   controller.danmakuView ??= DanmakuScreen(
     key: controller.globalDanmuKey,
     createdController: controller.initDanmakuController,
-    option: DanmakuOption(
-      fontSize: AppSettingsController.instance.danmuSize.value.w,
-      area: AppSettingsController.instance.danmuArea.value,
-      duration: AppSettingsController.instance.danmuSpeed.value.toInt(),
-      opacity: AppSettingsController.instance.danmuOpacity.value,
-    ),
+    option: controller.danmakuOption,
   );
   return Positioned.fill(
     top: padding.top,
@@ -356,8 +353,10 @@ void showPlayerSettings(LiveRoomController controller) {
   final t = Get.context!.lh;
   // 移除焦点
   controller.focusNode.unfocus();
+  final initialQuality = controller.currentQuality;
+  final initialLine = controller.currentLineIndex;
 
-  var followFocusNode = AppFocusNode()..isFoucsed.value = true;
+  var followFocusNode = AppFocusNode();
   var qualityFoucsNode = AppFocusNode();
   var lineFoucsNode = AppFocusNode();
   var scaleFoucsNode = AppFocusNode();
@@ -397,11 +396,10 @@ void showPlayerSettings(LiveRoomController controller) {
             padding: EdgeInsets.all(48 * t.unit),
             children: [
               Obx(
-                () => SettingsItemWidget(
-                  foucsNode: followFocusNode,
-                  autofocus: followFocusNode.isFoucsed.value,
+                () => SettingsSwitchRow(
+                  focusNode: followFocusNode,
+                  autofocus: true,
                   title: "关注用户",
-                  items: const {false: "否", true: "是"},
                   value: controller.followed.value,
                   onChanged: (e) {
                     if (e) {
@@ -429,19 +427,16 @@ void showPlayerSettings(LiveRoomController controller) {
 
               // 清晰度切换
               Obx(
-                () => SettingsItemWidget(
+                () => SettingsChoiceRow(
                   title: "清晰度",
-                  foucsNode: qualityFoucsNode,
-                  autofocus: qualityFoucsNode.isFoucsed.value,
+                  focusNode: qualityFoucsNode,
                   items: controller.qualites
                       .asMap()
                       .map((i, e) => MapEntry(i, e.quality))
                       .cast<int, String>(),
                   value: controller.currentQuality,
                   onChanged: (e) {
-                    Get.back();
-                    controller.currentQuality = e;
-                    controller.getPlayUrl();
+                    controller.currentQuality = e as int;
                   },
                 ),
               ),
@@ -449,18 +444,19 @@ void showPlayerSettings(LiveRoomController controller) {
               SizedBox(height: 32 * t.unit),
               // 线路切换
               Obx(
-                () => SettingsItemWidget(
+                () => SettingsChoiceRow(
                   title: "线路",
-                  foucsNode: lineFoucsNode,
-                  autofocus: lineFoucsNode.isFoucsed.value,
-                  items: controller.playUrls
-                      .asMap()
-                      .map((i, e) => MapEntry(i, "线路${i + 1}"))
-                      .cast<int, String>(),
+                  focusNode: lineFoucsNode,
+                  items: controller.playUrls.asMap().map((i, e) {
+                    final kind = i < controller.playLines.length
+                        ? controller.playLines[i].kind
+                        : "";
+                    return MapEntry(
+                        i, kind.isEmpty ? "线路${i + 1}" : "线路${i + 1}·$kind");
+                  }).cast<int, String>(),
                   value: controller.currentLineIndex,
                   onChanged: (e) {
-                    Get.back();
-                    controller.changePlayLine(e);
+                    controller.currentLineIndex = e as int;
                   },
                 ),
               ),
@@ -477,14 +473,13 @@ void showPlayerSettings(LiveRoomController controller) {
               ),
               SizedBox(height: 24 * t.unit),
               Obx(
-                () => SettingsItemWidget(
-                  foucsNode: scaleFoucsNode,
-                  autofocus: scaleFoucsNode.isFoucsed.value,
+                () => SettingsChoiceRow(
+                  focusNode: scaleFoucsNode,
                   title: "画面比例",
                   items: const {0: "适应", 1: "拉伸", 2: "铺满", 3: "16:9", 4: "4:3"},
                   value: AppSettingsController.instance.scaleMode.value,
                   onChanged: (e) {
-                    AppSettingsController.instance.setScaleMode(e);
+                    AppSettingsController.instance.setScaleMode(e as int);
                     controller.updateScaleMode();
                   },
                 ),
@@ -502,23 +497,20 @@ void showPlayerSettings(LiveRoomController controller) {
               ),
               SizedBox(height: 24 * t.unit),
               Obx(
-                () => SettingsItemWidget(
-                  foucsNode: danmakuFoucsNode,
-                  autofocus: danmakuFoucsNode.isFoucsed.value,
+                () => SettingsSwitchRow(
+                  focusNode: danmakuFoucsNode,
                   title: "弹幕开关",
-                  items: const {0: "关", 1: "开"},
-                  value: controller.showDanmakuState.value ? 1 : 0,
+                  value: controller.showDanmakuState.value,
                   onChanged: (e) {
-                    controller.showDanmakuState.value = e == 1;
-                    AppSettingsController.instance.setDanmuEnable(e == 1);
+                    controller.showDanmakuState.value = e;
+                    AppSettingsController.instance.setDanmuEnable(e);
                   },
                 ),
               ),
               SizedBox(height: 24 * t.unit),
               Obx(
-                () => SettingsItemWidget(
-                  foucsNode: danmakuSizeFoucsNode,
-                  autofocus: danmakuSizeFoucsNode.isFoucsed.value,
+                () => SettingsChoiceRow(
+                  focusNode: danmakuSizeFoucsNode,
                   title: "弹幕大小",
                   items: {
                     24.0: "24",
@@ -531,10 +523,10 @@ void showPlayerSettings(LiveRoomController controller) {
                   },
                   value: AppSettingsController.instance.danmuSize.value,
                   onChanged: (e) {
-                    AppSettingsController.instance.setDanmuSize(e);
+                    AppSettingsController.instance.setDanmuSize(e as double);
                     controller.updateDanmuOption(
                       controller.danmakuController?.option.copyWith(
-                        fontSize: (e as double).w,
+                        fontSize: e.w,
                       ),
                     );
                   },
@@ -542,9 +534,8 @@ void showPlayerSettings(LiveRoomController controller) {
               ),
               SizedBox(height: 24 * t.unit),
               Obx(
-                () => SettingsItemWidget(
-                  foucsNode: danmakuSpeedFoucsNode,
-                  autofocus: danmakuSpeedFoucsNode.isFoucsed.value,
+                () => SettingsChoiceRow(
+                  focusNode: danmakuSpeedFoucsNode,
                   title: "弹幕速度",
                   items: {
                     18.0: "很慢",
@@ -557,10 +548,10 @@ void showPlayerSettings(LiveRoomController controller) {
                   },
                   value: AppSettingsController.instance.danmuSpeed.value,
                   onChanged: (e) {
-                    AppSettingsController.instance.setDanmuSpeed(e);
+                    AppSettingsController.instance.setDanmuSpeed(e as double);
                     controller.updateDanmuOption(
                       controller.danmakuController?.option.copyWith(
-                        duration: (e as double).toInt(),
+                        duration: e.toInt(),
                       ),
                     );
                   },
@@ -569,17 +560,16 @@ void showPlayerSettings(LiveRoomController controller) {
 
               SizedBox(height: 24 * t.unit),
               Obx(
-                () => SettingsItemWidget(
-                  foucsNode: danmakuAreaFoucsNode,
-                  autofocus: danmakuAreaFoucsNode.isFoucsed.value,
+                () => SettingsChoiceRow(
+                  focusNode: danmakuAreaFoucsNode,
                   title: "显示区域",
                   items: {0.25: "1/4", 0.5: "1/2", 0.75: "3/4", 1.0: "全屏"},
                   value: AppSettingsController.instance.danmuArea.value,
                   onChanged: (e) {
-                    AppSettingsController.instance.setDanmuArea(e);
+                    AppSettingsController.instance.setDanmuArea(e as double);
                     controller.updateDanmuOption(
                       controller.danmakuController?.option.copyWith(
-                        area: e as double,
+                        area: e,
                       ),
                     );
                   },
@@ -587,9 +577,8 @@ void showPlayerSettings(LiveRoomController controller) {
               ),
               SizedBox(height: 24 * t.unit),
               Obx(
-                () => SettingsItemWidget(
-                  foucsNode: danmakuOpacityFoucsNode,
-                  autofocus: danmakuOpacityFoucsNode.isFoucsed.value,
+                () => SettingsChoiceRow(
+                  focusNode: danmakuOpacityFoucsNode,
                   title: "不透明度",
                   items: {
                     0.1: "10%",
@@ -605,10 +594,10 @@ void showPlayerSettings(LiveRoomController controller) {
                   },
                   value: AppSettingsController.instance.danmuOpacity.value,
                   onChanged: (e) {
-                    AppSettingsController.instance.setDanmuOpacity(e);
+                    AppSettingsController.instance.setDanmuOpacity(e as double);
                     controller.updateDanmuOption(
                       controller.danmakuController?.option.copyWith(
-                        opacity: e as double,
+                        opacity: e,
                       ),
                     );
                   },
@@ -620,6 +609,12 @@ void showPlayerSettings(LiveRoomController controller) {
       ],
     ),
   ).then((value) {
+    // 清晰度/线路只在面板关闭时应用一次：连续左右步进不应触发多次重连。
+    if (controller.currentQuality != initialQuality) {
+      controller.getPlayUrl();
+    } else if (controller.currentLineIndex != initialLine) {
+      controller.changePlayLine(controller.currentLineIndex);
+    }
     // 还原焦点
     controller.focusNode.requestFocus();
   });
@@ -627,6 +622,7 @@ void showPlayerSettings(LiveRoomController controller) {
 
 void showFollowUser(LiveRoomController controller) {
   final t = Get.context!.lh;
+  controller.focusNode.unfocus();
   var currentIndex = 0;
   if (controller.followed.value) {
     currentIndex = FollowUserService.instance.livingList.indexWhere(

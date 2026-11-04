@@ -723,6 +723,16 @@ class DouyinSite implements LiveSite {
     if (result == "" || result == 'blocked') {
       throw Exception("抖音直播搜索被限制，请稍后再试");
     }
+    if (result is! Map) {
+      throw Exception("抖音直播搜索返回异常");
+    }
+    // status_code 非 0 时接口不会返回 data；最常见的 2483 是“请先登录”。
+    // 不能把它当成“0 条结果”，否则用户只会看到一句“没有找到”。
+    final statusCode = result["status_code"];
+    if (statusCode != null && statusCode != 0) {
+      final message = result["status_msg"]?.toString() ?? "";
+      throw Exception(message.isEmpty ? "抖音直播搜索不可用" : message);
+    }
     var items = <LiveRoomItem>[];
     for (var item in result["data"] ?? []) {
       var itemData = json.decode(item["lives"]["rawdata"].toString());

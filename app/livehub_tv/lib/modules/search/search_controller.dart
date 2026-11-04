@@ -7,7 +7,7 @@ import 'package:livehub_tv/services/local_storage_service.dart';
 /// 搜索结果里的主播条目。
 ///
 /// 和 [LiveRoomItemExt] 一样，每条自带所属平台：四个平台的搜索结果混在
-/// 同一个网格里，点击时必须知道该用哪个 site 打开直播间。
+/// 同一个列表里，点击时必须知道该用哪个 site 打开直播间。
 class TvAnchorItem {
   TvAnchorItem({
     required this.roomId,
@@ -28,17 +28,18 @@ class TvAnchorItem {
   AppFocusNode focusNode = AppFocusNode();
 }
 
-/// 搜索页控制器：直播间 / 主播两种结果类型，四平台并发搜索。
+/// 搜索页控制器：一次查询同时搜「正在直播」与「主播」两类结果。
+///
+/// 不再提供「直播间 / 主播」模式切换：用户输入的是主播名时，未开播的主播
+/// 只在主播索引里，先让用户猜对模式等于把可搜到的结果藏起来。
 class TvSearchController extends GetxController {
   /// 搜索历史的持久化 key。
   static const String kHistoryKey = "SearchHistory";
 
   static const int _historyLimit = 8;
   static const int _roomLimit = 12;
+  static const int _anchorLimit = 20;
   static const int _queryLimit = 32;
-
-  /// 0 = 直播间，1 = 主播。
-  final mode = 0.obs;
 
   /// 是否有一次搜索正在进行。
   final searching = false.obs;
@@ -53,6 +54,9 @@ class TvSearchController extends GetxController {
   final anchors = <TvAnchorItem>[].obs;
   final history = <String>[].obs;
 
+  /// 单个平台搜索失败 / 不支持时的说明（如“抖音：请先登录”）。
+  final platformNotices = <String>[].obs;
+
   /// 四个平台全部失败（断网 / 被限制）时置位。
   /// 用来区分“合法地搜不到”和“根本搜不了”，后者要给重试入口。
   final allFailed = false.obs;
@@ -66,33 +70,7 @@ class TvSearchController extends GetxController {
     _loadHistory();
   }
 
-  int get resultCount => mode.value == 0 ? rooms.length : anchors.length;
-
-  /// 排第一的结果是否与查询串完全相等。
-  /// 用于结果区那句“按「搜索」直达”——和搜索键共用同一条结果。
-  bool get firstIsExact {
-    final query = queryText.value;
-    if (query.isEmpty) return false;
-    if (mode.value == 0) {
-      if (rooms.isEmpty) return false;
-      final first = rooms.first;
-      return _matchRank(query, [first.roomId, first.userName, first.title]) == 0;
-    }
-    if (anchors.isEmpty) return false;
-    final first = anchors.first;
-    return _matchRank(query, [first.roomId, first.userName]) == 0;
-  }
-
-  /// 切换结果类型。已经搜过一次时，立刻按 [query]（输入框当前文本）重查，
-  /// 用户不用再按一次搜索。不传 [query] 时退回上次提交的查询串。
-  void setMode(int value, {String? query}) {
-    if (value != 0 && value != 1) return;
-    if (mode.value == value) return;
-    mode.value = value;
-    if (!hasSearched.value) return;
-    final text = (query ?? queryText.value).trim();
-    search(text, recordHistory: false);
-  }
+  int get resultCount => rooms.length + anchors.length;
 
   /// 提交搜索。空白查询回到“搜索历史”状态。
   Future<void> search(String raw, {bool recordHistory = true}) async {
@@ -104,6 +82,7 @@ class TvSearchController extends GetxController {
       searching.value = false;
       allFailed.value = false;
       errorText.value = "";
+      platformNotices.clear();
       rooms.clear();
       anchors.clear();
       return;
@@ -116,28 +95,41 @@ class TvSearchController extends GetxController {
     searching.value = true;
     allFailed.value = false;
     errorText.value = "";
-    // 先清掉当前模式旧结果：请求失败时不能把上一次的结果留在屏上。
-    if (mode.value == 0) {
-      rooms.clear();
-    } else {
-      anchors.clear();
-    }
+    platformNotices.clear();
+    // 先清掉旧结果：请求失败时不能把上一次的结果留在屏上。
+    rooms.clear();
+    anchors.clear();
 
     try {
       if (recordHistory) {
         await _recordHistory(limited);
       }
-      if (mode.value == 0) {
-        final (result, failures) = await _searchRooms(limited);
-        if (requestId != _requestId) return;
-        rooms.assignAll(result);
-        _applyOutcome(failures);
-      } else {
-        final (result, failures) = await _searchAnchors(limited);
-        if (requestId != _requestId) return;
-        anchors.assignAll(result);
-        _applyOutcome(failures);
-      }
+      final outcomes = await Future.wait([
+        _searchRooms(limited),
+        _searchAnchors(limited),
+      ]);
+      if (requestId != _requestId) return;
+
+      final roomOutcome = outcomes[0] as _RoomOutcome;
+      final anchorOutcome = outcomes[1] as _AnchorOutcome;
+
+      rooms.assignAll(roomOutcome.items);
+
+      // 直播间已经占了一格的，主播区不再重复展示。
+      final roomKeys = rooms.map((e) => "${e.site.id}:${e.roomId}").toSet();
+      anchors.assignAll(
+        anchorOutcome.items
+            .where((e) => !roomKeys.contains("${e.site.id}:${e.roomId}"))
+            .take(_anchorLimit),
+      );
+
+      // 只展示“正在直播”这一侧的失败：主播侧抖音本来就不支持，
+      // 重复提示只会让用户以为搜了两次。
+      platformNotices.assignAll(roomOutcome.notices);
+      _applyOutcome(
+        roomOutcome.failureCount,
+        anchorOutcome.failureCount,
+      );
     } finally {
       if (requestId == _requestId) {
         searching.value = false;
@@ -145,16 +137,18 @@ class TvSearchController extends GetxController {
     }
   }
 
-  /// 只有“所有平台都失败”才算错误；部分失败仍按可用结果展示。
-  void _applyOutcome(int failures) {
-    if (failures >= Sites.supportSites.length) {
+  /// 只有“两类结果的所有平台都失败”才算错误；
+  /// 部分失败仍按可用结果展示，并在 [platformNotices] 里说明原因。
+  void _applyOutcome(int roomFailures, int anchorFailures) {
+    if (roomFailures >= Sites.supportSites.length &&
+        anchorFailures >= Sites.supportSites.length) {
       allFailed.value = true;
       errorText.value = "所有平台都连接失败，请检查网络后重试";
     }
   }
 
-  Future<(List<LiveRoomItemExt>, int)> _searchRooms(String query) async {
-    var failures = 0;
+  Future<_RoomOutcome> _searchRooms(String query) async {
+    final failures = <String>[];
     final results = await Future.wait(
       Sites.supportSites.map((site) async {
         try {
@@ -171,9 +165,9 @@ class TvSearchController extends GetxController {
                 ),
               )
               .toList();
-        } catch (_) {
+        } catch (e) {
           // 单个平台失败不影响其他平台的结果。
-          failures++;
+          failures.add("${site.shortName}：${_message(e)}");
           return <LiveRoomItemExt>[];
         }
       }),
@@ -194,11 +188,11 @@ class TvSearchController extends GetxController {
       if (rankA != rankB) return rankA.compareTo(rankB);
       return b.online.compareTo(a.online);
     });
-    return (merged.take(_roomLimit).toList(), failures);
+    return _RoomOutcome(merged.take(_roomLimit).toList(), failures);
   }
 
-  Future<(List<TvAnchorItem>, int)> _searchAnchors(String query) async {
-    var failures = 0;
+  Future<_AnchorOutcome> _searchAnchors(String query) async {
+    final failures = <String>[];
     final results = await Future.wait(
       Sites.supportSites.map((site) async {
         try {
@@ -214,8 +208,8 @@ class TvSearchController extends GetxController {
                 ),
               )
               .toList();
-        } catch (_) {
-          failures++;
+        } catch (e) {
+          failures.add("${site.shortName}：${_message(e)}");
           return <TvAnchorItem>[];
         }
       }),
@@ -228,6 +222,11 @@ class TvSearchController extends GetxController {
         merged.add(item);
       }
     }
+    // 主播按名字找：平台返回的模糊结果里常混入与查询毫无关系的账号
+    // （例如搜“我是阿南”返回“湘南阿杰”），这里只保留本地可解释的匹配。
+    merged.removeWhere(
+      (e) => _matchRank(query, [e.roomId, e.userName]) >= 3,
+    );
     // 主播同样先按匹配准确度，再按“直播中优先”。
     merged.sort((a, b) {
       final rankA = _matchRank(query, [a.roomId, a.userName]);
@@ -236,7 +235,7 @@ class TvSearchController extends GetxController {
       if (a.liveStatus != b.liveStatus) return a.liveStatus ? -1 : 1;
       return 0;
     });
-    return (merged, failures);
+    return _AnchorOutcome(merged, failures);
   }
 
   /// 匹配准确度：0 完全相等 / 1 前缀 / 2 包含 / 3 不匹配。
@@ -254,6 +253,12 @@ class TvSearchController extends GetxController {
       }
     }
     return best;
+  }
+
+  String _message(Object error) {
+    const prefix = "Exception: ";
+    final text = error.toString();
+    return text.startsWith(prefix) ? text.substring(prefix.length) : text;
   }
 
   void _loadHistory() {
@@ -276,4 +281,23 @@ class TvSearchController extends GetxController {
     await LocalStorageService.instance
         .setValue<List<String>>(kHistoryKey, history.toList());
   }
+}
+
+class _RoomOutcome {
+  const _RoomOutcome(this.items, this.failures);
+
+  final List<LiveRoomItemExt> items;
+  final List<String> failures;
+
+  int get failureCount => failures.length;
+  List<String> get notices => failures;
+}
+
+class _AnchorOutcome {
+  const _AnchorOutcome(this.items, this.failures);
+
+  final List<TvAnchorItem> items;
+  final List<String> failures;
+
+  int get failureCount => failures.length;
 }
