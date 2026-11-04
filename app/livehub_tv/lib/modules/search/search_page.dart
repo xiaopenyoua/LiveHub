@@ -173,7 +173,11 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   Widget _buildLeft(LiveHubTokens t) {
-    return Column(
+    // 输入法弹出时窗口高度会被 adjustResize 压掉一大截，这里的固定高度内容
+    // （96u 输入框 + 24u 间距 + 搜索按钮）一旦超过剩余高度就会竖向溢出，
+    // 表现是紧贴键盘上方那条黄黑警示条。改成可滚动即不会再溢出。
+    return SingleChildScrollView(
+      child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Obx(
@@ -216,6 +220,7 @@ class _SearchPageState extends State<SearchPage> {
           onTap: () => _submit(),
         ),
       ],
+      ),
     );
   }
 

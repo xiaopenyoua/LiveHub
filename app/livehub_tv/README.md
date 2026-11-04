@@ -237,6 +237,38 @@ Subject: Input dispatching timed out (... Waited 5001ms for KeyEvent)
   而且每次 surface 重挂都要重设 `vo`/`vid` 并 `seek(0)` —— 上面那两帧黑屏就是它。
 - 新增「弹幕密度」（8/12/20/30/45/60 条每秒，默认 12）。
 
+### 播放页设置面板的「黄黑条纹花块」（2026-11-04 复现并修复）
+
+真机上在播放页设置面板的「线路」行右侧、以及搜索页弹出输入法时键盘上沿，会看到一小块
+黄黑斜条纹 + 白底红字。**它不是花屏，是 Flutter `RenderFlex` 的溢出指示器**
+（`RIGHT/BOTTOM OVERFLOWED BY N PIXELS`）。也就是说那两处内容比容器宽/高了。
+
+根因（两处，同一类）：
+
+1. **`SettingsSegment` 按最长标签定宽**：`itemWidth = 最长标签 + 40u`，再乘选项数。
+   4 条线路时最长标签是 `线路3·HLS·fMP4`，单格 ≈220u ⇒ 总宽 900u+，
+   而播放页面板只有 800u（扣掉行内 44u×2 padding 只剩 ≈712u），必然溢出。
+2. **输入法把窗口高度压掉**：搜索页左栏是「96u 输入框 + 24u + 搜索按钮」的固定高度
+   Column，`adjustResize` 后剩余高度不够就竖向溢出，条纹正好贴着键盘上沿。
+
+修法：
+
+- `widgets/settings/settings_segment.dart`：`LayoutBuilder` 里按可用宽度收缩单元格
+  （下限 40u），标签 `maxLines: 1 / ellipsis`，宽度再也不会超过父级约束。
+- `widgets/settings/settings_row.dart`：右侧控件套 `ConstrainedBox(maxWidth: 78%)`，
+  给标题保底 22% —— 分段控件因此拿到的是**有界**宽度，收缩逻辑才会生效。
+- 线路方块只放「线路N」，线路类型（FLV / fMP4 / TS）移到该行副标题「当前：线路1·FLV」；
+  `_lineKind` 也把 `HLS·fMP4` 缩成 `fMP4`。
+- `modules/search/search_page.dart`：左栏包进 `SingleChildScrollView`，高度再小也只是滚动，
+  不会溢出（滚动容器结构上不可能报 overflow）。
+
+取证（同一台模拟器、同一个包、同一间房）：
+
+| 状态 | 现象 |
+| --- | --- |
+| 修复前 | 线路行右侧出现黄黑条纹 + `RIGHT OVERFLOWED BY …` |
+| 修复后 | 四个「线路N」方块完整落在面板内，副标题显示 `当前：线路1·FLV`，无条纹 |
+
 ### 模拟器实测（2026-11-04 14:00，`googletv_api36` / Android 16 / arm64）
 
 重启一台干净的 TV AVD（软件 GPU、无硬件解码器、模拟器里登录了哔哩账号 ⇒ 拿到 `qn=15000` 2K 流）：

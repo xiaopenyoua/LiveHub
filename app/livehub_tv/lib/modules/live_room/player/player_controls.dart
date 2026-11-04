@@ -447,13 +447,16 @@ void showPlayerSettings(LiveRoomController controller) {
                 () => SettingsChoiceRow(
                   title: "线路",
                   focusNode: lineFoucsNode,
-                  items: controller.playUrls.asMap().map((i, e) {
-                    final kind = i < controller.playLines.length
-                        ? controller.playLines[i].kind
-                        : "";
-                    return MapEntry(
-                        i, kind.isEmpty ? "线路${i + 1}" : "线路${i + 1}·$kind");
-                  }).cast<int, String>(),
+                  // 方块里只放「线路N」。把 `·FLV / ·fMP4` 塞进来的话，
+                  // 4 条线路时最长的那个标签会把分段控件顶出面板（就是那条黄黑警示条）；
+                  // 类型改放这一行的副标题，既能看见，也不会撑宽。
+                  desc: controller.currentLineInfo.value.isEmpty
+                      ? null
+                      : "当前：${controller.currentLineInfo.value}",
+                  items: controller.playUrls
+                      .asMap()
+                      .map((i, e) => MapEntry(i, "线路${i + 1}"))
+                      .cast<int, String>(),
                   value: controller.currentLineIndex,
                   onChanged: (e) {
                     controller.currentLineIndex = e as int;

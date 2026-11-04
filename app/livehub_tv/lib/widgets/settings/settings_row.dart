@@ -58,7 +58,11 @@ class SettingsRow extends StatelessWidget {
             horizontal: 44 * t.unit,
             vertical: 14 * t.unit,
           ),
-          child: Row(
+          // 右侧控件（分段控件 / 当前值 / 开关）必须有一个上限，否则它按内容
+          // 自然宽度撑开时会把整行顶出容器（RenderFlex 溢出 → 黄黑警示条）。
+          // 这里给标题保底 22%，剩下 78% 是右侧可用的最大宽度。
+          child: LayoutBuilder(
+            builder: (context, constraints) => Row(
             children: [
               if (leading != null) ...[
                 leading!,
@@ -95,7 +99,12 @@ class SettingsRow extends StatelessWidget {
               ),
               if (trailing != null) ...[
                 SizedBox(width: 24 * t.unit),
-                trailing!,
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: constraints.maxWidth * 0.78,
+                  ),
+                  child: trailing!,
+                ),
               ],
               if (chevron)
                 Padding(
@@ -107,6 +116,7 @@ class SettingsRow extends StatelessWidget {
                   ),
                 ),
             ],
+          ),
           ),
         ),
       ),

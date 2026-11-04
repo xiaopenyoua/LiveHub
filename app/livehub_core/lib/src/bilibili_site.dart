@@ -281,14 +281,16 @@ class BiliBiliSite implements LiveSite {
     );
   }
 
+  /// 线路短标签。这里刻意不用 `HLS·fMP4` —— 播放页的分段控件按最长标签定宽，
+  /// 4 条线路时那点长度就足以把整行顶出面板。
   String _lineKind(String protocol, String format) {
     if (protocol.contains("stream")) {
       return "FLV";
     }
     if (format.contains("fmp4")) {
-      return "HLS·fMP4";
+      return "fMP4";
     }
-    return "HLS·TS";
+    return "TS";
   }
 
   @override
