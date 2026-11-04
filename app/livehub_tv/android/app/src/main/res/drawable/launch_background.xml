@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- LiveHub 启动底色：炭灰，避免白屏闪一下 -->
+<!-- LiveHub 系统开屏底色：取图标底 #231C16（08 §4），应用内开屏再用 #1A140F -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:drawable="@color/launch_background" />
 </layer-list>

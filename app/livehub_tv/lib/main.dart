@@ -15,6 +15,7 @@ import 'package:livehub_tv/app/log.dart';
 import 'package:livehub_tv/app/utils.dart';
 import 'package:livehub_tv/models/db/follow_user.dart';
 import 'package:livehub_tv/models/db/history.dart';
+import 'package:livehub_tv/modules/splash/splash_overlay.dart';
 import 'package:livehub_tv/routes/app_pages.dart';
 import 'package:livehub_tv/routes/route_path.dart';
 import 'package:livehub_tv/services/bilibili_account_service.dart';
@@ -115,7 +116,20 @@ class MyApp extends StatelessWidget {
               data: MediaQuery.of(context).copyWith(
                 textScaler: const TextScaler.linear(1.0),
               ),
-              child: child!,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  child!,
+                  // 应用内开屏盖在路由之上：首页在背后加载，退场时直接露出。
+                  // 等首页首屏有结论再退场，把 loading 盖住；首次启动先到协议页，
+                  // 没有首页可等，退回按平台探测结论退场。
+                  Positioned.fill(
+                    child: SplashOverlay(
+                      waitForHome: !AppSettingsController.instance.firstRun,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         );

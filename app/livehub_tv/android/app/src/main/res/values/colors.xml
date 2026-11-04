@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="launch_background">#FF15161A</color>
+    <!-- 系统开屏帧取图标底（08 §4）：#231C16。应用内开屏底是 #1A140F。 -->
+    <color name="launch_background">#FF231C16</color>
 </resources>

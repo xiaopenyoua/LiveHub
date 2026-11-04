@@ -1,7 +1,9 @@
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:get/get.dart';
 import 'package:livehub_tv/app/app_focus_node.dart';
 import 'package:livehub_tv/app/controller/base_controller.dart';
 import 'package:livehub_tv/app/sites.dart';
+import 'package:livehub_tv/app/startup_signal.dart';
 import 'package:livehub_tv/models/live_room_item_ext.dart';
 
 /// 首页：四个平台的推荐直播混排。
@@ -10,9 +12,27 @@ class HomeController extends BasePageController<LiveRoomItemExt> {
   /// 不能和那张卡片共用 `item.focusNode`。
   final AppFocusNode heroFocusNode = AppFocusNode();
 
+  /// 第一页是否还在加载（成功后 currentPage 会先 +1，不能用它判断）。
+  bool _firstPagePending = false;
+
   @override
   void onInit() {
     scrollController.addListener(scrollListener);
+    // 开屏等的是首页第一页的结论，不是某一家的结论。
+    ever(pageLoadding, (loading) {
+      if (loading) {
+        if (currentPage == 1) {
+          _firstPagePending = true;
+          HomeFirstPage.state.value = HomeFirstPageState.loading;
+        }
+        return;
+      }
+      if (!_firstPagePending) return;
+      _firstPagePending = false;
+      HomeFirstPage.state.value = pageError.value
+          ? HomeFirstPageState.failed
+          : HomeFirstPageState.ready;
+    });
     refreshData();
     super.onInit();
   }
@@ -70,8 +90,8 @@ class HomeController extends BasePageController<LiveRoomItemExt> {
     // 如果直接按人气全局排序，斗鱼的观看人数会把首页前几屏全占满，
     // 看起来和“只选了斗鱼”没有区别。
     final perSiteSorted = perSite
-        .map((rooms) => (List.of(rooms)
-          ..sort((a, b) => b.online.compareTo(a.online))))
+        .map((rooms) =>
+            (List.of(rooms)..sort((a, b) => b.online.compareTo(a.online))))
         .toList();
     final longest = perSiteSorted.fold<int>(
       0,
