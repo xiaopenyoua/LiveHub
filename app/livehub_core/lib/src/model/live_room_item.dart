@@ -15,12 +15,16 @@ class LiveRoomItem {
 
   /// 人气/在线人数
   final int online;
+
+  /// 是否正在直播（搜索里可能带出「未开播」的主播，默认在播）
+  final bool live;
   LiveRoomItem({
     required this.roomId,
     required this.title,
     required this.cover,
     required this.userName,
     this.online = 0,
+    this.live = true,
   });
 
   @override
@@ -31,6 +35,7 @@ class LiveRoomItem {
       "cover": cover,
       "userName": userName,
       "online": online,
+      "live": live,
     });
   }
 }

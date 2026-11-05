@@ -14,6 +14,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:livehub/app/app_style.dart';
 import 'package:livehub/app/controller/app_settings_controller.dart';
+import 'package:livehub/app/controller/update_controller.dart';
 import 'package:livehub/app/log.dart';
 import 'package:livehub/app/utils.dart';
 import 'package:livehub/app/utils/listen_fourth_button.dart';
@@ -131,6 +132,8 @@ Future initServices() async {
   await Get.put(DBService()).init();
   //初始化设置控制器
   Get.put(AppSettingsController());
+  //在线更新（设置页「检查更新」）
+  Get.put(UpdateController());
 
   Get.put(BiliBiliAccountService());
 

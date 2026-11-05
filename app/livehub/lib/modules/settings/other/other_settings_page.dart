@@ -9,6 +9,7 @@ import 'package:livehub/app/utils.dart';
 import 'package:livehub/modules/settings/other/other_settings_controller.dart';
 import 'package:livehub/widgets/settings/settings_card.dart';
 import 'package:livehub/widgets/settings/settings_menu.dart';
+import 'package:livehub/widgets/settings/settings_update.dart';
 import 'package:livehub/widgets/settings/settings_switch.dart';
 import 'package:livehub_ui/livehub_ui.dart';
 import 'package:url_launcher/url_launcher_string.dart';
@@ -25,6 +26,23 @@ class OtherSettingsPage extends GetView<OtherSettingsController> {
       body: ListView(
         padding: AppStyle.edgeInsetsA12,
         children: [
+          Padding(
+            padding: AppStyle.edgeInsetsA12,
+            child: Text(
+              "版本",
+              style: Get.textTheme.titleSmall,
+            ),
+          ),
+          const SettingsCard(
+            child: SettingsUpdate(),
+          ),
+          Padding(
+            padding: AppStyle.edgeInsetsA12.copyWith(top: 24),
+            child: Text(
+              "配置",
+              style: Get.textTheme.titleSmall,
+            ),
+          ),
           SettingsCard(
             child: Padding(
               padding: AppStyle.edgeInsetsA4,

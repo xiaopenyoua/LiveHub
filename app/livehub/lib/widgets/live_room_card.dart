@@ -110,15 +110,21 @@ class LiveRoomCard extends StatelessWidget {
                       width: 6,
                       height: 6,
                       decoration: BoxDecoration(
-                        color: LiveHubPalette.dark.live,
+                        // 未开播的主播也允许出现在结果里（搜索兜底会带出来），
+                        // 这时红点降为灰点、字样改成「未开播」，不能挂在播状态。
+                        color: item.live
+                            ? LiveHubPalette.dark.live
+                            : _onCoverText.withValues(alpha: 0.45),
                         shape: BoxShape.circle,
                       ),
                     ),
                     AppStyle.hGap4,
                     Text(
-                      'LIVE',
+                      item.live ? 'LIVE' : '未开播',
                       style: cardMeta.copyWith(
-                        color: _onCoverText,
+                        color: item.live
+                            ? _onCoverText
+                            : _onCoverText.withValues(alpha: 0.78),
                         letterSpacing: 0.14 * tokens.ramp.cardMeta * tokens.unit,
                         fontWeight: FontWeight.w600,
                         shadows: _textShadows,
