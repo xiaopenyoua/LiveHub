@@ -724,7 +724,11 @@ class DouyinSite implements LiveSite {
         .map(
           (e) => LiveRoomItem(
             roomId: e.roomId,
-            title: e.live ? e.title : "未开播",
+            // 未开播时优先保留房间原题（能看出主播上一次播什么），
+            // 实在没有标题才退回「未开播」交给卡片兜底
+            title: e.live
+                ? e.title
+                : (e.title.isNotEmpty ? e.title : "未开播"),
             cover: e.cover,
             userName: e.userName,
             online: e.online,

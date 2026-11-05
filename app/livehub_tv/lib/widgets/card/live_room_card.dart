@@ -14,6 +14,9 @@ class LiveRoomCard extends StatelessWidget {
   final String siteName;
   final String roomId;
   final int online;
+
+  /// 是否正在直播：搜索结果会带出「未开播」的主播，此时不能挂 LIVE
+  final bool live;
   final bool autofocus;
   final AppFocusNode focusNode;
   final Function()? onTap;
@@ -25,6 +28,7 @@ class LiveRoomCard extends StatelessWidget {
     required this.roomId,
     required this.focusNode,
     required this.online,
+    this.live = true,
     this.autofocus = false,
     this.onTap,
     super.key,
@@ -85,6 +89,8 @@ class LiveRoomCard extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.end,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // 未开播时标题可能就是「未开播」，状态位已表达，不再重复
+                        if (title != "未开播")
                         SizedBox(
                           height: 36 * t.unit,
                           child: focusNode.isFoucsed.value
@@ -149,13 +155,15 @@ class LiveRoomCard extends StatelessWidget {
                         width: 6 * t.unit,
                         height: 6 * t.unit,
                         decoration: BoxDecoration(
-                          color: LiveHubPalette.dark.live,
+                          color: live
+                              ? LiveHubPalette.dark.live
+                              : t.text.withValues(alpha: 0.45),
                           shape: BoxShape.circle,
                         ),
                       ),
                       SizedBox(width: 4 * t.unit),
                       Text(
-                        'LIVE',
+                        live ? 'LIVE' : '未开播',
                         style: t.cardMeta.copyWith(
                           color: t.text,
                           letterSpacing: 0.14 * t.ramp.cardMeta * t.unit,

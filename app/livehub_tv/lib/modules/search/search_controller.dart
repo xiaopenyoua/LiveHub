@@ -164,6 +164,7 @@ class TvSearchController extends GetxController {
                   cover: e.cover,
                   userName: e.userName,
                   online: e.online,
+                  live: e.live,
                   site: site,
                 ),
               )

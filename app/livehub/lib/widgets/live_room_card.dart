@@ -65,15 +65,18 @@ class LiveRoomCard extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.end,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          item.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: cardTitle.copyWith(
-                            color: _onCoverText,
-                            shadows: _textShadows,
+                        // 未开播的房间标题就是「未开播」时不再重复一遍，
+                        // 右上角的状态位已经说过了
+                        if (item.title != "未开播")
+                          Text(
+                            item.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: cardTitle.copyWith(
+                              color: _onCoverText,
+                              shadows: _textShadows,
+                            ),
                           ),
-                        ),
                         AppStyle.vGap4,
                         Text(
                           meta,

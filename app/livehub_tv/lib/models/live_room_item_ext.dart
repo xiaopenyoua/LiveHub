@@ -14,6 +14,7 @@ class LiveRoomItemExt extends LiveRoomItem {
     required super.userName,
     required this.site,
     super.online = 0,
+    super.live = true,
   });
 
   final Site site;

@@ -301,7 +301,13 @@ class _SearchPageState extends State<SearchPage> {
           ),
         if (rooms.isNotEmpty) ...[
           SliverToBoxAdapter(
-            child: _sectionHeader(t, "正在直播", rooms.length),
+            // 搜索结果里可能混着「未开播」的主播（核心库会带出来），
+            // 这时标题不能再说「正在直播」。
+            child: _sectionHeader(
+              t,
+              rooms.every((e) => e.live) ? "正在直播" : "直播间",
+              rooms.length,
+            ),
           ),
           SliverPadding(
             padding: EdgeInsets.fromLTRB(
@@ -323,6 +329,7 @@ class _SearchPageState extends State<SearchPage> {
                   return LiveRoomCard(
                     cover: item.cover,
                     title: item.title,
+                    live: item.live,
                     anchor: item.userName,
                     siteName: item.siteName,
                     roomId: item.roomId,
