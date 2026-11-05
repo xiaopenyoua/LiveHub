@@ -74,3 +74,8 @@ android {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    // 在线更新：FileProvider 来自 androidx.core，显式声明避免依赖传递变化后编译失败
+    implementation("androidx.core:core-ktx:1.13.1")
+}

@@ -334,3 +334,22 @@ adb logcat -s flutter:V libmpv:V MPV:V AndroidRuntime:E ActivityManager:W   | gr
 - `lib/widgets/` 共享控件（焦点面、卡片、设置行等）
 - `lib/routes/` 路由与一级页签
 - `android/` 平台资源与启动主题
+
+## 在线更新
+
+电视端从 GitHub Release 拉取 `LiveHubTV-*.apk` 并安装，入口在 **设置 → 关于 → 检查更新**。
+
+- 服务：`lib/services/update_service.dart`；状态：`lib/app/controller/update_controller.dart`；
+  说明弹窗：`lib/widgets/settings/settings_update_dialog.dart`。
+- 交互：电视只有一行可聚焦。OK 键按状态依次执行「检查 → 下载 → 安装」，下载中再按 OK 取消；
+  进度同时显示在副标题和右侧进度条上。
+- 资产匹配：文件名必须包含 `TV`（`LiveHub-vX.Y.Z-*.apk` 是手机包，永远不选），
+  优先级 `LiveHubTV-vX.Y.Z-arm64-v8a.apk` → `-universal.apk` → `-armeabi-v7a.apk`。
+- 兜底：GitHub 匿名 API 额度打满（403/429）时，改走
+  `releases/latest` 的 302 跳到 `releases/tag/<tag>`，再对上面三个约定名并发 HEAD
+  取体积；这条路径拿不到 release body，弹窗会说明「本次未获取到更新说明」。
+- 安装：`MainActivity`（`com.livehub.tv`）用 FileProvider（authority
+  `${applicationId}.fileProvider`）+ `Intent.ACTION_VIEW` 调起系统安装器，
+  Android 8.0+ 未授权「安装未知应用」时会引导到系统设置页。
+- 发布时挂两个电视端资产即可：`LiveHubTV-vX.Y.Z-arm64-v8a.apk`、
+  `LiveHubTV-vX.Y.Z-armeabi-v7a.apk`（tag 用 `vX.Y.Z`，与手机端共用一个 release）。

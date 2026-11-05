@@ -31,6 +31,7 @@ class SettingsController extends BaseController {
   AppFocusNode bilibiliFoucsNode = AppFocusNode();
   AppFocusNode syncFocusNode = AppFocusNode();
   AppFocusNode versionFocusNode = AppFocusNode();
+  AppFocusNode checkUpdateFocusNode = AppFocusNode();
 
   /// 5 个分组页签、3 个无需登录账号行的焦点节点。
   /// 这些控件会在 build 里被 Obx 重建，节点必须持久化，不能在 build 内 new。
@@ -75,7 +76,7 @@ class SettingsController extends BaseController {
       case 3:
         return syncFocusNode;
       default:
-        return versionFocusNode;
+        return checkUpdateFocusNode;
     }
   }
 
@@ -111,6 +112,7 @@ class SettingsController extends BaseController {
     bilibiliFoucsNode.dispose();
     syncFocusNode.dispose();
     versionFocusNode.dispose();
+    checkUpdateFocusNode.dispose();
     syncTopFocusNode.dispose();
     tabPlayFocusNode.dispose();
     tabDanmakuFocusNode.dispose();

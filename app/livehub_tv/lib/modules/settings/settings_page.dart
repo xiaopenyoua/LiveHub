@@ -3,6 +3,7 @@ import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
 import 'package:livehub_tv/app/app_focus_node.dart';
 import 'package:livehub_tv/app/controller/app_settings_controller.dart';
+import 'package:livehub_tv/app/controller/update_controller.dart';
 import 'package:livehub_tv/app/utils.dart';
 import 'package:livehub_tv/modules/settings/settings_controller.dart';
 import 'package:livehub_tv/routes/app_navigation.dart';
@@ -421,12 +422,45 @@ class SettingsPage extends GetView<SettingsController> {
   // ---------------------------------------------------------------- 关于
 
   List<Widget> _aboutRows(BuildContext context) {
+    final t = context.lh;
+    final update = UpdateController.instance;
     return [
+      // 电视端只有一行可聚焦：OK 键按状态依次「检查 → 下载 → 安装」，
+      // 下载中再按 OK 则取消。进度同时显示在副标题与右侧进度条上。
+      Obx(() {
+        final downloading = update.downloading.value;
+        final progress = update.downloadProgress.value;
+        final status = update.statusText.value;
+        return SettingsRow(
+          focusNode: controller.checkUpdateFocusNode,
+          title: "检查更新",
+          desc: status.isEmpty
+              ? "当前版本 v${update.localVersion.value}，按 OK 检查"
+              : status,
+          chevron: true,
+          autofocus: true,
+          trailing: downloading
+              ? SizedBox(
+                  width: 220 * t.unit,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(4 * t.unit),
+                    child: LinearProgressIndicator(
+                      value: progress <= 0 ? null : progress,
+                      minHeight: 10 * t.unit,
+                      backgroundColor: t.palette.wash,
+                      color: t.palette.glow,
+                    ),
+                  ),
+                )
+              : null,
+          onTap: update.handleTap,
+        );
+      }),
       SettingsRow(
         focusNode: controller.versionFocusNode,
         title: "版本",
-        desc: "v${Utils.packageInfo.version}",
-        autofocus: true,
+        desc:
+            "v${Utils.packageInfo.version}+${Utils.packageInfo.buildNumber}",
       ),
     ];
   }
@@ -615,10 +649,26 @@ class SettingsPage extends GetView<SettingsController> {
       subtitle: "仅观看各平台公开直播内容",
       items: [
         SettingsStatusItem("版本", "v$version"),
+        SettingsStatusItem("在线更新", _updateStatusLabel()),
         const SettingsStatusItem("开源许可", "GPL-3.0"),
       ],
       note: "仅观看各平台公开直播内容，版权归原作者。",
     );
+  }
+
+  /// 左栏「关于」里的在线更新状态
+  String _updateStatusLabel() {
+    final update = UpdateController.instance;
+    if (update.downloading.value) {
+      return "下载中 ${(update.downloadProgress.value * 100).floor()}%";
+    }
+    if (update.downloadedApkPath.value != null) {
+      return "待安装";
+    }
+    if (update.hasUpdate.value) {
+      return "有新版本";
+    }
+    return "已是最新";
   }
 
   String _qualityLabel(int value) {
