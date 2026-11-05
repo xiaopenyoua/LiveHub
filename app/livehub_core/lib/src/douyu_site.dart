@@ -316,12 +316,12 @@ class DouyuSite implements LiveSite {
       return "搜索条件没提交成功，请重新输入后再试";
     }
     if (raw.contains("风险") || raw.contains("验证")) {
-      return "斗鱼要求先完成人机验证，请稍后再试";
+      return "要求先完成人机验证，请稍后再试";
     }
     if (raw.contains("频繁") || raw.contains("限制") || raw.contains("风控")) {
       return "搜索太频繁了，请稍后再试";
     }
-    return "斗鱼搜索暂时不可用，请稍后再试";
+    return "搜索暂时不可用，请稍后再试";
   }
 
   Future<Map> _getRoomInfo(String roomId) async {
