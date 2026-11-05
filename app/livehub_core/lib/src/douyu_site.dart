@@ -266,7 +266,7 @@ class DouyuSite implements LiveSite {
     if (keyword.trim().isEmpty) {
       return LiveSearchRoomResult(hasMore: false, items: <LiveRoomItem>[]);
     }
-    var did = generateRandomString(32);
+    var did = _deviceId;
     var result = await HttpClient.instance.getJson(
       "https://www.douyu.com/japi/search/api/searchShow",
       queryParameters: {"kw": keyword, "page": page, "pageSize": 20},
@@ -297,10 +297,26 @@ class DouyuSite implements LiveSite {
     return LiveSearchRoomResult(hasMore: hasMore, items: items);
   }
 
+  /// 斗鱼设备号：每次请求都换一个随机 did，会被斗鱼的风控当成机器人
+  /// （回 error 8「您的行为可能存在风险」）。这里整个进程复用同一个。
+  static final String _deviceId = _randomHex(32);
+
+  static String _randomHex(int length) {
+    final random = Random.secure();
+    final buffer = StringBuffer();
+    for (var i = 0; i < length; i++) {
+      buffer.write(random.nextInt(16).toRadixString(16));
+    }
+    return buffer.toString();
+  }
+
   /// 把斗鱼搜索接口的原始错误翻成一句人话
   String _searchErrorMessage(String raw) {
     if (raw.contains("不能为空") || raw.contains("参数")) {
       return "搜索条件没提交成功，请重新输入后再试";
+    }
+    if (raw.contains("风险") || raw.contains("验证")) {
+      return "斗鱼要求先完成人机验证，请稍后再试";
     }
     if (raw.contains("频繁") || raw.contains("限制") || raw.contains("风控")) {
       return "搜索太频繁了，请稍后再试";
@@ -346,7 +362,7 @@ class DouyuSite implements LiveSite {
     if (keyword.trim().isEmpty) {
       return LiveSearchAnchorResult(hasMore: false, items: <LiveAnchorItem>[]);
     }
-    var did = generateRandomString(32);
+    var did = _deviceId;
     var result = await HttpClient.instance.getJson(
       "https://www.douyu.com/japi/search/api/searchUser",
       queryParameters: {
