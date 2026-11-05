@@ -262,6 +262,10 @@ class DouyuSite implements LiveSite {
     String keyword, {
     int page = 1,
   }) async {
+    // 斗鱼对空/纯空白关键词会回一句“【kw】kw不能为空”，那是接口噪声，不是结果
+    if (keyword.trim().isEmpty) {
+      return LiveSearchRoomResult(hasMore: false, items: <LiveRoomItem>[]);
+    }
     var did = generateRandomString(32);
     var result = await HttpClient.instance.getJson(
       "https://www.douyu.com/japi/search/api/searchShow",
@@ -274,7 +278,9 @@ class DouyuSite implements LiveSite {
       },
     );
     if (result['error'] != 0) {
-      throw Exception(result['msg']);
+      // 斗鱼会把上游参数/风控错误原样丢回来（例如“【kw】kw不能为空”），
+      // 那不是给用户看的文案，统一翻成一句可理解的提示。
+      throw Exception(_searchErrorMessage(result['msg']?.toString() ?? ""));
     }
     var items = <LiveRoomItem>[];
     for (var item in result["data"]["relateShow"]) {
@@ -289,6 +295,17 @@ class DouyuSite implements LiveSite {
     }
     var hasMore = result["data"]["relateShow"].isNotEmpty;
     return LiveSearchRoomResult(hasMore: hasMore, items: items);
+  }
+
+  /// 把斗鱼搜索接口的原始错误翻成一句人话
+  String _searchErrorMessage(String raw) {
+    if (raw.contains("不能为空") || raw.contains("参数")) {
+      return "搜索条件没提交成功，请重新输入后再试";
+    }
+    if (raw.contains("频繁") || raw.contains("限制") || raw.contains("风控")) {
+      return "搜索太频繁了，请稍后再试";
+    }
+    return "斗鱼搜索暂时不可用，请稍后再试";
   }
 
   Future<Map> _getRoomInfo(String roomId) async {
@@ -326,6 +343,9 @@ class DouyuSite implements LiveSite {
     String keyword, {
     int page = 1,
   }) async {
+    if (keyword.trim().isEmpty) {
+      return LiveSearchAnchorResult(hasMore: false, items: <LiveAnchorItem>[]);
+    }
     var did = generateRandomString(32);
     var result = await HttpClient.instance.getJson(
       "https://www.douyu.com/japi/search/api/searchUser",

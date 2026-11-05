@@ -820,9 +820,8 @@ class DouyinSite implements LiveSite {
       return _pageSlice(matched, 1);
     }
 
-    throw Exception(
-      "抖音未找到「$kw」的直播间。抖音的关键词搜索接口要求登录，未登录时只能：① 输入抖音号（如 nvliu66）或直播间号；② 匹配正在直播的主播昵称。可在设置里填入抖音 Cookie 后使用完整关键词搜索。",
-    );
+    // 这句会直接出现在搜索页/电视端的平台提示里，要短、要能指导下一步
+    throw Exception("没找到「$kw」的直播间，可改用抖音号或直播间号搜索");
   }
 
 

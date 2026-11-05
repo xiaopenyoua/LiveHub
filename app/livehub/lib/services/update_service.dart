@@ -116,6 +116,15 @@ class UpdateService {
       rethrow;
     } on DioException catch (e) {
       Log.e("检查更新失败：${e.type} ${e.message}", e.stackTrace);
+      // GitHub API 的匿名额度是每 IP 每小时 60 次，很容易被打满（运营商 NAT 下更常见）。
+      // 打满时改走发布页的 302 跳转，这条路不消耗 API 配额。
+      final fallback = await _checkByReleaseRedirect(
+        localVersion: localVersion,
+        localBuildNumber: localBuildNumber,
+      );
+      if (fallback != null) {
+        return fallback;
+      }
       throw UpdateException(describeDioError(e));
     } on SocketException catch (e) {
       Log.logPrint(e);
@@ -314,6 +323,81 @@ class UpdateService {
       return b.size.compareTo(a.size);
     });
     return candidates.first;
+  }
+
+  /// 发布页跳转兜底：releases/latest 会 302 到 releases/tag/<tag>，
+  /// 这条路不消耗 GitHub API 的匿名额度，用来扛「403 额度已用完」。
+  /// 资产地址按本仓库的发布命名约定推导，并用 HEAD 逐个校验存在性。
+  Future<UpdateCheckResult?> _checkByReleaseRedirect({
+    required String localVersion,
+    required String localBuildNumber,
+  }) async {
+    try {
+      final resp = await _apiDio.get<dynamic>(
+        releasePageUrl,
+        options: Options(
+          followRedirects: false,
+          validateStatus: (status) =>
+              status != null && status >= 200 && status < 400,
+          headers: _githubHeaders,
+        ),
+      );
+      final location = resp.headers.value("location") ?? "";
+      final match = RegExp(r"/tag/([^/]+)$").firstMatch(location);
+      if (match == null) {
+        return null;
+      }
+      final tag = Uri.decodeComponent(match.group(1)!);
+      final assets = <AppUpdateAsset>[];
+      for (final abi in const ["arm64-v8a", "universal", "armeabi-v7a"]) {
+        final name = "LiveHub-$tag-$abi.apk";
+        final url =
+            "https://github.com/$repoOwner/$repoName/releases/download/$tag/$name";
+        if (await _assetExists(url)) {
+          assets.add(
+            AppUpdateAsset(name: name, size: 0, downloadUrl: url),
+          );
+        }
+      }
+      final release = AppUpdateRelease(
+        tagName: tag,
+        version: AppUpdateRelease.normalizeVersion(tag),
+        notes: "",
+        assets: assets,
+        apk: pickApkAsset(assets),
+      );
+      final count = assets.length;
+      Log.logPrint("发布页兜底：$tag（$count 个 APK）");
+      return UpdateCheckResult(
+        localVersion: _joinLocalVersion(localVersion, localBuildNumber),
+        remoteVersion: release.version,
+        hasUpdate: isRemoteNewer(
+          localVersion: localVersion,
+          localBuildNumber: localBuildNumber,
+          remoteTag: tag,
+        ),
+        release: release,
+      );
+    } catch (e, s) {
+      Log.e("发布页兜底也失败：$e", s);
+      return null;
+    }
+  }
+
+  /// HEAD 探测资产是否存在（走 github.com 下载地址，不占 API 配额）
+  Future<bool> _assetExists(String url) async {
+    try {
+      final resp = await _apiDio.head<dynamic>(
+        url,
+        options: Options(
+          followRedirects: true,
+          validateStatus: (status) => status != null,
+        ),
+      );
+      return (resp.statusCode ?? 0) == 200;
+    } catch (_) {
+      return false;
+    }
   }
 
   /// 把网络层异常翻译成中文提示

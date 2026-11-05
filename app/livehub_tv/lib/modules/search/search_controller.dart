@@ -149,6 +149,9 @@ class TvSearchController extends GetxController {
 
   Future<_RoomOutcome> _searchRooms(String query) async {
     final failures = <String>[];
+    if (query.trim().isEmpty) {
+      return const _RoomOutcome(<LiveRoomItemExt>[], <String>[]);
+    }
     final results = await Future.wait(
       Sites.supportSites.map((site) async {
         try {
@@ -193,6 +196,9 @@ class TvSearchController extends GetxController {
 
   Future<_AnchorOutcome> _searchAnchors(String query) async {
     final failures = <String>[];
+    if (query.trim().isEmpty) {
+      return const _AnchorOutcome(<TvAnchorItem>[], <String>[]);
+    }
     final results = await Future.wait(
       Sites.supportSites.map((site) async {
         try {

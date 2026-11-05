@@ -22,15 +22,18 @@ class SearchListController extends BasePageController {
 
   @override
   Future<List> getData(int page, int pageSize) async {
-    if (keyword.isEmpty) {
+    // 只有空白的关键词不往下发：斗鱼对空 kw 会回“【kw】kw不能为空”，
+    // 其它平台也会白跑一次请求。
+    final kw = keyword.trim();
+    if (kw.isEmpty) {
       return [];
     }
     if (searchMode.value == 1) {
       // 搜索主播
-      var result = await site.liveSite.searchAnchors(keyword, page: page);
+      var result = await site.liveSite.searchAnchors(kw, page: page);
       return result.items;
     }
-    var result = await site.liveSite.searchRooms(keyword, page: page);
+    var result = await site.liveSite.searchRooms(kw, page: page);
 
     return result.items;
   }
