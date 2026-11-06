@@ -1,5 +1,5 @@
 name: livehub
-version: 1.0.1+2
+version: 1.0.2+3
 publish_to: none
 description: "LiveHub 跨平台直播客户端"
 environment:
