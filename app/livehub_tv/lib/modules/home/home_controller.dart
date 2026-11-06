@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:livehub_tv/app/app_focus_node.dart';
@@ -5,6 +6,7 @@ import 'package:livehub_tv/app/controller/base_controller.dart';
 import 'package:livehub_tv/app/sites.dart';
 import 'package:livehub_tv/app/startup_signal.dart';
 import 'package:livehub_tv/models/live_room_item_ext.dart';
+import 'package:livehub_tv/widgets/tv_top_nav.dart';
 
 /// 首页：四个平台的推荐直播混排。
 class HomeController extends BasePageController<LiveRoomItemExt> {
@@ -43,6 +45,23 @@ class HomeController extends BasePageController<LiveRoomItemExt> {
         scrollController.position.maxScrollExtent - 100.w) {
       loadData();
     }
+  }
+
+  /// 网格第一行按「上」：先把主图滚回来，再把焦点交给主图按钮；
+  /// 已经在顶部了就继续往上，交给顶栏的「首页」页签。
+  Future<void> focusHeroOrNav() async {
+    if (scrollController.hasClients && scrollController.offset > 1) {
+      await scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.linear,
+      );
+    }
+    if (heroItem != null && heroFocusNode.context != null) {
+      heroFocusNode.requestFocus();
+      return;
+    }
+    TvTopNav.focusFirstTab();
   }
 
   /// 第一页里第一条有封面的条目作为主图。

@@ -67,6 +67,7 @@ class DouyinSite implements LiveSite {
   @override
   Future<List<LiveCategory>> getCategores() async {
     List<LiveCategory> categories = [];
+    try {
     var result = await HttpClient.instance.getText(
       "https://live.douyin.com/",
       queryParameters: {},
@@ -114,6 +115,30 @@ class DouyinSite implements LiveSite {
         ),
       );
       categories.add(category);
+    }
+    } catch (e) {
+      CoreLog.error(e);
+    }
+
+    if (categories.isEmpty) {
+      // 抖音网页版改成 RSC 渲染后，首页里已经没有 categoryData；
+      // 分区 id 又没有公开的列表接口，所以退化成「推荐」一个分区。
+      // 这样分类页至少能正常翻页，而不是整页报错。
+      const recommendId = "720,1";
+      categories.add(
+        LiveCategory(
+          id: recommendId,
+          name: "推荐",
+          children: [
+            LiveSubCategory(
+              id: recommendId,
+              name: "全站推荐",
+              parentId: recommendId,
+              pic: "",
+            ),
+          ],
+        ),
+      );
     }
     return categories;
   }

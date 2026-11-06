@@ -93,11 +93,14 @@ class BiliBiliSite implements LiveSite {
   @override
   Future<LiveCategoryResult> getCategoryRooms(LiveSubCategory category,
       {int page = 1}) async {
+    // 老的 second/getList 现在一律返回 -352（风控），B 站分区页自己用的是
+    // getListByArea：wbi 签名方式不变，30 条/页，has_more 可靠。
     const baseUrl =
-        "https://api.live.bilibili.com/xlive/web-interface/v1/second/getList";
-
+        "https://api.live.bilibili.com/xlive/web-interface/v1/second/getListByArea";
+    final parentId = category.parentId;
+    final areaId = category.id;
     var url =
-        "$baseUrl?platform=web&parent_area_id=${category.parentId}&area_id=${category.id}&sort_type=&page=$page&w_webid=${await getAccessId()}";
+        "$baseUrl?platform=web&sort=online&page_size=30&page=$page&parent_area_id=$parentId&area_id=$areaId";
 
     var queryParams = await getWbiSign(url);
 
@@ -107,21 +110,22 @@ class BiliBiliSite implements LiveSite {
       header: await getHeader(),
     );
 
-    // `area_id=0`（"全部网游"这类伪分区）在 second/getList 上直接返回 `data: null`，
-    // 原写法会抛 NoSuchMethod 到界面上。分区页里这类条目是列出来的，
-    // 所以这里必须给空结果而不是崩。
     final data = result["data"];
     if (data == null) {
-      CoreLog.d("[BiliBili] 分区无数据：${category.parentId}/${category.id}");
+      CoreLog.d("[BiliBili] 分区无数据：parent=" + parentId + " area=" + areaId);
       return LiveCategoryResult(hasMore: false, items: []);
     }
-    var hasMore = data["has_more"] == 1;
+    final list = (data["list"] as List?) ?? const [];
+    var hasMore = data["has_more"] == 1 || data["has_more"] == true;
     var items = <LiveRoomItem>[];
-    for (var item in (data["list"] as List?) ?? const []) {
+    for (var item in list) {
+      final cover =
+          (item["cover"] ?? item["user_cover"] ?? item["system_cover"] ?? "")
+              .toString();
       var roomItem = LiveRoomItem(
         roomId: item["roomid"].toString(),
         title: item["title"].toString(),
-        cover: "${item["cover"]}@400w.jpg",
+        cover: cover.isEmpty ? "" : cover + "@400w.jpg",
         userName: item["uname"].toString(),
         online: int.tryParse(item["online"].toString()) ?? 0,
       );

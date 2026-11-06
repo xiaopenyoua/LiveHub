@@ -13,6 +13,16 @@ class TvTopNav extends StatefulWidget {
 
   final TvTab current;
 
+  /// 顶栏第一个页签的焦点节点。内容区按「上」按到顶时要能把焦点交回来。
+  static FocusNode? _firstTabNode;
+
+  static void focusFirstTab() {
+    final node = _firstTabNode;
+    if (node != null && node.context != null) {
+      node.requestFocus();
+    }
+  }
+
   @override
   State<TvTopNav> createState() => _TvTopNavState();
 }
@@ -29,6 +39,7 @@ class _TvTopNavState extends State<TvTopNav> {
   @override
   void initState() {
     super.initState();
+    TvTopNav._firstTabNode = _nodes.first;
     _clock = Timer.periodic(const Duration(seconds: 20), (_) {
       if (mounted) setState(() => _now = DateTime.now());
     });
@@ -37,6 +48,9 @@ class _TvTopNavState extends State<TvTopNav> {
   @override
   void dispose() {
     _clock?.cancel();
+    if (identical(TvTopNav._firstTabNode, _nodes.first)) {
+      TvTopNav._firstTabNode = null;
+    }
     for (final node in _nodes) {
       node.dispose();
     }

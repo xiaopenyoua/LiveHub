@@ -12,6 +12,7 @@ import 'package:livehub_tv/widgets/status/app_empty_widget.dart';
 import 'package:livehub_tv/widgets/status/app_error_widget.dart';
 import 'package:livehub_tv/widgets/status/app_loadding_widget.dart';
 import 'package:livehub_tv/widgets/tv_page_scaffold.dart';
+import 'package:livehub_tv/widgets/tv_top_nav.dart';
 import 'package:livehub_ui/livehub_ui.dart';
 
 /// 首页：一张主图 + 全平台混排的“正在直播”网格，整页一个滚动容器。
@@ -106,6 +107,14 @@ class HomePage extends GetView<HomeController> {
                   roomId: item.roomId,
                   online: item.online,
                   autofocus: hero == null && i == 0,
+                  // 第一行往上就是主图：把主图滚回来并接过焦点，
+                  // 否则焦点会留在网格里、banner 也回不到画面。
+                  onUpKey: i < 4
+                      ? () {
+                          controller.focusHeroOrNav();
+                          return KeyEventResult.handled;
+                        }
+                      : null,
                   onTap: () => _openRoom(item),
                 );
               },
@@ -213,6 +222,10 @@ class HomePage extends GetView<HomeController> {
                   text: "进入直播间",
                   focusNode: controller.heroFocusNode,
                   autofocus: true,
+                  onUpKey: () {
+                    TvTopNav.focusFirstTab();
+                    return KeyEventResult.handled;
+                  },
                   onTap: () => _openRoom(item),
                 ),
               ],

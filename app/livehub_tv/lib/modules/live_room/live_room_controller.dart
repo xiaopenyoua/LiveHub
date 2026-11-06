@@ -45,7 +45,11 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
   RxList<LivePlayQuality> qualites = RxList<LivePlayQuality>();
 
   /// 当前清晰度
-  var currentQuality = -1;
+  /// 当前清晰度下标。用 Rx 存：面板里的分段控件绑在 Obx 上，
+  /// 普通 int 改了不会重建，表现出来就是「左右键按了没反应」。
+  final qualityIndex = (-1).obs;
+  int get currentQuality => qualityIndex.value;
+  set currentQuality(int value) => qualityIndex.value = value;
   var currentQualityInfo = "".obs;
 
   /// 线路数据
@@ -57,7 +61,10 @@ class LiveRoomController extends PlayerController with WidgetsBindingObserver {
   Map<String, String>? playHeaders;
 
   /// 当前线路
-  var currentLineIndex = -1;
+  /// 当前线路下标，同上，必须是 Rx。
+  final lineIndex = (-1).obs;
+  int get currentLineIndex => lineIndex.value;
+  set currentLineIndex(int value) => lineIndex.value = value;
   var currentLineInfo = "".obs;
 
   /// 是否处于后台

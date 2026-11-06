@@ -367,7 +367,12 @@ void showPlayerSettings(LiveRoomController controller) {
   var danmakuOpacityFoucsNode = AppFocusNode();
   Utils.showSystemRightDialog(
     width: 800 * t.unit,
-    child: Column(
+    // 对话框是独立路由，但播放页根部那个 KeyboardListener 一直占着主焦点；
+    // 不主动把焦点搬进来，方向键/OK 会全落到播放页（它又会因为“dialog 已打开”
+    // 直接 return），表现就是「设置项点不动」。
+    child: FocusScope(
+      autofocus: true,
+      child: Column(
       children: [
         SizedBox(height: 24 * t.unit),
         Row(
@@ -609,7 +614,8 @@ void showPlayerSettings(LiveRoomController controller) {
             ],
           ),
         ),
-      ],
+        ],
+      ),
     ),
   ).then((value) {
     // 清晰度/线路只在面板关闭时应用一次：连续左右步进不应触发多次重连。
@@ -620,6 +626,13 @@ void showPlayerSettings(LiveRoomController controller) {
     }
     // 还原焦点
     controller.focusNode.requestFocus();
+  });
+
+  // 对话框完成首帧布局后再把焦点搬进去，避免和路由的 autofocus 抢。
+  Future.delayed(const Duration(milliseconds: 150), () {
+    if (followFocusNode.context != null && followFocusNode.canRequestFocus) {
+      followFocusNode.requestFocus();
+    }
   });
 }
 
@@ -640,7 +653,12 @@ void showFollowUser(LiveRoomController controller) {
 
   Utils.showSystemRightDialog(
     width: 800 * t.unit,
-    child: Column(
+    // 对话框是独立路由，但播放页根部那个 KeyboardListener 一直占着主焦点；
+    // 不主动把焦点搬进来，方向键/OK 会全落到播放页（它又会因为“dialog 已打开”
+    // 直接 return），表现就是「设置项点不动」。
+    child: FocusScope(
+      autofocus: true,
+      child: Column(
       children: [
         SizedBox(height: 24 * t.unit),
         Row(
@@ -705,10 +723,12 @@ void showFollowUser(LiveRoomController controller) {
             ],
           ),
         ),
-      ],
+        ],
+      ),
     ),
   ).then((value) {
     // 还原焦点
     controller.focusNode.requestFocus();
   });
+
 }

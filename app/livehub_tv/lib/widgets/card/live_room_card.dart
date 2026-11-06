@@ -18,6 +18,9 @@ class LiveRoomCard extends StatelessWidget {
   /// 是否正在直播：搜索结果会带出「未开播」的主播，此时不能挂 LIVE
   final bool live;
   final bool autofocus;
+
+  /// 第一行卡片按「上」要把焦点交回主图/顶栏，默认交给 Focus 自己处理。
+  final KeyEventResult Function()? onUpKey;
   final AppFocusNode focusNode;
   final Function()? onTap;
   const LiveRoomCard({
@@ -30,6 +33,7 @@ class LiveRoomCard extends StatelessWidget {
     required this.online,
     this.live = true,
     this.autofocus = false,
+    this.onUpKey,
     this.onTap,
     super.key,
   });
@@ -43,6 +47,7 @@ class LiveRoomCard extends StatelessWidget {
     ];
     return HighlightWidget(
       focusNode: focusNode,
+      onUpKey: onUpKey,
       onTap: onTap,
       borderRadius: t.cardRadius,
       focusScale: 1.08,
