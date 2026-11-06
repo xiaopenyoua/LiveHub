@@ -36,3 +36,27 @@
 | `yjjimpaopao` | `359765653648`，在播 | 第 4 层（实时直播索引） |
 | `女流66` | `531854687617`，未开播 | 第 3 层（公开网页索引兜底） |
 | `nvliu66` | 抖音号直连，未开播也能解析出主播 | 第 2 层 |
+## 分类页「全部」的无限滚动（`getRecommendRooms`）
+
+四个平台的分区接口**本身都不是无限的**，单接口翻几页就到底：
+
+| 平台 | 单接口实测上限 | 现在的做法 |
+| --- | --- | --- |
+| 斗鱼 | 每页 40 条、页码基本无上限（35 页 1400 个不重复） | 直接按 page 翻 |
+| 虎牙 | 全局列表 `totalPage=72`，每页 120；连续请求会偶发 503 | 直接按 page 翻 + 失败重试 3 次（400/800ms 退避） |
+| B 站 | `getListByArea` **忽略 area_id**，任何分区都返回同一份全局列表，第 10 页起重复；`second/getList` 已被风控（-352） | 换用 v3 `room/v3/area/getRoomList`（认 area_id、`count` 给总数），「全部」按二级分区轮转，每分区 9 页 |
+| 抖音 | 推荐分区（720）第 14 页起急剧衰减、第 34 页空白 | 「全部」按分区轮转：720 → 1..7，每分区 13 页 |
+
+参考实现 [dart_simple_live](https://github.com/xiaoyaocz/dart_simple_live)、
+[junlive](https://github.com/xinyuzjj/junlive)、[DTV](https://github.com/chen-zeong/DTV)
+都是「单个接口 + page 参数」的写法，所以天然在 9~25 页就到底；
+要满足「30+ 次加载」只能把「全部」实现成多来源轮转，这一点是本仓库自己的做法。
+
+实测（`LIVEHUB_NETWORK_TEST=1 ~/flutter-3.38/bin/dart test test/recommend_pagination_network_test.dart`）：
+
+| 平台 | 前 30 页去重后房间数 |
+| --- | --- |
+| 斗鱼 | 1200 |
+| 虎牙 | 3391 |
+| B 站 | 900 |
+| 抖音 | 450 |

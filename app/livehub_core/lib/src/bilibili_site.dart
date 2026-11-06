@@ -93,45 +93,10 @@ class BiliBiliSite implements LiveSite {
   @override
   Future<LiveCategoryResult> getCategoryRooms(LiveSubCategory category,
       {int page = 1}) async {
-    // 老的 second/getList 现在一律返回 -352（风控），B 站分区页自己用的是
-    // getListByArea：wbi 签名方式不变，30 条/页，has_more 可靠。
-    const baseUrl =
-        "https://api.live.bilibili.com/xlive/web-interface/v1/second/getListByArea";
-    final parentId = category.parentId;
-    final areaId = category.id;
-    var url =
-        "$baseUrl?platform=web&sort=online&page_size=30&page=$page&parent_area_id=$parentId&area_id=$areaId";
-
-    var queryParams = await getWbiSign(url);
-
-    var result = await HttpClient.instance.getJson(
-      baseUrl,
-      queryParameters: queryParams,
-      header: await getHeader(),
-    );
-
-    final data = result["data"];
-    if (data == null) {
-      CoreLog.d("[BiliBili] 分区无数据：parent=" + parentId + " area=" + areaId);
-      return LiveCategoryResult(hasMore: false, items: []);
-    }
-    final list = (data["list"] as List?) ?? const [];
-    var hasMore = data["has_more"] == 1 || data["has_more"] == true;
-    var items = <LiveRoomItem>[];
-    for (var item in list) {
-      final cover =
-          (item["cover"] ?? item["user_cover"] ?? item["system_cover"] ?? "")
-              .toString();
-      var roomItem = LiveRoomItem(
-        roomId: item["roomid"].toString(),
-        title: item["title"].toString(),
-        cover: cover.isEmpty ? "" : cover + "@400w.jpg",
-        userName: item["uname"].toString(),
-        online: int.tryParse(item["online"].toString()) ?? 0,
-      );
-      items.add(roomItem);
-    }
-    return LiveCategoryResult(hasMore: hasMore, items: items);
+    // second/getList 已被风控（-352）；getListByArea 虽然能拿到数据，
+    // 但它**忽略 area_id**（所有分区返回同一份全局列表）。
+    // 分区页真正能用的是 v3 的 area/getRoomList：认 area_id，count 给总数。
+    return _fetchAreaRooms(category.parentId, category.id, page);
   }
 
   @override
@@ -297,32 +262,93 @@ class BiliBiliSite implements LiveSite {
     return "TS";
   }
 
+  /// 「全部」要真的能一直往下翻：B 站单个分区接口只给 9 页（30 条/页），
+  /// 第 10 页开始就返回空；而 area_id=0 不管 parent 传什么都拿到同一份全局列表
+  /// （实测第 10 页起全是重复）。所以「全部」按二级分区轮转：
+  /// 一个分区 9 页，400 多个分区足够翻几千页。
+  static const int _areaPageSpan = 9;
+  List<List<String>>? _areaPairs;
+
+  Future<List<List<String>>> _subAreas() async {
+    final cached = _areaPairs;
+    if (cached != null && cached.isNotEmpty) {
+      return cached;
+    }
+    final categories = await getCategores();
+    final pairs = <List<String>>[];
+    for (final category in categories) {
+      for (final child in category.children) {
+        // id=0 是「全部网游」这类伪分区，拿不到独立列表
+        if (child.id == "0" || child.id.isEmpty) continue;
+        pairs.add(<String>[category.id, child.id]);
+      }
+    }
+    _areaPairs = pairs;
+    return pairs;
+  }
+
   @override
   Future<LiveCategoryResult> getRecommendRooms({int page = 1}) async {
-    const baseUrl =
-        "https://api.live.bilibili.com/xlive/web-interface/v1/second/getListByArea";
-    var url = "$baseUrl?platform=web&sort=online&page_size=30&page=$page";
+    final areas = await _subAreas();
+    var cursor = page - 1;
+    while (areas.isNotEmpty) {
+      final areaIndex = cursor ~/ _areaPageSpan;
+      if (areaIndex >= areas.length) {
+        return LiveCategoryResult(hasMore: false, items: <LiveRoomItem>[]);
+      }
+      final subPage = cursor % _areaPageSpan + 1;
+      final pair = areas[areaIndex];
+      final result = await _fetchAreaRooms(pair[0], pair[1], subPage);
+      if (result.items.isNotEmpty) {
+        return result;
+      }
+      // 这个分区没到 9 页就空了：跳到下一个分区的第 1 页
+      cursor = (areaIndex + 1) * _areaPageSpan;
+    }
+    return LiveCategoryResult(hasMore: false, items: <LiveRoomItem>[]);
+  }
 
-    var queryParams = await getWbiSign(url);
-
-    var result = await HttpClient.instance.getJson(
+  /// 取某个二级分区的一页（v3 分区接口，认 area_id 且支持深翻页）
+  Future<LiveCategoryResult> _fetchAreaRooms(
+    String parentAreaId,
+    String areaId,
+    int page,
+  ) async {
+    const baseUrl = "https://api.live.bilibili.com/room/v3/area/getRoomList";
+    final result = await HttpClient.instance.getJson(
       baseUrl,
-      queryParameters: queryParams,
+      queryParameters: {
+        "platform": "web",
+        "parent_area_id": parentAreaId,
+        "area_id": areaId,
+        "sort_type": "online",
+        "page": page,
+        "page_size": 30,
+      },
       header: await getHeader(),
     );
-
-    var hasMore = (result["data"]["list"] as List).isNotEmpty;
-    var items = <LiveRoomItem>[];
-    for (var item in result["data"]["list"]) {
-      var roomItem = LiveRoomItem(
-        roomId: item["roomid"].toString(),
-        title: item["title"].toString(),
-        cover: "${item["cover"]}@400w.jpg",
-        userName: item["uname"].toString(),
-        online: int.tryParse(item["online"].toString()) ?? 0,
-      );
-      items.add(roomItem);
+    final data = result["data"];
+    if (data is! Map) {
+      return LiveCategoryResult(hasMore: false, items: <LiveRoomItem>[]);
     }
+    final list = (data["list"] as List?) ?? const [];
+    final total = int.tryParse(data["count"].toString()) ?? 0;
+    final items = <LiveRoomItem>[];
+    for (final item in list) {
+      final cover =
+          (item["cover"] ?? item["user_cover"] ?? item["system_cover"] ?? "")
+              .toString();
+      items.add(
+        LiveRoomItem(
+          roomId: item["roomid"].toString(),
+          title: item["title"].toString(),
+          cover: cover.isEmpty ? "" : cover + "@400w.jpg",
+          userName: item["uname"].toString(),
+          online: int.tryParse(item["online"].toString()) ?? 0,
+        ),
+      );
+    }
+    final hasMore = total > 0 ? page * 30 < total : items.length >= 30;
     return LiveCategoryResult(hasMore: hasMore, items: items);
   }
 

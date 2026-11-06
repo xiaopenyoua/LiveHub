@@ -91,19 +91,21 @@ class HuyaSite implements LiveSite {
   @override
   Future<LiveCategoryResult> getCategoryRooms(LiveSubCategory category,
       {int page = 1}) async {
-    var resultText = await HttpClient.instance.getJson(
-      "https://www.huya.com/cache.php",
-      queryParameters: {
-        "m": "LiveList",
-        "do": "getLiveListByPage",
-        "tagAll": 0,
-        "gameId": category.id,
-        "page": page
-      },
-    );
-    var result = json.decode(resultText);
+    final raw = await _getCache({
+      "m": "LiveList",
+      "do": "getLiveListByPage",
+      "tagAll": 0,
+      "gameId": category.id,
+      "page": page,
+    });
+    final result = _asMap(raw);
+    final data = result?["data"];
+    final list = (data is Map ? data["datas"] : null) as List? ?? const [];
+    if (list.isEmpty) {
+      return LiveCategoryResult(hasMore: false, items: <LiveRoomItem>[]);
+    }
     var items = <LiveRoomItem>[];
-    for (var item in result["data"]["datas"]) {
+    for (var item in list) {
       var cover = item["screenshot"].toString();
       if (!cover.contains("?")) {
         cover += "?x-oss-process=style/w338_h190&";
@@ -122,8 +124,9 @@ class HuyaSite implements LiveSite {
       );
       items.add(roomItem);
     }
-    var hasMore = result["data"]["page"] < result["data"]["totalPage"];
-    return LiveCategoryResult(hasMore: hasMore, items: items);
+    final pageNo = int.tryParse(data["page"].toString()) ?? page;
+    final totalPage = int.tryParse(data["totalPage"].toString()) ?? pageNo;
+    return LiveCategoryResult(hasMore: pageNo < totalPage, items: items);
   }
 
   @override
@@ -308,20 +311,50 @@ class HuyaSite implements LiveSite {
     return resp.sFlvToken;
   }
 
+  /// 虎牙对连续请求会回 503；一次失败就退一档重试，仍失败当这一页为空，
+  /// 由上层在下次滚动时自然重试，不要把异常抛到界面上。
+  Future<dynamic> _getCache(Map<String, dynamic> query) async {
+    for (var attempt = 0; attempt < 3; attempt++) {
+      try {
+        return await HttpClient.instance
+            .getJson("https://www.huya.com/cache.php", queryParameters: query);
+      } catch (_) {
+        if (attempt == 2) return null;
+        await Future<void>.delayed(Duration(milliseconds: 400 * (attempt + 1)));
+      }
+    }
+    return null;
+  }
+
+  /// 虎牙 cache.php 有时回字符串、有时已被 Dio 解析成 Map（Content-Type 不同），
+  /// 两种都要能吃下；取不到就当这一页为空，别把异常抛到界面上。
+  Map<String, dynamic>? _asMap(dynamic raw) {
+    try {
+      if (raw is Map) return raw.cast<String, dynamic>();
+      if (raw is String) {
+        final decoded = json.decode(raw);
+        if (decoded is Map) return decoded.cast<String, dynamic>();
+      }
+    } catch (_) {}
+    return null;
+  }
+
   @override
   Future<LiveCategoryResult> getRecommendRooms({int page = 1}) async {
-    var resultText = await HttpClient.instance.getJson(
-      "https://www.huya.com/cache.php",
-      queryParameters: {
-        "m": "LiveList",
-        "do": "getLiveListByPage",
-        "tagAll": 0,
-        "page": page
-      },
-    );
-    var result = json.decode(resultText);
+    final raw = await _getCache({
+      "m": "LiveList",
+      "do": "getLiveListByPage",
+      "tagAll": 0,
+      "page": page,
+    });
+    final result = _asMap(raw);
+    final data = result?["data"];
+    final list = (data is Map ? data["datas"] : null) as List? ?? const [];
+    if (list.isEmpty) {
+      return LiveCategoryResult(hasMore: false, items: <LiveRoomItem>[]);
+    }
     var items = <LiveRoomItem>[];
-    for (var item in result["data"]["datas"]) {
+    for (var item in list) {
       var cover = item["screenshot"].toString();
       if (!cover.contains("?")) {
         cover += "?x-oss-process=style/w338_h190&";
@@ -340,8 +373,9 @@ class HuyaSite implements LiveSite {
       );
       items.add(roomItem);
     }
-    var hasMore = result["data"]["page"] < result["data"]["totalPage"];
-    return LiveCategoryResult(hasMore: hasMore, items: items);
+    final pageNo = int.tryParse(data["page"].toString()) ?? page;
+    final totalPage = int.tryParse(data["totalPage"].toString()) ?? pageNo;
+    return LiveCategoryResult(hasMore: pageNo < totalPage, items: items);
   }
 
   @override

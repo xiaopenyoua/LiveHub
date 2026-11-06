@@ -205,17 +205,51 @@ class DouyinSite implements LiveSite {
     return LiveCategoryResult(hasMore: hasMore, items: items);
   }
 
+  /// 「全部」= 分区轮转。抖音的推荐分区（720）翻到 13 页左右就只剩个位数，
+  /// 再往后直接空；所以 720 翻完后接着翻 1-7 这几个一级分区，
+  /// 30+ 次加载仍然有真实内容。
+  static const List<String> _allPartitions = [
+    "720",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+  ];
+  static const int _partitionPageSpan = 13;
+
   @override
   Future<LiveCategoryResult> getRecommendRooms({int page = 1}) async {
-    String serverUrl =
+    var cursor = page - 1;
+    while (cursor >= 0) {
+      final index = cursor ~/ _partitionPageSpan;
+      if (index >= _allPartitions.length) {
+        return LiveCategoryResult(hasMore: false, items: []);
+      }
+      final subPage = cursor % _partitionPageSpan + 1;
+      final result = await _fetchPartitionPage(_allPartitions[index], subPage);
+      if (result.items.isNotEmpty) {
+        return result;
+      }
+      cursor = (index + 1) * _partitionPageSpan;
+    }
+    return LiveCategoryResult(hasMore: false, items: []);
+  }
+
+  /// 取某个分区的一页房间
+  Future<LiveCategoryResult> _fetchPartitionPage(
+      String partition, int page) async {
+    const serverUrl =
         "https://live.douyin.com/webcast/web/partition/detail/room/v2/";
-    var uri = Uri.parse(serverUrl).replace(
+    final uri = Uri.parse(serverUrl).replace(
       scheme: "https",
       port: 443,
       queryParameters: {
-        "aid": '6383',
+        "aid": "6383",
         "app_name": "douyin_web",
-        "live_id": '1',
+        "live_id": "1",
         "device_platform": "web",
         "language": "zh-CN",
         "enter_from": "link_share",
@@ -227,37 +261,39 @@ class DouyinSite implements LiveSite {
         "browser_name": "Edge",
         "browser_version": "125.0.0.0",
         "browser_online": "true",
-        "count": '15',
+        "count": "15",
         "offset": ((page - 1) * 15).toString(),
-        "partition": '720',
-        "partition_type": '1',
-        "req_from": '2',
+        "partition": partition,
+        "partition_type": "1",
+        "req_from": "2",
       },
     );
-    var requestUrl = DouyinSign.getAbogusUrl(uri.toString(), kDefaultUserAgent);
-
-    var result = await HttpClient.instance.getJson(
+    final requestUrl =
+        DouyinSign.getAbogusUrl(uri.toString(), kDefaultUserAgent);
+    final result = await HttpClient.instance.getJson(
       requestUrl,
       header: await getRequestHeaders(),
     );
-
-    var hasMore = (result["data"]["data"] as List).length >= 15;
-    var items = <LiveRoomItem>[];
-    for (var item in result["data"]["data"]) {
-      var roomItem = LiveRoomItem(
-        roomId: item["web_rid"],
-        title: item["room"]["title"].toString(),
-        cover: item["room"]["cover"]["url_list"][0].toString(),
-        userName: item["room"]["owner"]["nickname"].toString(),
-        online:
-            int.tryParse(
-              item["room"]["room_view_stats"]["display_value"].toString(),
-            ) ??
-            0,
+    final list = (result["data"]?["data"] as List?) ?? const [];
+    final items = <LiveRoomItem>[];
+    for (final item in list) {
+      items.add(
+        LiveRoomItem(
+          roomId: item["web_rid"],
+          title: item["room"]["title"].toString(),
+          cover: item["room"]["cover"]["url_list"][0].toString(),
+          userName: item["room"]["owner"]["nickname"].toString(),
+          online:
+              int.tryParse(item["room"]["room_view_stats"]["display_value"]
+                      .toString()) ??
+                  0,
+        ),
       );
-      items.add(roomItem);
     }
-    return LiveCategoryResult(hasMore: hasMore, items: items);
+    return LiveCategoryResult(
+      hasMore: items.length >= 15,
+      items: items,
+    );
   }
 
   @override
